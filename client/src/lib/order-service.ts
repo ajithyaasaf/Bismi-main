@@ -1,44 +1,36 @@
-import { db } from './firebase';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDoc, 
-  getDocs,
-  query,
-  where,
-  serverTimestamp
-} from 'firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
+// API base URL
+const API_BASE = '/api';
 
-// Collection name for orders
-const ORDERS_COLLECTION = 'orders';
+// Helper function to make API requests
+async function apiRequest(endpoint: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API Error: ${error}`);
+  }
+  
+  return response.json();
+}
 
 // Add a new order
 export async function addOrder(orderData: any) {
   try {
-    console.log('Adding order to Firestore:', orderData);
-    
-    // Add a custom ID and timestamps
-    const documentData = {
-      ...orderData,
-      id: uuidv4(),
-      createdAt: new Date(), // Using Date instead of serverTimestamp for better compatibility
-      date: orderData.date || new Date()
-    };
-    
-    // Add the document to Firestore directly
-    const orderCollection = collection(db, ORDERS_COLLECTION);
-    const docRef = await addDoc(orderCollection, documentData);
-    
-    console.log(`Order added to Firestore with ID: ${docRef.id}`);
-    
-    // Return the data with the id included
-    return { ...documentData, firebaseId: docRef.id };
+    console.log('Adding order via API:', orderData);
+    const result = await apiRequest('/orders', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+    console.log('Order added successfully:', result);
+    return result;
   } catch (error) {
-    console.error('Error adding order to Firestore:', error);
+    console.error('Error adding order:', error);
     throw error;
   }
 }
@@ -46,26 +38,12 @@ export async function addOrder(orderData: any) {
 // Get all orders
 export async function getOrders() {
   try {
-    console.log('Getting all orders from Firestore');
-    
-    const orderCollection = collection(db, ORDERS_COLLECTION);
-    const querySnapshot = await getDocs(orderCollection);
-    
-    const orders = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        ...data,
-        firebaseId: doc.id,
-        // Convert Firestore timestamp to JS Date with proper handling
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt instanceof Date ? data.createdAt : new Date()),
-        date: data.date?.toDate ? data.date.toDate() : (data.date instanceof Date ? data.date : new Date())
-      };
-    });
-    
-    console.log(`Retrieved ${orders.length} orders from Firestore`);
+    console.log('Getting all orders via API');
+    const orders = await apiRequest('/orders');
+    console.log(`Retrieved ${orders.length} orders`);
     return orders;
   } catch (error) {
-    console.error('Error getting orders from Firestore:', error);
+    console.error('Error getting orders:', error);
     throw error;
   }
 }
@@ -73,27 +51,25 @@ export async function getOrders() {
 // Get orders by customer ID
 export async function getOrdersByCustomer(customerId: string) {
   try {
-    console.log(`Getting orders for customer with ID: ${customerId}`);
-    
-    const orderCollection = collection(db, ORDERS_COLLECTION);
-    const q = query(orderCollection, where('customerId', '==', customerId));
-    const querySnapshot = await getDocs(q);
-    
-    const orders = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        ...data,
-        firebaseId: doc.id,
-        // Convert Firestore timestamp to JS Date with proper handling
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt instanceof Date ? data.createdAt : new Date()),
-        date: data.date?.toDate ? data.date.toDate() : (data.date instanceof Date ? data.date : new Date())
-      };
-    });
-    
-    console.log(`Retrieved ${orders.length} orders for customer ${customerId}`);
-    return orders;
+    console.log(`Getting orders for customer ${customerId} via API`);
+    const orders = await getOrders();
+    const customerOrders = orders.filter((order: any) => order.customerId === customerId);
+    console.log(`Retrieved ${customerOrders.length} orders for customer ${customerId}`);
+    return customerOrders;
   } catch (error) {
     console.error(`Error getting orders for customer ${customerId}:`, error);
+    throw error;
+  }
+}
+
+// Get an order by ID
+export async function getOrderById(id: string) {
+  try {
+    console.log(`Getting order via API with ID: ${id}`);
+    const order = await apiRequest(`/orders/${id}`);
+    return order;
+  } catch (error) {
+    console.error(`Error getting order:`, error);
     throw error;
   }
 }
@@ -101,40 +77,15 @@ export async function getOrdersByCustomer(customerId: string) {
 // Update an existing order
 export async function updateOrder(id: string, orderData: any) {
   try {
-    console.log(`Updating order in Firestore with ID: ${id}`, orderData);
-    
-    // First try to find by our custom ID
-    const orderCollection = collection(db, ORDERS_COLLECTION);
-    const q = query(orderCollection, where('id', '==', id));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const firestoreDocId = querySnapshot.docs[0].id;
-      const orderRef = doc(db, ORDERS_COLLECTION, firestoreDocId);
-      
-      // Add updatedAt timestamp
-      const updateData = {
-        ...orderData,
-        updatedAt: new Date() // Using Date instead of serverTimestamp for better compatibility
-      };
-      
-      await updateDoc(orderRef, updateData);
-      console.log(`Order with ID ${id} updated successfully in Firestore`);
-      
-      // Get the updated document
-      const updatedDoc = await getDoc(orderRef);
-      if (updatedDoc.exists()) {
-        return { 
-          ...updatedDoc.data(), 
-          firebaseId: firestoreDocId
-        };
-      }
-    }
-    
-    console.error(`Order with ID ${id} not found in Firestore`);
-    return null;
+    console.log(`Updating order via API with ID: ${id}`, orderData);
+    const result = await apiRequest(`/orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(orderData),
+    });
+    console.log(`Order with ID ${id} updated successfully`);
+    return result;
   } catch (error) {
-    console.error(`Error updating order in Firestore:`, error);
+    console.error(`Error updating order:`, error);
     throw error;
   }
 }
@@ -142,26 +93,14 @@ export async function updateOrder(id: string, orderData: any) {
 // Delete an order
 export async function deleteOrder(id: string) {
   try {
-    console.log(`Deleting order from Firestore with ID: ${id}`);
-    
-    // First try to find by our custom ID
-    const orderCollection = collection(db, ORDERS_COLLECTION);
-    const q = query(orderCollection, where('id', '==', id));
-    const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const firestoreDocId = querySnapshot.docs[0].id;
-      const orderRef = doc(db, ORDERS_COLLECTION, firestoreDocId);
-      
-      await deleteDoc(orderRef);
-      console.log(`Order with ID ${id} deleted successfully from Firestore`);
-      return true;
-    }
-    
-    console.error(`Order with ID ${id} not found in Firestore`);
-    return false;
+    console.log(`Deleting order via API with ID: ${id}`);
+    await apiRequest(`/orders/${id}`, {
+      method: 'DELETE',
+    });
+    console.log(`Order with ID ${id} deleted successfully`);
+    return true;
   } catch (error) {
-    console.error(`Error deleting order from Firestore:`, error);
+    console.error(`Error deleting order:`, error);
     throw error;
   }
 }

@@ -22,34 +22,50 @@ export default function OrdersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load data from Firestore directly
+  // Load data from API to ensure consistency
   useEffect(() => {
-    async function loadFirestoreData() {
+    async function loadConsistentData() {
       try {
         setIsFirestoreLoading(true);
         
-        // Load orders
-        const orders = await OrderService.getOrders();
-        console.log("Loaded orders directly from Firestore:", orders);
+        // Load orders from API (which uses Firebase Admin SDK)
+        const ordersResponse = await fetch('/api/orders');
+        const orders = await ordersResponse.json();
+        console.log("Loaded orders from API:", orders);
         setFirestoreOrders(orders);
         
-        // Load customers
-        const customers = await CustomerService.getCustomers();
-        console.log("Loaded customers directly from Firestore:", customers);
+        // Load customers from API
+        const customersResponse = await fetch('/api/customers');
+        const customers = await customersResponse.json();
+        console.log("Loaded customers from API:", customers);
         setFirestoreCustomers(customers);
         
-        // Load inventory
-        const inventory = await InventoryService.getInventoryItems();
-        console.log("Loaded inventory directly from Firestore:", inventory);
+        // Load inventory from API
+        const inventoryResponse = await fetch('/api/inventory');
+        const inventory = await inventoryResponse.json();
+        console.log("Loaded inventory from API:", inventory);
         setFirestoreInventory(inventory);
       } catch (error) {
-        console.error("Error loading data from Firestore:", error);
+        console.error("Error loading data from API:", error);
+        // Fallback to Firebase client SDK if API fails
+        try {
+          const orders = await OrderService.getOrders();
+          setFirestoreOrders(orders);
+          
+          const customers = await CustomerService.getCustomers();
+          setFirestoreCustomers(customers);
+          
+          const inventory = await InventoryService.getInventoryItems();
+          setFirestoreInventory(inventory);
+        } catch (fallbackError) {
+          console.error("Fallback data loading failed:", fallbackError);
+        }
       } finally {
         setIsFirestoreLoading(false);
       }
     }
     
-    loadFirestoreData();
+    loadConsistentData();
   }, []);
 
   // Fetch orders from API as backup
@@ -151,7 +167,31 @@ export default function OrdersPage() {
     if (!orderToDelete) return;
     
     try {
-      // Delete via API (which handles Firebase backend)
+      // First check if order exists by fetching current orders
+      const currentOrders = await fetch('/api/orders').then(res => res.json());
+      const orderExists = currentOrders.some((order: any) => order.id === orderToDelete.id);
+      
+      if (!orderExists) {
+        // Order doesn't exist, treat as already deleted
+        toast({
+          title: "Order deleted",
+          description: "The order has been successfully deleted",
+        });
+        
+        // Remove from local state
+        setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+        
+        // Refresh all data
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+        
+        const updatedOrders = await OrderService.getOrders();
+        setFirestoreOrders(updatedOrders);
+        
+        return;
+      }
+      
+      // Order exists, proceed with deletion
       await apiRequest('DELETE', `/api/orders/${orderToDelete.id}`, undefined);
       
       // Success toast
@@ -160,7 +200,7 @@ export default function OrdersPage() {
         description: "The order has been successfully deleted",
       });
       
-      // Refresh local state
+      // Refresh local state immediately
       setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
       
       // Refresh data via query cache
@@ -170,13 +210,32 @@ export default function OrdersPage() {
       // Refresh Firebase data
       const updatedOrders = await OrderService.getOrders();
       setFirestoreOrders(updatedOrders);
+      
     } catch (error) {
       console.error("Error deleting order:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete order",
-        variant: "destructive",
-      });
+      
+      // Check if it's a 404 error (order already deleted)
+      if (error instanceof Error && error.message.includes('404')) {
+        // Treat as success since order is gone
+        toast({
+          title: "Order deleted",
+          description: "The order has been successfully deleted",
+        });
+        
+        // Refresh local state
+        setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+        
+        // Refresh Firebase data
+        const updatedOrders = await OrderService.getOrders();
+        setFirestoreOrders(updatedOrders);
+      } else {
+        // Real error occurred
+        toast({
+          title: "Error",
+          description: "Failed to delete order",
+          variant: "destructive",
+        });
+      }
     } finally {
       setOrderToDelete(null);
       setIsDeleteDialogOpen(false);

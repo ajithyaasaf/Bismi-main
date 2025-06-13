@@ -109,6 +109,11 @@ export async function deleteOrder(id: string) {
     return true;
   } catch (error) {
     console.error(`Error deleting order:`, error);
+    // If order not found, consider it already deleted (success)
+    if (error instanceof Error && error.message.includes('404')) {
+      console.log(`Order ${id} was already deleted or not found`);
+      return true;
+    }
     throw error;
   }
 }

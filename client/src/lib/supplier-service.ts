@@ -1,20 +1,23 @@
-import { db } from './firebase';
-import { 
-  collection, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  doc, 
-  getDoc, 
-  getDocs,
-  query,
-  where,
-  serverTimestamp
-} from 'firebase/firestore';
-import { v4 as uuidv4 } from 'uuid';
+// API base URL
+const API_BASE = '/api';
 
-// Collection name for suppliers
-const SUPPLIERS_COLLECTION = 'suppliers';
+// Helper function to make API requests
+async function apiRequest(endpoint: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`API Error: ${error}`);
+  }
+  
+  return response.json();
+}
 
 // Add a new supplier
 export async function addSupplier(supplierData: any) {

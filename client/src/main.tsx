@@ -1,7 +1,6 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import "./lib/firebase"; // Import firebase.ts to ensure it's initialized once
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {

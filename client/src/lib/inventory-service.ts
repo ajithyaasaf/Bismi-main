@@ -1,7 +1,9 @@
+import { FirebaseRealtimeClient } from './firebase-realtime';
+
 // API base URL
 const API_BASE = '/api';
 
-// Helper function to make API requests
+// Helper function to make API requests (Admin SDK backend operations)
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
@@ -35,12 +37,12 @@ export async function addInventoryItem(itemData: any) {
   }
 }
 
-// Get all inventory items
+// Get all inventory items (uses Firebase client SDK for real-time data)
 export async function getInventoryItems() {
   try {
-    console.log('Getting all inventory items via API');
-    const items = await apiRequest('/inventory');
-    console.log(`Retrieved ${items.length} inventory items`);
+    console.log('Getting all inventory items via Firebase client SDK');
+    const items = await FirebaseRealtimeClient.getInventory();
+    console.log(`Retrieved ${items.length} inventory items via Firebase client`);
     return items;
   } catch (error) {
     console.error('Error getting inventory items:', error);

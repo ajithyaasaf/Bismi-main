@@ -1,7 +1,9 @@
+import { FirebaseRealtimeClient } from './firebase-realtime';
+
 // API base URL
 const API_BASE = '/api';
 
-// Helper function to make API requests
+// Helper function to make API requests (Admin SDK backend operations)
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
@@ -35,12 +37,12 @@ export async function addSupplier(supplierData: any) {
   }
 }
 
-// Get all suppliers
+// Get all suppliers (uses Firebase client SDK for real-time data)
 export async function getSuppliers() {
   try {
-    console.log('Getting all suppliers via API');
-    const suppliers = await apiRequest('/suppliers');
-    console.log(`Retrieved ${suppliers.length} suppliers`);
+    console.log('Getting all suppliers via Firebase client SDK');
+    const suppliers = await FirebaseRealtimeClient.getSuppliers();
+    console.log(`Retrieved ${suppliers.length} suppliers via Firebase client`);
     return suppliers;
   } catch (error) {
     console.error('Error getting suppliers:', error);

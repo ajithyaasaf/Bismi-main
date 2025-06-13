@@ -132,9 +132,13 @@ export class FirebaseRealtimeClient {
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       
       return transactions.filter(transaction => {
+        if (!transaction.date) return false;
         const transactionDate = new Date(transaction.date);
         return transactionDate >= sevenDaysAgo;
-      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      }).sort((a, b) => {
+        if (!a.date || !b.date) return 0;
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      });
     } catch (error) {
       console.error('Firebase client: Error getting recent transactions:', error);
       return [];

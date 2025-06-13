@@ -1,9 +1,10 @@
 import * as OrderService from './order-service';
+import { FirebaseRealtimeClient } from './firebase-realtime';
 
 // API base URL
 const API_BASE = '/api';
 
-// Helper function to make API requests
+// Helper function to make API requests (Admin SDK backend operations)
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
@@ -37,12 +38,12 @@ export async function addCustomer(customerData: any) {
   }
 }
 
-// Get all customers
+// Get all customers (uses Firebase client SDK for real-time data)
 export async function getCustomers() {
   try {
-    console.log('Getting all customers via API');
-    const customers = await apiRequest('/customers');
-    console.log(`Retrieved ${customers.length} customers`);
+    console.log('Getting all customers via Firebase client SDK');
+    const customers = await FirebaseRealtimeClient.getCustomers();
+    console.log(`Retrieved ${customers.length} customers via Firebase client`);
     return customers;
   } catch (error) {
     console.error('Error getting customers:', error);

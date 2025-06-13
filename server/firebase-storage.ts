@@ -1,20 +1,34 @@
 import { IStorage } from './storage';
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy,
-  Timestamp,
-  type Firestore 
-} from 'firebase/firestore';
+
+// Dynamic Firebase imports for ES modules
+let initializeApp: any, getFirestore: any, collection: any, doc: any, getDocs: any, getDoc: any, 
+    addDoc: any, updateDoc: any, deleteDoc: any, query: any, where: any, orderBy: any, Timestamp: any;
+
+async function loadFirebase() {
+  try {
+    const firebaseApp = await import('firebase/app');
+    const firebaseFirestore = await import('firebase/firestore');
+    
+    initializeApp = firebaseApp.initializeApp;
+    getFirestore = firebaseFirestore.getFirestore;
+    collection = firebaseFirestore.collection;
+    doc = firebaseFirestore.doc;
+    getDocs = firebaseFirestore.getDocs;
+    getDoc = firebaseFirestore.getDoc;
+    addDoc = firebaseFirestore.addDoc;
+    updateDoc = firebaseFirestore.updateDoc;
+    deleteDoc = firebaseFirestore.deleteDoc;
+    query = firebaseFirestore.query;
+    where = firebaseFirestore.where;
+    orderBy = firebaseFirestore.orderBy;
+    Timestamp = firebaseFirestore.Timestamp;
+    
+    return true;
+  } catch (error) {
+    console.error('Firebase import failed:', error);
+    return false;
+  }
+}
 import { 
   User, 
   InsertUser, 
@@ -32,22 +46,49 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 export class FirebaseStorage implements IStorage {
-  private db: Firestore;
+  private db: any;
+  private initialized: boolean = false;
 
   constructor() {
-    const firebaseConfig = {
-      apiKey: "AIzaSyA3f4gJOKZDIjy9gnhSSpMVLs1UblGxo0s",
-      authDomain: "bismi-broilers-3ca96.firebaseapp.com",
-      databaseURL: "https://bismi-broilers-3ca96-default-rtdb.firebaseio.com",
-      projectId: "bismi-broilers-3ca96",
-      storageBucket: "bismi-broilers-3ca96.firebasestorage.app",
-      messagingSenderId: "949430744092",
-      appId: "1:949430744092:web:4ea5638a9d38ba3e76dbd9"
-    };
+    this.initializeFirebase();
+  }
 
-    const app = initializeApp(firebaseConfig);
-    this.db = getFirestore(app);
-    console.log('Firebase Storage initialized with project:', firebaseConfig.projectId);
+  private async initializeFirebase() {
+    try {
+      const success = await loadFirebase();
+      if (!success) {
+        throw new Error('Failed to load Firebase modules');
+      }
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyA3f4gJOKZDIjy9gnhSSpMVLs1UblGxo0s",
+        authDomain: "bismi-broilers-3ca96.firebaseapp.com",
+        databaseURL: "https://bismi-broilers-3ca96-default-rtdb.firebaseio.com",
+        projectId: "bismi-broilers-3ca96",
+        storageBucket: "bismi-broilers-3ca96.firebasestorage.app",
+        messagingSenderId: "949430744092",
+        appId: "1:949430744092:web:4ea5638a9d38ba3e76dbd9"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      this.db = getFirestore(app);
+      this.initialized = true;
+      console.log('Firebase Firestore initialized exclusively with project:', firebaseConfig.projectId);
+    } catch (error) {
+      console.error('Failed to initialize Firebase Firestore:', error);
+      throw error;
+    }
+  }
+
+  private async ensureInitialized() {
+    let retries = 0;
+    while (!this.initialized && retries < 50) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      retries++;
+    }
+    if (!this.initialized) {
+      throw new Error('Firebase Firestore not initialized');
+    }
   }
 
   // Helper to convert Firestore timestamp to Date

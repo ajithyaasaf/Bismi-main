@@ -9,8 +9,6 @@ import { apiRequest } from "@/lib/queryClient";
 import * as TransactionService from "@/lib/transaction-service";
 import * as SupplierService from "@/lib/supplier-service";
 import * as CustomerService from "@/lib/customer-service";
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function TransactionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -22,89 +20,33 @@ export default function TransactionsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load data directly from Firestore
+  // Load data from API
   useEffect(() => {
     async function loadData() {
       setIsLoading(true);
       try {
-        // Directly fetch transactions from Firestore
-        const transactionsCollection = collection(db, 'transactions');
-        const transactionsSnapshot = await getDocs(transactionsCollection);
-        const transactionsData = transactionsSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            ...data,
-            id: data.id || doc.id,
-            date: data.date instanceof Date ? data.date : new Date(data.date.seconds * 1000),
-            createdAt: data.createdAt instanceof Date ? data.createdAt : new Date(data.createdAt?.seconds * 1000),
-            amount: Number(data.amount),
-            description: data.description || '',
-            entityId: data.entityId || '',
-            entityType: data.entityType || '',
-            type: data.type || ''
-          } as Transaction;
-        });
+        // Fetch data using service functions
+        const [transactionsData, suppliersData, customersData] = await Promise.all([
+          TransactionService.getTransactions(),
+          SupplierService.getSuppliers(),
+          CustomerService.getCustomers(),
+        ]);
         
-        console.log("Retrieved", transactionsData.length, "transactions from Firestore");
+        console.log("Retrieved", transactionsData.length, "transactions via API");
         setTransactions(transactionsData);
         
-        // Fetch suppliers from Firestore
-        const suppliersCollection = collection(db, 'suppliers');
-        const suppliersSnapshot = await getDocs(suppliersCollection);
-        const suppliersData = suppliersSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            ...data,
-            id: data.id || doc.id,
-            name: data.name || '',
-            debt: Number(data.debt || 0),
-            contact: data.contact || null,
-            createdAt: data.createdAt instanceof Date ? data.createdAt : new Date(data.createdAt?.seconds * 1000)
-          } as Supplier;
-        });
-        console.log("Retrieved", suppliersData.length, "suppliers from Firestore");
+        console.log("Retrieved", suppliersData.length, "suppliers via API");
         setSuppliers(suppliersData);
         
-        // Fetch customers from Firestore
-        const customersCollection = collection(db, 'customers');
-        const customersSnapshot = await getDocs(customersCollection);
-        const customersData = customersSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            ...data,
-            id: data.id || doc.id,
-            name: data.name || '',
-            type: data.type || '',
-            contact: data.contact || null,
-            pendingAmount: Number(data.pendingAmount || 0),
-            createdAt: data.createdAt instanceof Date ? data.createdAt : new Date(data.createdAt?.seconds * 1000)
-          } as Customer;
-        });
-        console.log("Retrieved", customersData.length, "customers from Firestore");
+        console.log("Retrieved", customersData.length, "customers via API");
         setCustomers(customersData);
       } catch (error) {
-        console.error("Error loading data from Firestore:", error);
+        console.error("Error loading data via API:", error);
         toast({
           title: "Error",
-          description: "Failed to load data from Firestore.",
+          description: "Failed to load data.",
           variant: "destructive",
         });
-        
-        // Fallback to API data
-        try {
-          const [txnRes, suppRes, custRes] = await Promise.all([
-            fetch('/api/transactions').then(r => r.json()),
-            fetch('/api/suppliers').then(r => r.json()),
-            fetch('/api/customers').then(r => r.json())
-          ]);
-          
-          setTransactions(txnRes);
-          setSuppliers(suppRes);
-          setCustomers(custRes);
-          console.log("Using API fallback data instead");
-        } catch (fallbackError) {
-          console.error("Error loading fallback data:", fallbackError);
-        }
       } finally {
         setIsLoading(false);
       }
@@ -113,99 +55,83 @@ export default function TransactionsPage() {
     loadData();
   }, [toast]);
 
-  const handleAddClick = () => {
-    setIsFormOpen(true);
-  };
-
-  const handleDeleteClick = async (transaction: Transaction) => {
-    if (confirm("Are you sure you want to delete this transaction?")) {
-      try {
-        // First try deleting from Firestore directly
-        try {
-          await TransactionService.deleteTransaction(transaction.id);
-          console.log(`Transaction deleted from Firestore: ${transaction.id}`);
-          
-          // Update local state
-          setTransactions((prev: Transaction[]) => prev.filter((t: Transaction) => t.id !== transaction.id));
-        } catch (firestoreError) {
-          console.error("Error deleting transaction from Firestore:", firestoreError);
-        }
-        
-        // Also delete via API for backward compatibility
-        try {
-          await apiRequest('DELETE', `/api/transactions/${transaction.id}`, undefined);
-        } catch (apiError) {
-          console.error("API error during transaction deletion:", apiError);
-          // Continue anyway since Firestore operation likely succeeded
-        }
-        
-        toast({
-          title: "Transaction deleted",
-          description: "The transaction has been successfully deleted",
-        });
-        
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-        
-        // Also invalidate suppliers or customers cache based on entity type
-        if (transaction.entityType === 'supplier') {
-          queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
-        } else if (transaction.entityType === 'customer') {
-          queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-        }
-        
-        // Reload data from Firestore directly
-        const updatedTransactions = await TransactionService.getTransactions();
-        setTransactions(updatedTransactions as unknown as Transaction[]);
-      } catch (error) {
-        console.error("Error during transaction deletion:", error);
-        toast({
-          title: "Error",
-          description: "Failed to delete transaction",
-          variant: "destructive",
-        });
-      }
+  const handleAddTransaction = async (newTransaction: any) => {
+    try {
+      const result = await TransactionService.addTransaction(newTransaction);
+      setTransactions(prev => [result, ...prev]);
+      setIsFormOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Transaction added successfully",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add transaction",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
+  const handleDeleteTransaction = async (id: string) => {
+    try {
+      await TransactionService.deleteTransaction(id);
+      setTransactions(prev => prev.filter(t => t.id !== id));
+      
+      toast({
+        title: "Success",
+        description: "Transaction deleted successfully",
+      });
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete transaction",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-lg">Loading transactions...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-sans">Transactions</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage payments and receipts</p>
-        </div>
-        <Button onClick={handleAddClick}>
-          <i className="fas fa-plus mr-2"></i> Add Transaction
+        <h1 className="text-3xl font-bold">Transactions</h1>
+        <Button onClick={() => setIsFormOpen(true)}>
+          Add Transaction
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="text-center py-10">
-          <i className="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-          <p className="mt-2 text-gray-600">Loading transactions...</p>
-        </div>
-      ) : (
-        <TransactionsList 
-          transactions={transactions} 
+      {isFormOpen && (
+        <TransactionForm
           suppliers={suppliers}
           customers={customers}
-          onDelete={handleDeleteClick}
+          onSubmit={handleAddTransaction}
+          onCancel={() => setIsFormOpen(false)}
         />
       )}
 
-      {isFormOpen && (
-        <TransactionForm
-          isOpen={isFormOpen}
-          onClose={handleCloseForm}
-          suppliers={suppliers}
-          customers={customers}
-        />
-      )}
+      <TransactionsList
+        transactions={transactions}
+        suppliers={suppliers}
+        customers={customers}
+        onDelete={handleDeleteTransaction}
+      />
     </div>
   );
 }

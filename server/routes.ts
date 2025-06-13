@@ -1,6 +1,6 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { firebaseStorage } from "./firebase-storage";
+import { enterpriseStorage } from "./enterprise-storage";
 import { BalanceValidator } from "./balance-validator";
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -12,9 +12,9 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
-// Direct Firebase storage usage
+// Use enterprise storage that handles Firebase gracefully
 function getStorage() {
-  return firebaseStorage;
+  return enterpriseStorage;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {

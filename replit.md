@@ -59,12 +59,21 @@ The storage manager automatically selects the appropriate storage backend based 
 
 ## Data Flow
 
+### Client-Side Real-time Operations (Firebase Client SDK)
 1. **User Interaction**: Users interact through React components
-2. **API Calls**: React Query manages API requests to Express server
-3. **Data Processing**: Server validates and processes requests
-4. **Storage Operations**: Storage manager handles database operations
-5. **Real-time Updates**: Firebase provides live data synchronization
-6. **Response Handling**: React Query caches responses and updates UI
+2. **Real-time Data**: Firebase Client SDK provides live data synchronization for UI
+3. **Local State**: React Query caches real-time data and manages UI state
+
+### Server-Side Operations (Firebase Admin SDK)
+1. **Data Mutations**: Create, update, delete operations through API routes
+2. **Server Validation**: Express server validates and processes requests
+3. **Secure Operations**: Firebase Admin SDK handles secure database operations
+4. **Response Handling**: API responses trigger client-side cache invalidation
+
+### Dual SDK Benefits
+- **Security**: Admin SDK ensures secure server-side operations
+- **Performance**: Client SDK provides instant UI updates without API round trips
+- **Reliability**: Fallback mechanisms ensure application stability
 
 ### Authentication & Authorization
 Currently operates without authentication (suitable for single-business use). The system is designed to be extended with user authentication if needed.

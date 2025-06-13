@@ -22,25 +22,15 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
 // Add a new supplier
 export async function addSupplier(supplierData: any) {
   try {
-    console.log('Adding supplier to Firestore:', supplierData);
-    
-    // Add a custom ID and timestamps
-    const documentData = {
-      ...supplierData,
-      id: uuidv4(),
-      createdAt: new Date() // Using Date instead of serverTimestamp for better compatibility
-    };
-    
-    // Add the document to Firestore directly
-    const supplierCollection = collection(db, SUPPLIERS_COLLECTION);
-    const docRef = await addDoc(supplierCollection, documentData);
-    
-    console.log(`Supplier added to Firestore with ID: ${docRef.id}`);
-    
-    // Return the data with the id included
-    return { ...documentData, firebaseId: docRef.id };
+    console.log('Adding supplier via API:', supplierData);
+    const result = await apiRequest('/suppliers', {
+      method: 'POST',
+      body: JSON.stringify(supplierData),
+    });
+    console.log('Supplier added successfully:', result);
+    return result;
   } catch (error) {
-    console.error('Error adding supplier to Firestore:', error);
+    console.error('Error adding supplier:', error);
     throw error;
   }
 }
@@ -48,25 +38,12 @@ export async function addSupplier(supplierData: any) {
 // Get all suppliers
 export async function getSuppliers() {
   try {
-    console.log('Getting all suppliers from Firestore');
-    
-    const supplierCollection = collection(db, SUPPLIERS_COLLECTION);
-    const querySnapshot = await getDocs(supplierCollection);
-    
-    const suppliers = querySnapshot.docs.map(doc => {
-      const data = doc.data();
-      return {
-        ...data,
-        firebaseId: doc.id,
-        // Convert Firestore timestamp to JS Date if needed
-        createdAt: data.createdAt instanceof Date ? data.createdAt : new Date()
-      };
-    });
-    
-    console.log(`Retrieved ${suppliers.length} suppliers from Firestore`);
+    console.log('Getting all suppliers via API');
+    const suppliers = await apiRequest('/suppliers');
+    console.log(`Retrieved ${suppliers.length} suppliers`);
     return suppliers;
   } catch (error) {
-    console.error('Error getting suppliers from Firestore:', error);
+    console.error('Error getting suppliers:', error);
     throw error;
   }
 }

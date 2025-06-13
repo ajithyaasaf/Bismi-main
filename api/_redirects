@@ -1,8 +1,0 @@
-/api/suppliers    /api/suppliers.ts    200
-/api/inventory    /api/inventory.ts    200
-/api/customers    /api/customers.ts    200
-/api/orders    /api/orders.ts    200
-/api/transactions    /api/transactions.ts    200
-/api/reports    /api/reports.ts    200
-/api/hello    /api/hello.ts    200
-/*    /index.html    200

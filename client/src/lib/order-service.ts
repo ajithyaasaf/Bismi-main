@@ -1,7 +1,9 @@
+import { FirebaseRealtimeClient } from './firebase-realtime';
+
 // API base URL
 const API_BASE = '/api';
 
-// Helper function to make API requests
+// Helper function to make API requests (Admin SDK backend operations)
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
@@ -35,12 +37,12 @@ export async function addOrder(orderData: any) {
   }
 }
 
-// Get all orders
+// Get all orders (uses Firebase client SDK for real-time data)
 export async function getOrders() {
   try {
-    console.log('Getting all orders via API');
-    const orders = await apiRequest('/orders');
-    console.log(`Retrieved ${orders.length} orders`);
+    console.log('Getting all orders via Firebase client SDK');
+    const orders = await FirebaseRealtimeClient.getOrders();
+    console.log(`Retrieved ${orders.length} orders via Firebase client`);
     return orders;
   } catch (error) {
     console.error('Error getting orders:', error);
@@ -48,13 +50,12 @@ export async function getOrders() {
   }
 }
 
-// Get orders by customer ID
+// Get orders by customer ID (uses Firebase client SDK for real-time data)
 export async function getOrdersByCustomer(customerId: string) {
   try {
-    console.log(`Getting orders for customer ${customerId} via API`);
-    const orders = await getOrders();
-    const customerOrders = orders.filter((order: any) => order.customerId === customerId);
-    console.log(`Retrieved ${customerOrders.length} orders for customer ${customerId}`);
+    console.log(`Getting orders for customer ${customerId} via Firebase client SDK`);
+    const customerOrders = await FirebaseRealtimeClient.getOrdersByCustomer(customerId);
+    console.log(`Retrieved ${customerOrders.length} orders for customer ${customerId} via Firebase client`);
     return customerOrders;
   } catch (error) {
     console.error(`Error getting orders for customer ${customerId}:`, error);

@@ -1,7 +1,9 @@
+import { FirebaseRealtimeClient } from './firebase-realtime';
+
 // API base URL
 const API_BASE = '/api';
 
-// Helper function to make API requests
+// Helper function to make API requests (Admin SDK backend operations)
 async function apiRequest(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
@@ -35,12 +37,12 @@ export async function addTransaction(transactionData: any) {
   }
 }
 
-// Get all transactions
+// Get all transactions (uses Firebase client SDK for real-time data)
 export async function getTransactions() {
   try {
-    console.log('Getting all transactions via API');
-    const transactions = await apiRequest('/transactions');
-    console.log(`Retrieved ${transactions.length} transactions`);
+    console.log('Getting all transactions via Firebase client SDK');
+    const transactions = await FirebaseRealtimeClient.getTransactions();
+    console.log(`Retrieved ${transactions.length} transactions via Firebase client`);
     return transactions;
   } catch (error) {
     console.error('Error getting transactions:', error);
@@ -48,17 +50,16 @@ export async function getTransactions() {
   }
 }
 
-// Get transactions by entity ID (customer or supplier ID)
+// Get transactions by entity ID (uses Firebase client SDK for real-time data)
 export async function getTransactionsByEntity(entityId: string, entityType?: string) {
   try {
-    console.log(`Getting transactions for entity ${entityId} via API`);
-    const transactions = await getTransactions();
-    const entityTransactions = transactions.filter((transaction: any) => 
-      transaction.entityId === entityId && 
-      (!entityType || transaction.entityType === entityType)
-    );
-    console.log(`Retrieved ${entityTransactions.length} transactions for entity ${entityId}`);
-    return entityTransactions;
+    console.log(`Getting transactions for entity ${entityId} via Firebase client SDK`);
+    const entityTransactions = await FirebaseRealtimeClient.getTransactionsByEntity(entityId);
+    const filteredTransactions = entityType 
+      ? entityTransactions.filter(transaction => transaction.entityType === entityType)
+      : entityTransactions;
+    console.log(`Retrieved ${filteredTransactions.length} transactions for entity ${entityId} via Firebase client`);
+    return filteredTransactions;
   } catch (error) {
     console.error(`Error getting transactions for entity ${entityId}:`, error);
     throw error;

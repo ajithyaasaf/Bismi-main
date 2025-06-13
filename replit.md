@@ -24,11 +24,12 @@ The application follows a client-server architecture with the following key comp
 - **Build System**: ESBuild for server-side bundling
 
 ### Data Storage Solutions
-The application supports multiple storage strategies:
+The application uses a dual Firebase SDK architecture:
 
-1. **Primary Storage - Firebase/Firestore**: Enterprise-level cloud database for production
-2. **Development Storage**: In-memory storage for development environments
-3. **Database Schema**: Drizzle ORM with PostgreSQL support (prepared for future migrations)
+1. **Backend Storage - Firebase Admin SDK**: Enterprise-level server-side operations through API routes
+2. **Frontend Real-time - Firebase Client SDK**: Real-time UI updates and client-side data synchronization
+3. **Fallback Storage**: In-memory storage for development environments
+4. **Database Schema**: Drizzle ORM with PostgreSQL support (prepared for future migrations)
 
 The storage manager automatically selects the appropriate storage backend based on environment variables.
 
@@ -46,7 +47,8 @@ The storage manager automatically selects the appropriate storage backend based 
 - **Storage Manager**: Handles database operations with automatic failover
 - **Balance Validator**: Ensures financial data integrity
 - **PDF Generation**: Enterprise-grade invoice and report generation
-- **Real-time Updates**: Firebase integration for live data synchronization
+- **Firebase Admin SDK**: Server-side secure operations for data mutations
+- **Firebase Client SDK**: Real-time data synchronization for live UI updates
 
 ### UI Components
 - **Dashboard**: Business metrics overview with charts and alerts

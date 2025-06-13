@@ -18,7 +18,14 @@ async function apiRequest(endpoint: string, options: RequestInit = {}) {
     throw new Error(`API Error: ${error}`);
   }
   
-  return response.json();
+  // Handle 204 No Content responses (like DELETE operations)
+  if (response.status === 204) {
+    return null;
+  }
+  
+  // Only parse JSON if there's content
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // Add a new order

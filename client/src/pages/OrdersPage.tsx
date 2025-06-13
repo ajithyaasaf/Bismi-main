@@ -151,51 +151,35 @@ export default function OrdersPage() {
     if (!orderToDelete) return;
     
     try {
-      // First delete from Firestore
-      try {
-        console.log(`Attempting to delete order ${orderToDelete.id} from Firestore`);
-        const result = await OrderService.deleteOrder(orderToDelete.id);
-        console.log(`Delete order result from Firestore: ${result ? 'Success' : 'Not found'}`);
-        
-        // Success toast after Firestore deletion
-        toast({
-          title: "Order deleted",
-          description: "The order has been successfully deleted",
-        });
-        
-        // Refresh local state
-        setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
-        
-        // Refresh Firestore data
-        const updatedOrders = await OrderService.getOrders();
-        setFirestoreOrders(updatedOrders);
-      } catch (firestoreError) {
-        console.error("Error deleting order from Firestore:", firestoreError);
-        // Show error toast for Firestore failure
-        toast({
-          title: "Error",
-          description: "Failed to delete order from database",
-          variant: "destructive",
-        });
-        return; // Exit early if Firestore deletion fails
-      }
+      // Delete via API (which handles Firebase backend)
+      await apiRequest('DELETE', `/api/orders/${orderToDelete.id}`, undefined);
       
-      // Try to delete via API for backward compatibility, but don't fail if it doesn't work
-      try {
-        await apiRequest('DELETE', `/api/orders/${orderToDelete.id}`, undefined);
-        // Refresh API data via query cache
-        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-      } catch (apiError) {
-        console.error("API deletion failed but Firestore deletion succeeded:", apiError);
-        // No need to show error toast since Firestore deletion succeeded
-      }
+      // Success toast
+      toast({
+        title: "Order deleted",
+        description: "The order has been successfully deleted",
+      });
+      
+      // Refresh local state
+      setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
+      
+      // Refresh data via query cache
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      
+      // Refresh Firebase data
+      const updatedOrders = await OrderService.getOrders();
+      setFirestoreOrders(updatedOrders);
     } catch (error) {
-      console.error("Error during order deletion:", error);
+      console.error("Error deleting order:", error);
       toast({
         title: "Error",
         description: "Failed to delete order",
         variant: "destructive",
       });
+    } finally {
+      setOrderToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 

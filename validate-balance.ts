@@ -1,14 +1,17 @@
-import { firebaseStorage } from './server/firebase-storage';
+import { storageManager } from './server/storage-manager';
 
 async function validateBalances() {
   console.log('\n=== COMPREHENSIVE BALANCE VALIDATION ===\n');
 
   try {
+    // Get enterprise storage instance using Firebase Admin SDK
+    const storage = await storageManager.initialize();
+    
     // Fetch all data
-    const customers = await firebaseStorage.getAllCustomers();
-    const suppliers = await firebaseStorage.getAllSuppliers();
-    const orders = await firebaseStorage.getAllOrders();
-    const transactions = await firebaseStorage.getAllTransactions();
+    const customers = await storage.getAllCustomers();
+    const suppliers = await storage.getAllSuppliers();
+    const orders = await storage.getAllOrders();
+    const transactions = await storage.getAllTransactions();
 
     console.log(`Found ${customers.length} customers`);
     console.log(`Found ${suppliers.length} suppliers`);

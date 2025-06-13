@@ -1,14 +1,17 @@
-import { firebaseStorage } from './server/firebase-storage';
+import { storageManager } from './server/storage-manager';
 
 async function fixBalanceDiscrepancies() {
   console.log('\n=== FIXING BALANCE DISCREPANCIES ===\n');
 
   try {
+    // Get enterprise storage instance using Firebase Admin SDK
+    const storage = await storageManager.initialize();
+    
     // Fetch all data
-    const customers = await firebaseStorage.getAllCustomers();
-    const suppliers = await firebaseStorage.getAllSuppliers();
-    const orders = await firebaseStorage.getAllOrders();
-    const transactions = await firebaseStorage.getAllTransactions();
+    const customers = await storage.getAllCustomers();
+    const suppliers = await storage.getAllSuppliers();
+    const orders = await storage.getAllOrders();
+    const transactions = await storage.getAllTransactions();
 
     console.log('Fixing customer balance discrepancies...');
 
@@ -27,7 +30,7 @@ async function fixBalanceDiscrepancies() {
 
       if (Math.abs(actualBalance - calculatedBalance) > 0.01) {
         console.log(`Fixing ${customer.name}: ${actualBalance} -> ${calculatedBalance}`);
-        await firebaseStorage.updateCustomer(customer.id, {
+        await storage.updateCustomer(customer.id, {
           pendingAmount: Math.max(0, calculatedBalance)
         });
       }
@@ -49,7 +52,7 @@ async function fixBalanceDiscrepancies() {
 
       if (Math.abs(actualDebt - calculatedDebt) > 0.01) {
         console.log(`Fixing ${supplier.name}: ${actualDebt} -> ${calculatedDebt}`);
-        await firebaseStorage.updateSupplier(supplier.id, {
+        await storage.updateSupplier(supplier.id, {
           debt: Math.max(0, calculatedDebt)
         });
       }
@@ -63,7 +66,7 @@ async function fixBalanceDiscrepancies() {
     
     for (const order of orphanedOrders) {
       console.log(`Removing orphaned order ${order.id}`);
-      await firebaseStorage.deleteOrder(order.id);
+      await storage.deleteOrder(order.id);
     }
 
     // Remove orphaned transactions
@@ -75,7 +78,7 @@ async function fixBalanceDiscrepancies() {
 
     for (const transaction of orphanedTransactions) {
       console.log(`Removing orphaned transaction ${transaction.id}`);
-      await firebaseStorage.deleteTransaction(transaction.id);
+      await storage.deleteTransaction(transaction.id);
     }
 
     console.log('\n=== ALL DISCREPANCIES FIXED ===\n');

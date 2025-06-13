@@ -25,16 +25,28 @@ export class FirestoreStorage implements IStorage {
     try {
       // Initialize Firebase Admin if not already initialized
       if (!admin.apps || admin.apps.length === 0) {
-        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+        // Try service account key first (for Vercel)
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         
-        admin.initializeApp({
-          credential: admin.credential.cert({
+        if (serviceAccountKey) {
+          const serviceAccount = JSON.parse(serviceAccountKey);
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+            projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
+          });
+        } else {
+          // Fallback to individual environment variables
+          const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+          
+          admin.initializeApp({
+            credential: admin.credential.cert({
+              projectId: process.env.FIREBASE_PROJECT_ID,
+              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+              privateKey: privateKey,
+            }),
             projectId: process.env.FIREBASE_PROJECT_ID,
-            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-            privateKey: privateKey,
-          }),
-          projectId: process.env.FIREBASE_PROJECT_ID,
-        });
+          });
+        }
       }
       
       this.db = admin.firestore();

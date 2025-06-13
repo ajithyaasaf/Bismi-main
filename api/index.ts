@@ -356,14 +356,14 @@ app.post("/api/orders", async (req: Request, res: Response) => {
     const storage = await getStorage();
     const data = insertOrderSchema.parse(req.body);
     
-    // Update inventory for each item
+    // Update inventory for each item based on type
+    const allInventory = await storage.getAllInventory();
     for (const item of data.items) {
-      if (item.itemId) {
-        const inventoryItem = await storage.getInventoryItem(item.itemId);
-        if (inventoryItem) {
-          const newQuantity = (inventoryItem.quantity || 0) - item.quantity;
-          await storage.updateInventoryItem(item.itemId, { quantity: newQuantity });
-        }
+      const inventoryItem = allInventory.find(inv => inv.type === item.type);
+      
+      if (inventoryItem) {
+        const newQuantity = (inventoryItem.quantity || 0) - item.quantity;
+        await storage.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
       }
     }
 

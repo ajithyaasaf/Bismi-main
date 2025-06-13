@@ -1,6 +1,6 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { firebaseStorage } from "./firebase-storage";
+import { storageManager } from "./storage-manager";
 import { BalanceValidator } from "./balance-validator";
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -12,9 +12,9 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 
-// Use Firebase storage exclusively
-function getStorage() {
-  return firebaseStorage;
+// Use enterprise storage with Firestore exclusively
+async function getStorage() {
+  return await storageManager.initialize();
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -25,10 +25,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
   apiRouter.get("/health", async (req: Request, res: Response) => {
     try {
-      const storage = getStorage();
+      const storage = await getStorage();
       res.json({
         status: "healthy",
-        storage: "firebase",
+        storage: "firestore",
+        storageType: storageManager.getStorageType(),
         timestamp: new Date().toISOString()
       });
     } catch (error) {

@@ -24,7 +24,7 @@ export class FirestoreStorage implements IStorage {
   constructor() {
     try {
       // Initialize Firebase Admin if not already initialized
-      if (!admin.apps.length) {
+      if (!admin.apps || admin.apps.length === 0) {
         admin.initializeApp({
           projectId: "bismi-broilers-3ca96",
           // Using application default credentials or service account

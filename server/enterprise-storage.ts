@@ -1,4 +1,5 @@
 import { IStorage, MemStorage } from './storage';
+import { firestoreStorage } from './firestore-storage';
 import {
   User, InsertUser,
   Supplier, InsertSupplier,
@@ -9,18 +10,17 @@ import {
 } from '@shared/schema';
 
 /**
- * Enterprise-level storage manager that uses in-memory storage
- * Firebase connectivity disabled for now to avoid module resolution issues
+ * Enterprise-level storage manager that uses Firestore exclusively
  */
 export class EnterpriseStorage implements IStorage {
   private primaryStorage: IStorage;
   private fallbackStorage: MemStorage;
-  private isUsingFirestore: boolean = false;
+  private isUsingFirestore: boolean = true;
 
   constructor() {
     this.fallbackStorage = new MemStorage();
-    this.primaryStorage = this.fallbackStorage;
-    console.log('Using in-memory storage');
+    this.primaryStorage = firestoreStorage;
+    console.log('Using Firestore database exclusively');
   }
 
   // User operations

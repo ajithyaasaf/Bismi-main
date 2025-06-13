@@ -1,34 +1,4 @@
 import { IStorage } from './storage';
-
-// Dynamic Firebase imports for ES modules
-let initializeApp: any, getFirestore: any, collection: any, doc: any, getDocs: any, getDoc: any, 
-    addDoc: any, updateDoc: any, deleteDoc: any, query: any, where: any, orderBy: any, Timestamp: any;
-
-async function loadFirebase() {
-  try {
-    const firebaseApp = await import('firebase/app');
-    const firebaseFirestore = await import('firebase/firestore');
-    
-    initializeApp = firebaseApp.initializeApp;
-    getFirestore = firebaseFirestore.getFirestore;
-    collection = firebaseFirestore.collection;
-    doc = firebaseFirestore.doc;
-    getDocs = firebaseFirestore.getDocs;
-    getDoc = firebaseFirestore.getDoc;
-    addDoc = firebaseFirestore.addDoc;
-    updateDoc = firebaseFirestore.updateDoc;
-    deleteDoc = firebaseFirestore.deleteDoc;
-    query = firebaseFirestore.query;
-    where = firebaseFirestore.where;
-    orderBy = firebaseFirestore.orderBy;
-    Timestamp = firebaseFirestore.Timestamp;
-    
-    return true;
-  } catch (error) {
-    console.error('Firebase import failed:', error);
-    return false;
-  }
-}
 import { 
   User, 
   InsertUser, 
@@ -45,21 +15,72 @@ import {
 } from '@shared/schema';
 import { v4 as uuidv4 } from 'uuid';
 
+// Use dynamic imports to handle Firebase module resolution
+let firebaseModules: any = null;
+
+async function loadFirebaseModules() {
+  if (firebaseModules) return firebaseModules;
+  
+  try {
+    // Create the firebase modules object with functions that will dynamically import
+    firebaseModules = {
+      initializeApp: null,
+      getFirestore: null,
+      collection: null,
+      doc: null,
+      getDocs: null,
+      getDoc: null,
+      addDoc: null,
+      updateDoc: null,
+      deleteDoc: null,
+      query: null,
+      where: null,
+      orderBy: null,
+      Timestamp: null
+    };
+    
+    // Load the actual functions by eval to bypass module resolution
+    const importApp = new Function('return import("firebase/app")');
+    const importFirestore = new Function('return import("firebase/firestore")');
+    
+    const [appModule, firestoreModule] = await Promise.all([
+      importApp(),
+      importFirestore()
+    ]);
+    
+    firebaseModules.initializeApp = appModule.initializeApp;
+    firebaseModules.getFirestore = firestoreModule.getFirestore;
+    firebaseModules.collection = firestoreModule.collection;
+    firebaseModules.doc = firestoreModule.doc;
+    firebaseModules.getDocs = firestoreModule.getDocs;
+    firebaseModules.getDoc = firestoreModule.getDoc;
+    firebaseModules.addDoc = firestoreModule.addDoc;
+    firebaseModules.updateDoc = firestoreModule.updateDoc;
+    firebaseModules.deleteDoc = firestoreModule.deleteDoc;
+    firebaseModules.query = firestoreModule.query;
+    firebaseModules.where = firestoreModule.where;
+    firebaseModules.orderBy = firestoreModule.orderBy;
+    firebaseModules.Timestamp = firestoreModule.Timestamp;
+    
+    return firebaseModules;
+  } catch (error) {
+    console.error('Failed to load Firebase modules:', error);
+    throw error;
+  }
+}
+
 export class FirebaseStorage implements IStorage {
   private db: any;
   private initialized: boolean = false;
 
   constructor() {
-    this.initializeFirebase();
+    this.initializeFirestore();
   }
 
-  private async initializeFirebase() {
+  private async initializeFirestore() {
     try {
-      const success = await loadFirebase();
-      if (!success) {
-        throw new Error('Failed to load Firebase modules');
-      }
-
+      const modules = await loadFirebaseModules();
+      
       const firebaseConfig = {
         apiKey: "AIzaSyA3f4gJOKZDIjy9gnhSSpMVLs1UblGxo0s",
         authDomain: "bismi-broilers-3ca96.firebaseapp.com",
@@ -70,8 +91,8 @@ export class FirebaseStorage implements IStorage {
         appId: "1:949430744092:web:4ea5638a9d38ba3e76dbd9"
       };
 
-      const app = initializeApp(firebaseConfig);
-      this.db = getFirestore(app);
+      const app = modules.initializeApp(firebaseConfig);
+      this.db = modules.getFirestore(app);
       this.initialized = true;
       console.log('Firebase Firestore initialized exclusively with project:', firebaseConfig.projectId);
     } catch (error) {
@@ -102,50 +123,45 @@ export class FirebaseStorage implements IStorage {
   // User operations (kept for compatibility)
   async getUser(id: number): Promise<User | undefined> {
     try {
-      const userQuery = query(collection(this.db, 'users'), where('id', '==', id));
-      const snapshot = await getDocs(userQuery);
+      const usersRef = query(collection(this.db, 'users'), where('id', '==', id));
+      const snapshot = await getDocs(usersRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const userData = snapshot.docs[0].data();
       return {
-        id: data.id,
-        username: data.username,
-        password: data.password
-      } as User;
+        id: userData.id,
+        username: userData.username,
+        password: userData.password
+      };
     } catch (error) {
       console.error('Error getting user:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     try {
-      const userQuery = query(collection(this.db, 'users'), where('username', '==', username));
-      const snapshot = await getDocs(userQuery);
+      const usersRef = query(collection(this.db, 'users'), where('username', '==', username));
+      const snapshot = await getDocs(usersRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const userData = snapshot.docs[0].data();
       return {
-        id: data.id,
-        username: data.username,
-        password: data.password
-      } as User;
+        id: userData.id,
+        username: userData.username,
+        password: userData.password
+      };
     } catch (error) {
       console.error('Error getting user by username:', error);
-      return undefined;
+      throw error;
     }
   }
 
-  async createUser(user: InsertUser): Promise<User> {
+  async createUser(insertUser: InsertUser): Promise<User> {
     try {
-      const newUser = {
-        id: Math.floor(Math.random() * 1000000),
-        ...user
-      };
-      await addDoc(collection(this.db, 'users'), newUser);
-      return newUser as User;
+      const userWithId = { ...insertUser, id: Date.now() };
+      await addDoc(collection(this.db, 'users'), userWithId);
+      return userWithId;
     } catch (error) {
       console.error('Error creating user:', error);
       throw error;
@@ -156,7 +172,7 @@ export class FirebaseStorage implements IStorage {
   async getAllSuppliers(): Promise<Supplier[]> {
     try {
       const snapshot = await getDocs(collection(this.db, 'suppliers'));
-      return snapshot.docs.map(doc => {
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
@@ -164,48 +180,49 @@ export class FirebaseStorage implements IStorage {
           contact: data.contact,
           debt: data.debt || 0,
           createdAt: this.convertTimestamp(data.createdAt)
-        } as Supplier;
+        };
       });
     } catch (error) {
-      console.error('Error getting suppliers:', error);
-      return [];
+      console.error('Error getting all suppliers:', error);
+      throw error;
     }
   }
 
   async getSupplier(id: string): Promise<Supplier | undefined> {
     try {
-      const supplierQuery = query(collection(this.db, 'suppliers'), where('id', '==', id));
-      const snapshot = await getDocs(supplierQuery);
+      const suppliersRef = query(collection(this.db, 'suppliers'), where('id', '==', id));
+      const snapshot = await getDocs(suppliersRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const data = snapshot.docs[0].data();
       return {
         id: data.id,
         name: data.name,
         contact: data.contact,
         debt: data.debt || 0,
         createdAt: this.convertTimestamp(data.createdAt)
-      } as Supplier;
+      };
     } catch (error) {
       console.error('Error getting supplier:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
     try {
       const newSupplier = {
-        id: uuidv4(),
         ...supplier,
+        id: uuidv4(),
         debt: supplier.debt || 0,
         createdAt: Timestamp.now()
       };
+      
       await addDoc(collection(this.db, 'suppliers'), newSupplier);
+      
       return {
         ...newSupplier,
-        createdAt: new Date()
-      } as Supplier;
+        createdAt: newSupplier.createdAt.toDate()
+      };
     } catch (error) {
       console.error('Error creating supplier:', error);
       throw error;
@@ -214,8 +231,9 @@ export class FirebaseStorage implements IStorage {
 
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     try {
-      const supplierQuery = query(collection(this.db, 'suppliers'), where('id', '==', id));
-      const snapshot = await getDocs(supplierQuery);
+      const suppliersRef = query(collection(this.db, 'suppliers'), where('id', '==', id));
+      const snapshot = await getDocs(suppliersRef);
+      
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
@@ -223,30 +241,32 @@ export class FirebaseStorage implements IStorage {
       
       const updatedDoc = await getDoc(docRef);
       const data = updatedDoc.data();
+      
       return {
         id: data!.id,
         name: data!.name,
         contact: data!.contact,
         debt: data!.debt || 0,
         createdAt: this.convertTimestamp(data!.createdAt)
-      } as Supplier;
+      };
     } catch (error) {
       console.error('Error updating supplier:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async deleteSupplier(id: string): Promise<boolean> {
     try {
-      const supplierQuery = query(collection(this.db, 'suppliers'), where('id', '==', id));
-      const snapshot = await getDocs(supplierQuery);
+      const suppliersRef = query(collection(this.db, 'suppliers'), where('id', '==', id));
+      const snapshot = await getDocs(suppliersRef);
+      
       if (snapshot.empty) return false;
       
       await deleteDoc(snapshot.docs[0].ref);
       return true;
     } catch (error) {
       console.error('Error deleting supplier:', error);
-      return false;
+      throw error;
     }
   }
 
@@ -254,7 +274,7 @@ export class FirebaseStorage implements IStorage {
   async getAllInventory(): Promise<Inventory[]> {
     try {
       const snapshot = await getDocs(collection(this.db, 'inventory'));
-      return snapshot.docs.map(doc => {
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
@@ -262,47 +282,48 @@ export class FirebaseStorage implements IStorage {
           quantity: data.quantity,
           rate: data.rate,
           updatedAt: this.convertTimestamp(data.updatedAt)
-        } as Inventory;
+        };
       });
     } catch (error) {
-      console.error('Error getting inventory:', error);
-      return [];
+      console.error('Error getting all inventory:', error);
+      throw error;
     }
   }
 
   async getInventoryItem(id: string): Promise<Inventory | undefined> {
     try {
-      const inventoryQuery = query(collection(this.db, 'inventory'), where('id', '==', id));
-      const snapshot = await getDocs(inventoryQuery);
+      const inventoryRef = query(collection(this.db, 'inventory'), where('id', '==', id));
+      const snapshot = await getDocs(inventoryRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const data = snapshot.docs[0].data();
       return {
         id: data.id,
         type: data.type,
         quantity: data.quantity,
         rate: data.rate,
         updatedAt: this.convertTimestamp(data.updatedAt)
-      } as Inventory;
+      };
     } catch (error) {
       console.error('Error getting inventory item:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async createInventoryItem(item: InsertInventory): Promise<Inventory> {
     try {
       const newItem = {
-        id: uuidv4(),
         ...item,
+        id: uuidv4(),
         updatedAt: Timestamp.now()
       };
+      
       await addDoc(collection(this.db, 'inventory'), newItem);
+      
       return {
         ...newItem,
-        updatedAt: new Date()
-      } as Inventory;
+        updatedAt: newItem.updatedAt.toDate()
+      };
     } catch (error) {
       console.error('Error creating inventory item:', error);
       throw error;
@@ -311,8 +332,9 @@ export class FirebaseStorage implements IStorage {
 
   async updateInventoryItem(id: string, item: Partial<InsertInventory>): Promise<Inventory | undefined> {
     try {
-      const inventoryQuery = query(collection(this.db, 'inventory'), where('id', '==', id));
-      const snapshot = await getDocs(inventoryQuery);
+      const inventoryRef = query(collection(this.db, 'inventory'), where('id', '==', id));
+      const snapshot = await getDocs(inventoryRef);
+      
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
@@ -320,30 +342,32 @@ export class FirebaseStorage implements IStorage {
       
       const updatedDoc = await getDoc(docRef);
       const data = updatedDoc.data();
+      
       return {
         id: data!.id,
         type: data!.type,
         quantity: data!.quantity,
         rate: data!.rate,
         updatedAt: this.convertTimestamp(data!.updatedAt)
-      } as Inventory;
+      };
     } catch (error) {
       console.error('Error updating inventory item:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async deleteInventoryItem(id: string): Promise<boolean> {
     try {
-      const inventoryQuery = query(collection(this.db, 'inventory'), where('id', '==', id));
-      const snapshot = await getDocs(inventoryQuery);
+      const inventoryRef = query(collection(this.db, 'inventory'), where('id', '==', id));
+      const snapshot = await getDocs(inventoryRef);
+      
       if (snapshot.empty) return false;
       
       await deleteDoc(snapshot.docs[0].ref);
       return true;
     } catch (error) {
       console.error('Error deleting inventory item:', error);
-      return false;
+      throw error;
     }
   }
 
@@ -351,7 +375,7 @@ export class FirebaseStorage implements IStorage {
   async getAllCustomers(): Promise<Customer[]> {
     try {
       const snapshot = await getDocs(collection(this.db, 'customers'));
-      return snapshot.docs.map(doc => {
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
@@ -360,22 +384,21 @@ export class FirebaseStorage implements IStorage {
           contact: data.contact,
           pendingAmount: data.pendingAmount || 0,
           createdAt: this.convertTimestamp(data.createdAt)
-        } as Customer;
+        };
       });
     } catch (error) {
-      console.error('Error getting customers:', error);
-      return [];
+      console.error('Error getting all customers:', error);
+      throw error;
     }
   }
 
   async getCustomer(id: string): Promise<Customer | undefined> {
     try {
-      const customerQuery = query(collection(this.db, 'customers'), where('id', '==', id));
-      const snapshot = await getDocs(customerQuery);
+      const customersRef = query(collection(this.db, 'customers'), where('id', '==', id));
+      const snapshot = await getDocs(customersRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const data = snapshot.docs[0].data();
       return {
         id: data.id,
         name: data.name,
@@ -383,26 +406,28 @@ export class FirebaseStorage implements IStorage {
         contact: data.contact,
         pendingAmount: data.pendingAmount || 0,
         createdAt: this.convertTimestamp(data.createdAt)
-      } as Customer;
+      };
     } catch (error) {
       console.error('Error getting customer:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
     try {
       const newCustomer = {
-        id: uuidv4(),
         ...customer,
+        id: uuidv4(),
         pendingAmount: customer.pendingAmount || 0,
         createdAt: Timestamp.now()
       };
+      
       await addDoc(collection(this.db, 'customers'), newCustomer);
+      
       return {
         ...newCustomer,
-        createdAt: new Date()
-      } as Customer;
+        createdAt: newCustomer.createdAt.toDate()
+      };
     } catch (error) {
       console.error('Error creating customer:', error);
       throw error;
@@ -411,8 +436,9 @@ export class FirebaseStorage implements IStorage {
 
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
-      const customerQuery = query(collection(this.db, 'customers'), where('id', '==', id));
-      const snapshot = await getDocs(customerQuery);
+      const customersRef = query(collection(this.db, 'customers'), where('id', '==', id));
+      const snapshot = await getDocs(customersRef);
+      
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
@@ -420,6 +446,7 @@ export class FirebaseStorage implements IStorage {
       
       const updatedDoc = await getDoc(docRef);
       const data = updatedDoc.data();
+      
       return {
         id: data!.id,
         name: data!.name,
@@ -427,24 +454,25 @@ export class FirebaseStorage implements IStorage {
         contact: data!.contact,
         pendingAmount: data!.pendingAmount || 0,
         createdAt: this.convertTimestamp(data!.createdAt)
-      } as Customer;
+      };
     } catch (error) {
       console.error('Error updating customer:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async deleteCustomer(id: string): Promise<boolean> {
     try {
-      const customerQuery = query(collection(this.db, 'customers'), where('id', '==', id));
-      const snapshot = await getDocs(customerQuery);
+      const customersRef = query(collection(this.db, 'customers'), where('id', '==', id));
+      const snapshot = await getDocs(customersRef);
+      
       if (snapshot.empty) return false;
       
       await deleteDoc(snapshot.docs[0].ref);
       return true;
     } catch (error) {
       console.error('Error deleting customer:', error);
-      return false;
+      throw error;
     }
   }
 
@@ -452,95 +480,92 @@ export class FirebaseStorage implements IStorage {
   async getAllOrders(): Promise<Order[]> {
     try {
       const snapshot = await getDocs(query(collection(this.db, 'orders'), orderBy('date', 'desc')));
-      return snapshot.docs.map(doc => {
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
           customerId: data.customerId,
           items: data.items,
           date: this.convertTimestamp(data.date),
-          createdAt: this.convertTimestamp(data.createdAt), // Enterprise audit timestamp
           total: data.total,
           status: data.status,
-          type: data.type
-        } as Order;
+          type: data.type,
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
       });
     } catch (error) {
-      console.error('Error getting orders:', error);
-      return [];
+      console.error('Error getting all orders:', error);
+      throw error;
     }
   }
 
   async getOrdersByCustomer(customerId: string): Promise<Order[]> {
     try {
-      const orderQuery = query(
+      const ordersRef = query(
         collection(this.db, 'orders'), 
         where('customerId', '==', customerId),
         orderBy('date', 'desc')
       );
-      const snapshot = await getDocs(orderQuery);
-      return snapshot.docs.map(doc => {
+      const snapshot = await getDocs(ordersRef);
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
           customerId: data.customerId,
           items: data.items,
           date: this.convertTimestamp(data.date),
-          createdAt: this.convertTimestamp(data.createdAt), // Enterprise audit timestamp
           total: data.total,
           status: data.status,
-          type: data.type
-        } as Order;
+          type: data.type,
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
       });
     } catch (error) {
       console.error('Error getting orders by customer:', error);
-      return [];
+      throw error;
     }
   }
 
   async getOrder(id: string): Promise<Order | undefined> {
     try {
-      const orderQuery = query(collection(this.db, 'orders'), where('id', '==', id));
-      const snapshot = await getDocs(orderQuery);
+      const ordersRef = query(collection(this.db, 'orders'), where('id', '==', id));
+      const snapshot = await getDocs(ordersRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const data = snapshot.docs[0].data();
       return {
         id: data.id,
         customerId: data.customerId,
         items: data.items,
         date: this.convertTimestamp(data.date),
-        createdAt: this.convertTimestamp(data.createdAt), // Enterprise audit timestamp
         total: data.total,
         status: data.status,
-        type: data.type
-      } as Order;
+        type: data.type,
+        createdAt: this.convertTimestamp(data.createdAt)
+      };
     } catch (error) {
       console.error('Error getting order:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async createOrder(order: InsertOrder & { createdAt?: Date }): Promise<Order> {
     try {
-      const now = new Date();
-      const orderDate = order.date ? Timestamp.fromDate(new Date(order.date)) : Timestamp.now();
-      const createdAtDate = order.createdAt ? Timestamp.fromDate(order.createdAt) : Timestamp.now();
-      
       const newOrder = {
-        id: uuidv4(),
         ...order,
-        date: orderDate,
-        createdAt: createdAtDate // Enterprise audit timestamp
+        id: uuidv4(),
+        date: order.date ? Timestamp.fromDate(order.date) : Timestamp.now(),
+        createdAt: order.createdAt ? Timestamp.fromDate(order.createdAt) : Timestamp.now()
       };
       
       await addDoc(collection(this.db, 'orders'), newOrder);
+      
       return {
-        ...newOrder,
-        date: order.date ? new Date(order.date) : now,
-        createdAt: order.createdAt || now
-      } as Order;
+        ...order,
+        id: newOrder.id,
+        date: newOrder.date.toDate(),
+        createdAt: newOrder.createdAt.toDate()
+      };
     } catch (error) {
       console.error('Error creating order:', error);
       throw error;
@@ -549,22 +574,22 @@ export class FirebaseStorage implements IStorage {
 
   async updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined> {
     try {
-      const orderQuery = query(collection(this.db, 'orders'), where('id', '==', id));
-      const snapshot = await getDocs(orderQuery);
+      const ordersRef = query(collection(this.db, 'orders'), where('id', '==', id));
+      const snapshot = await getDocs(ordersRef);
+      
       if (snapshot.empty) return undefined;
       
-      const docRef = snapshot.docs[0].ref;
-      const updateData: any = { ...order };
-      
-      // Preserve date if provided, don't override with current timestamp
+      const updateData = { ...order };
       if (order.date) {
-        updateData.date = Timestamp.fromDate(new Date(order.date));
+        updateData.date = Timestamp.fromDate(order.date);
       }
       
+      const docRef = snapshot.docs[0].ref;
       await updateDoc(docRef, updateData);
       
       const updatedDoc = await getDoc(docRef);
       const data = updatedDoc.data();
+      
       return {
         id: data!.id,
         customerId: data!.customerId,
@@ -572,25 +597,27 @@ export class FirebaseStorage implements IStorage {
         date: this.convertTimestamp(data!.date),
         total: data!.total,
         status: data!.status,
-        type: data!.type
-      } as Order;
+        type: data!.type,
+        createdAt: this.convertTimestamp(data!.createdAt)
+      };
     } catch (error) {
       console.error('Error updating order:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async deleteOrder(id: string): Promise<boolean> {
     try {
-      const orderQuery = query(collection(this.db, 'orders'), where('id', '==', id));
-      const snapshot = await getDocs(orderQuery);
+      const ordersRef = query(collection(this.db, 'orders'), where('id', '==', id));
+      const snapshot = await getDocs(ordersRef);
+      
       if (snapshot.empty) return false;
       
       await deleteDoc(snapshot.docs[0].ref);
       return true;
     } catch (error) {
       console.error('Error deleting order:', error);
-      return false;
+      throw error;
     }
   }
 
@@ -598,7 +625,7 @@ export class FirebaseStorage implements IStorage {
   async getAllTransactions(): Promise<Transaction[]> {
     try {
       const snapshot = await getDocs(query(collection(this.db, 'transactions'), orderBy('date', 'desc')));
-      return snapshot.docs.map(doc => {
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
@@ -607,24 +634,25 @@ export class FirebaseStorage implements IStorage {
           entityId: data.entityId,
           entityType: data.entityType,
           date: this.convertTimestamp(data.date),
-          description: data.description
-        } as Transaction;
+          description: data.description,
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
       });
     } catch (error) {
-      console.error('Error getting transactions:', error);
-      return [];
+      console.error('Error getting all transactions:', error);
+      throw error;
     }
   }
 
   async getTransactionsByEntity(entityId: string): Promise<Transaction[]> {
     try {
-      const transactionQuery = query(
+      const transactionsRef = query(
         collection(this.db, 'transactions'), 
         where('entityId', '==', entityId),
         orderBy('date', 'desc')
       );
-      const snapshot = await getDocs(transactionQuery);
-      return snapshot.docs.map(doc => {
+      const snapshot = await getDocs(transactionsRef);
+      return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
           id: data.id,
@@ -633,23 +661,23 @@ export class FirebaseStorage implements IStorage {
           entityId: data.entityId,
           entityType: data.entityType,
           date: this.convertTimestamp(data.date),
-          description: data.description
-        } as Transaction;
+          description: data.description,
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
       });
     } catch (error) {
       console.error('Error getting transactions by entity:', error);
-      return [];
+      throw error;
     }
   }
 
   async getTransaction(id: string): Promise<Transaction | undefined> {
     try {
-      const transactionQuery = query(collection(this.db, 'transactions'), where('id', '==', id));
-      const snapshot = await getDocs(transactionQuery);
+      const transactionsRef = query(collection(this.db, 'transactions'), where('id', '==', id));
+      const snapshot = await getDocs(transactionsRef);
       if (snapshot.empty) return undefined;
       
-      const doc = snapshot.docs[0];
-      const data = doc.data();
+      const data = snapshot.docs[0].data();
       return {
         id: data.id,
         type: data.type,
@@ -657,27 +685,32 @@ export class FirebaseStorage implements IStorage {
         entityId: data.entityId,
         entityType: data.entityType,
         date: this.convertTimestamp(data.date),
-        description: data.description
-      } as Transaction;
+        description: data.description,
+        createdAt: this.convertTimestamp(data.createdAt)
+      };
     } catch (error) {
       console.error('Error getting transaction:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     try {
-      const transactionDate = transaction.date ? Timestamp.fromDate(new Date(transaction.date)) : Timestamp.now();
       const newTransaction = {
-        id: uuidv4(),
         ...transaction,
-        date: transactionDate
+        id: uuidv4(),
+        date: transaction.date ? Timestamp.fromDate(transaction.date) : Timestamp.now(),
+        createdAt: Timestamp.now()
       };
+      
       await addDoc(collection(this.db, 'transactions'), newTransaction);
+      
       return {
-        ...newTransaction,
-        date: transaction.date ? new Date(transaction.date) : new Date()
-      } as Transaction;
+        ...transaction,
+        id: newTransaction.id,
+        date: newTransaction.date.toDate(),
+        createdAt: newTransaction.createdAt.toDate()
+      };
     } catch (error) {
       console.error('Error creating transaction:', error);
       throw error;
@@ -686,8 +719,9 @@ export class FirebaseStorage implements IStorage {
 
   async updateTransaction(id: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined> {
     try {
-      const transactionQuery = query(collection(this.db, 'transactions'), where('id', '==', id));
-      const snapshot = await getDocs(transactionQuery);
+      const transactionsRef = query(collection(this.db, 'transactions'), where('id', '==', id));
+      const snapshot = await getDocs(transactionsRef);
+      
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
@@ -695,6 +729,7 @@ export class FirebaseStorage implements IStorage {
       
       const updatedDoc = await getDoc(docRef);
       const data = updatedDoc.data();
+      
       return {
         id: data!.id,
         type: data!.type,
@@ -702,25 +737,27 @@ export class FirebaseStorage implements IStorage {
         entityId: data!.entityId,
         entityType: data!.entityType,
         date: this.convertTimestamp(data!.date),
-        description: data!.description
-      } as Transaction;
+        description: data!.description,
+        createdAt: this.convertTimestamp(data!.createdAt)
+      };
     } catch (error) {
       console.error('Error updating transaction:', error);
-      return undefined;
+      throw error;
     }
   }
 
   async deleteTransaction(id: string): Promise<boolean> {
     try {
-      const transactionQuery = query(collection(this.db, 'transactions'), where('id', '==', id));
-      const snapshot = await getDocs(transactionQuery);
+      const transactionsRef = query(collection(this.db, 'transactions'), where('id', '==', id));
+      const snapshot = await getDocs(transactionsRef);
+      
       if (snapshot.empty) return false;
       
       await deleteDoc(snapshot.docs[0].ref);
       return true;
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      return false;
+      throw error;
     }
   }
 }

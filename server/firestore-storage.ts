@@ -16,7 +16,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 // Use Firebase Admin SDK to avoid client SDK module resolution issues
-import * as admin from 'firebase-admin';
+import admin from 'firebase-admin';
 
 export class FirestoreStorage implements IStorage {
   private db: admin.firestore.Firestore;
@@ -25,14 +25,20 @@ export class FirestoreStorage implements IStorage {
     try {
       // Initialize Firebase Admin if not already initialized
       if (!admin.apps || admin.apps.length === 0) {
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+        
         admin.initializeApp({
-          projectId: "bismi-broilers-3ca96",
-          // Using application default credentials or service account
+          credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: privateKey,
+          }),
+          projectId: process.env.FIREBASE_PROJECT_ID,
         });
       }
       
       this.db = admin.firestore();
-      console.log('Firebase Firestore storage initialized exclusively using Admin SDK');
+      console.log('Firebase Firestore storage initialized with service account credentials');
     } catch (error) {
       console.error('Failed to initialize Firebase Admin SDK:', error);
       throw error;

@@ -1,52 +1,14 @@
 // Vercel API handler (serverless function)
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import { v4 as uuidv4 } from 'uuid';
-
-// Simple in-memory storage setup (note: this will reset on each cold start)
-interface Supplier {
-  id: string;
-  name: string;
-  debt?: number;
-  contact?: string;
-  createdAt: Date;
-}
-
-interface InventoryItem {
-  id: string;
-  type: string;
-  quantity: number;
-  rate: number;
-  updatedAt: Date;
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  type: string;
-  contact?: string;
-  pendingAmount?: number;
-  createdAt: Date;
-}
-
-interface Order {
-  id: string;
-  customerId: string;
-  items: any[];
-  date: Date;
-  total: number;
-  status: string;
-  type: string;
-}
-
-interface Transaction {
-  id: string;
-  type: string;
-  amount: number;
-  entityId: string;
-  entityType: string;
-  date: Date;
-  description?: string;
-}
+import { storageManager } from '../server/storage-manager';
+import {
+  Supplier, InsertSupplier,
+  Inventory, InsertInventory,
+  Customer, InsertCustomer,
+  Order, InsertOrder,
+  Transaction, InsertTransaction
+} from '../shared/schema';
 
 // Demo data
 const suppliers: Supplier[] = [

@@ -15,45 +15,27 @@ import {
 } from '@shared/schema';
 import { v4 as uuidv4 } from 'uuid';
 
-// Import Firebase configuration using dynamic import
-let firebase: any = null;
+// Use Firebase Admin SDK to avoid client SDK module resolution issues
+import * as admin from 'firebase-admin';
 
-async function getFirebase() {
-  if (!firebase) {
-    const firebaseModule = await import('./firebase-config.js');
-    firebase = firebaseModule.default || firebaseModule;
-  }
-  return firebase;
-}
-
-export class FirebaseStorage implements IStorage {
-  private db: any;
-  private initialized: boolean = false;
+export class FirestoreStorage implements IStorage {
+  private db: admin.firestore.Firestore;
 
   constructor() {
-    this.initializeFirestore();
-  }
-
-  private async initializeFirestore() {
     try {
-      const firebaseConfig = await getFirebase();
-      this.db = firebaseConfig.db;
-      this.initialized = true;
-      console.log('Firebase Firestore storage configured exclusively');
+      // Initialize Firebase Admin if not already initialized
+      if (!admin.apps.length) {
+        admin.initializeApp({
+          projectId: "bismi-broilers-3ca96",
+          // Using application default credentials or service account
+        });
+      }
+      
+      this.db = admin.firestore();
+      console.log('Firebase Firestore storage initialized exclusively using Admin SDK');
     } catch (error) {
-      console.error('Failed to initialize Firebase Firestore:', error);
+      console.error('Failed to initialize Firebase Admin SDK:', error);
       throw error;
-    }
-  }
-
-  private async ensureInitialized() {
-    let retries = 0;
-    while (!this.initialized && retries < 50) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      retries++;
-    }
-    if (!this.initialized) {
-      throw new Error('Firebase Firestore not initialized');
     }
   }
 
@@ -68,8 +50,7 @@ export class FirebaseStorage implements IStorage {
   // User operations (kept for compatibility)
   async getUser(id: number): Promise<User | undefined> {
     try {
-      const usersRef = firebase.query(firebase.collection(this.db, 'users'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(usersRef);
+      const snapshot = await this.db.collection('users').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const userData = snapshot.docs[0].data();
@@ -86,8 +67,7 @@ export class FirebaseStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     try {
-      const usersRef = firebase.query(firebase.collection(this.db, 'users'), firebase.where('username', '==', username));
-      const snapshot = await firebase.getDocs(usersRef);
+      const snapshot = await this.db.collection('users').where('username', '==', username).get();
       if (snapshot.empty) return undefined;
       
       const userData = snapshot.docs[0].data();
@@ -110,7 +90,7 @@ export class FirebaseStorage implements IStorage {
         password: user.password
       };
       
-      await firebase.addDoc(firebase.collection(this.db, 'users'), newUser);
+      await this.db.collection('users').add(newUser);
       return newUser;
     } catch (error) {
       console.error('Error creating user:', error);
@@ -121,7 +101,7 @@ export class FirebaseStorage implements IStorage {
   // Supplier operations
   async getAllSuppliers(): Promise<Supplier[]> {
     try {
-      const snapshot = await firebase.getDocs(firebase.collection(this.db, 'suppliers'));
+      const snapshot = await this.db.collection('suppliers').get();
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
@@ -140,8 +120,7 @@ export class FirebaseStorage implements IStorage {
 
   async getSupplier(id: string): Promise<Supplier | undefined> {
     try {
-      const suppliersRef = firebase.query(firebase.collection(this.db, 'suppliers'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(suppliersRef);
+      const snapshot = await this.db.collection('suppliers').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const data = snapshot.docs[0].data();
@@ -165,10 +144,10 @@ export class FirebaseStorage implements IStorage {
         name: supplier.name,
         debt: supplier.debt || 0,
         contact: supplier.contact || null,
-        createdAt: firebase.Timestamp.now()
+        createdAt: admin.firestore.Timestamp.now()
       };
       
-      await firebase.addDoc(firebase.collection(this.db, 'suppliers'), newSupplier);
+      await this.db.collection('suppliers').add(newSupplier);
       
       return {
         ...newSupplier,
@@ -182,22 +161,21 @@ export class FirebaseStorage implements IStorage {
 
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     try {
-      const suppliersRef = firebase.query(firebase.collection(this.db, 'suppliers'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(suppliersRef);
+      const snapshot = await this.db.collection('suppliers').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
-      await firebase.updateDoc(docRef, supplier);
+      await docRef.update(supplier);
       
-      const updatedDoc = await firebase.getDoc(docRef);
+      const updatedDoc = await docRef.get();
       const data = updatedDoc.data();
       
       return {
-        id: data.id,
-        name: data.name,
-        debt: data.debt || 0,
-        contact: data.contact || null,
-        createdAt: this.convertTimestamp(data.createdAt)
+        id: data!.id,
+        name: data!.name,
+        debt: data!.debt || 0,
+        contact: data!.contact || null,
+        createdAt: this.convertTimestamp(data!.createdAt)
       };
     } catch (error) {
       console.error('Error updating supplier:', error);
@@ -207,11 +185,10 @@ export class FirebaseStorage implements IStorage {
 
   async deleteSupplier(id: string): Promise<boolean> {
     try {
-      const suppliersRef = firebase.query(firebase.collection(this.db, 'suppliers'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(suppliersRef);
+      const snapshot = await this.db.collection('suppliers').where('id', '==', id).get();
       if (snapshot.empty) return false;
       
-      await firebase.deleteDoc(snapshot.docs[0].ref);
+      await snapshot.docs[0].ref.delete();
       return true;
     } catch (error) {
       console.error('Error deleting supplier:', error);
@@ -222,7 +199,7 @@ export class FirebaseStorage implements IStorage {
   // Inventory operations
   async getAllInventory(): Promise<Inventory[]> {
     try {
-      const snapshot = await firebase.getDocs(firebase.collection(this.db, 'inventory'));
+      const snapshot = await this.db.collection('inventory').get();
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
@@ -241,8 +218,7 @@ export class FirebaseStorage implements IStorage {
 
   async getInventoryItem(id: string): Promise<Inventory | undefined> {
     try {
-      const inventoryRef = firebase.query(firebase.collection(this.db, 'inventory'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(inventoryRef);
+      const snapshot = await this.db.collection('inventory').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const data = snapshot.docs[0].data();
@@ -266,10 +242,10 @@ export class FirebaseStorage implements IStorage {
         type: item.type,
         quantity: item.quantity || 0,
         rate: item.rate || 0,
-        updatedAt: firebase.Timestamp.now()
+        updatedAt: admin.firestore.Timestamp.now()
       };
       
-      await firebase.addDoc(firebase.collection(this.db, 'inventory'), newItem);
+      await this.db.collection('inventory').add(newItem);
       
       return {
         ...newItem,
@@ -283,23 +259,22 @@ export class FirebaseStorage implements IStorage {
 
   async updateInventoryItem(id: string, item: Partial<InsertInventory>): Promise<Inventory | undefined> {
     try {
-      const inventoryRef = firebase.query(firebase.collection(this.db, 'inventory'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(inventoryRef);
+      const snapshot = await this.db.collection('inventory').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
-      const updateData = { ...item, updatedAt: firebase.Timestamp.now() };
-      await firebase.updateDoc(docRef, updateData);
+      const updateData = { ...item, updatedAt: admin.firestore.Timestamp.now() };
+      await docRef.update(updateData);
       
-      const updatedDoc = await firebase.getDoc(docRef);
+      const updatedDoc = await docRef.get();
       const data = updatedDoc.data();
       
       return {
-        id: data.id,
-        type: data.type,
-        quantity: data.quantity || 0,
-        rate: data.rate || 0,
-        updatedAt: this.convertTimestamp(data.updatedAt)
+        id: data!.id,
+        type: data!.type,
+        quantity: data!.quantity || 0,
+        rate: data!.rate || 0,
+        updatedAt: this.convertTimestamp(data!.updatedAt)
       };
     } catch (error) {
       console.error('Error updating inventory item:', error);
@@ -309,11 +284,10 @@ export class FirebaseStorage implements IStorage {
 
   async deleteInventoryItem(id: string): Promise<boolean> {
     try {
-      const inventoryRef = firebase.query(firebase.collection(this.db, 'inventory'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(inventoryRef);
+      const snapshot = await this.db.collection('inventory').where('id', '==', id).get();
       if (snapshot.empty) return false;
       
-      await firebase.deleteDoc(snapshot.docs[0].ref);
+      await snapshot.docs[0].ref.delete();
       return true;
     } catch (error) {
       console.error('Error deleting inventory item:', error);
@@ -324,7 +298,7 @@ export class FirebaseStorage implements IStorage {
   // Customer operations
   async getAllCustomers(): Promise<Customer[]> {
     try {
-      const snapshot = await firebase.getDocs(firebase.collection(this.db, 'customers'));
+      const snapshot = await this.db.collection('customers').get();
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
@@ -344,8 +318,7 @@ export class FirebaseStorage implements IStorage {
 
   async getCustomer(id: string): Promise<Customer | undefined> {
     try {
-      const customersRef = firebase.query(firebase.collection(this.db, 'customers'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(customersRef);
+      const snapshot = await this.db.collection('customers').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const data = snapshot.docs[0].data();
@@ -371,10 +344,10 @@ export class FirebaseStorage implements IStorage {
         type: customer.type,
         contact: customer.contact || null,
         pendingAmount: customer.pendingAmount || 0,
-        createdAt: firebase.Timestamp.now()
+        createdAt: admin.firestore.Timestamp.now()
       };
       
-      await firebase.addDoc(firebase.collection(this.db, 'customers'), newCustomer);
+      await this.db.collection('customers').add(newCustomer);
       
       return {
         ...newCustomer,
@@ -388,23 +361,22 @@ export class FirebaseStorage implements IStorage {
 
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
-      const customersRef = firebase.query(firebase.collection(this.db, 'customers'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(customersRef);
+      const snapshot = await this.db.collection('customers').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
-      await firebase.updateDoc(docRef, customer);
+      await docRef.update(customer);
       
-      const updatedDoc = await firebase.getDoc(docRef);
+      const updatedDoc = await docRef.get();
       const data = updatedDoc.data();
       
       return {
-        id: data.id,
-        name: data.name,
-        type: data.type,
-        contact: data.contact || null,
-        createdAt: this.convertTimestamp(data.createdAt),
-        pendingAmount: data.pendingAmount || 0
+        id: data!.id,
+        name: data!.name,
+        type: data!.type,
+        contact: data!.contact || null,
+        createdAt: this.convertTimestamp(data!.createdAt),
+        pendingAmount: data!.pendingAmount || 0
       };
     } catch (error) {
       console.error('Error updating customer:', error);
@@ -414,11 +386,10 @@ export class FirebaseStorage implements IStorage {
 
   async deleteCustomer(id: string): Promise<boolean> {
     try {
-      const customersRef = firebase.query(firebase.collection(this.db, 'customers'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(customersRef);
+      const snapshot = await this.db.collection('customers').where('id', '==', id).get();
       if (snapshot.empty) return false;
       
-      await firebase.deleteDoc(snapshot.docs[0].ref);
+      await snapshot.docs[0].ref.delete();
       return true;
     } catch (error) {
       console.error('Error deleting customer:', error);
@@ -429,7 +400,7 @@ export class FirebaseStorage implements IStorage {
   // Order operations
   async getAllOrders(): Promise<Order[]> {
     try {
-      const snapshot = await firebase.getDocs(firebase.query(firebase.collection(this.db, 'orders'), firebase.orderBy('date', 'desc')));
+      const snapshot = await this.db.collection('orders').orderBy('date', 'desc').get();
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
@@ -451,12 +422,10 @@ export class FirebaseStorage implements IStorage {
 
   async getOrdersByCustomer(customerId: string): Promise<Order[]> {
     try {
-      const ordersRef = firebase.query(
-        firebase.collection(this.db, 'orders'), 
-        firebase.where('customerId', '==', customerId),
-        firebase.orderBy('date', 'desc')
-      );
-      const snapshot = await firebase.getDocs(ordersRef);
+      const snapshot = await this.db.collection('orders')
+        .where('customerId', '==', customerId)
+        .orderBy('date', 'desc')
+        .get();
       
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
@@ -479,8 +448,7 @@ export class FirebaseStorage implements IStorage {
 
   async getOrder(id: string): Promise<Order | undefined> {
     try {
-      const ordersRef = firebase.query(firebase.collection(this.db, 'orders'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(ordersRef);
+      const snapshot = await this.db.collection('orders').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const data = snapshot.docs[0].data();
@@ -506,14 +474,14 @@ export class FirebaseStorage implements IStorage {
         id: uuidv4(),
         customerId: order.customerId,
         items: order.items || [],
-        date: order.date ? firebase.Timestamp.fromDate(order.date) : firebase.Timestamp.now(),
-        createdAt: order.createdAt ? firebase.Timestamp.fromDate(order.createdAt) : firebase.Timestamp.now(),
+        date: order.date ? admin.firestore.Timestamp.fromDate(order.date) : admin.firestore.Timestamp.now(),
+        createdAt: order.createdAt ? admin.firestore.Timestamp.fromDate(order.createdAt) : admin.firestore.Timestamp.now(),
         total: order.total || 0,
         status: order.status,
         type: order.type
       };
       
-      await firebase.addDoc(firebase.collection(this.db, 'orders'), newOrder);
+      await this.db.collection('orders').add(newOrder);
       
       return {
         ...newOrder,
@@ -528,29 +496,28 @@ export class FirebaseStorage implements IStorage {
 
   async updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined> {
     try {
-      const ordersRef = firebase.query(firebase.collection(this.db, 'orders'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(ordersRef);
+      const snapshot = await this.db.collection('orders').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
       const updateData = order.date ? 
-        { ...order, date: firebase.Timestamp.fromDate(order.date) } : 
+        { ...order, date: admin.firestore.Timestamp.fromDate(order.date) } : 
         order;
       
-      await firebase.updateDoc(docRef, updateData);
+      await docRef.update(updateData);
       
-      const updatedDoc = await firebase.getDoc(docRef);
+      const updatedDoc = await docRef.get();
       const data = updatedDoc.data();
       
       return {
-        id: data.id,
-        customerId: data.customerId,
-        items: data.items || [],
-        date: this.convertTimestamp(data.date),
-        total: data.total || 0,
-        status: data.status,
-        type: data.type,
-        createdAt: this.convertTimestamp(data.createdAt)
+        id: data!.id,
+        customerId: data!.customerId,
+        items: data!.items || [],
+        date: this.convertTimestamp(data!.date),
+        total: data!.total || 0,
+        status: data!.status,
+        type: data!.type,
+        createdAt: this.convertTimestamp(data!.createdAt)
       };
     } catch (error) {
       console.error('Error updating order:', error);
@@ -560,11 +527,10 @@ export class FirebaseStorage implements IStorage {
 
   async deleteOrder(id: string): Promise<boolean> {
     try {
-      const ordersRef = firebase.query(firebase.collection(this.db, 'orders'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(ordersRef);
+      const snapshot = await this.db.collection('orders').where('id', '==', id).get();
       if (snapshot.empty) return false;
       
-      await firebase.deleteDoc(snapshot.docs[0].ref);
+      await snapshot.docs[0].ref.delete();
       return true;
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -575,7 +541,7 @@ export class FirebaseStorage implements IStorage {
   // Transaction operations
   async getAllTransactions(): Promise<Transaction[]> {
     try {
-      const snapshot = await firebase.getDocs(firebase.query(firebase.collection(this.db, 'transactions'), firebase.orderBy('date', 'desc')));
+      const snapshot = await this.db.collection('transactions').orderBy('date', 'desc').get();
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
         return {
@@ -596,12 +562,10 @@ export class FirebaseStorage implements IStorage {
 
   async getTransactionsByEntity(entityId: string): Promise<Transaction[]> {
     try {
-      const transactionsRef = firebase.query(
-        firebase.collection(this.db, 'transactions'), 
-        firebase.where('entityId', '==', entityId),
-        firebase.orderBy('date', 'desc')
-      );
-      const snapshot = await firebase.getDocs(transactionsRef);
+      const snapshot = await this.db.collection('transactions')
+        .where('entityId', '==', entityId)
+        .orderBy('date', 'desc')
+        .get();
       
       return snapshot.docs.map((doc: any) => {
         const data = doc.data();
@@ -623,8 +587,7 @@ export class FirebaseStorage implements IStorage {
 
   async getTransaction(id: string): Promise<Transaction | undefined> {
     try {
-      const transactionsRef = firebase.query(firebase.collection(this.db, 'transactions'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(transactionsRef);
+      const snapshot = await this.db.collection('transactions').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const data = snapshot.docs[0].data();
@@ -651,11 +614,11 @@ export class FirebaseStorage implements IStorage {
         amount: transaction.amount,
         entityId: transaction.entityId,
         entityType: transaction.entityType,
-        date: transaction.date ? firebase.Timestamp.fromDate(transaction.date) : firebase.Timestamp.now(),
+        date: transaction.date ? admin.firestore.Timestamp.fromDate(transaction.date) : admin.firestore.Timestamp.now(),
         description: transaction.description || null
       };
       
-      await firebase.addDoc(firebase.collection(this.db, 'transactions'), newTransaction);
+      await this.db.collection('transactions').add(newTransaction);
       
       return {
         ...newTransaction,
@@ -669,24 +632,23 @@ export class FirebaseStorage implements IStorage {
 
   async updateTransaction(id: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined> {
     try {
-      const transactionsRef = firebase.query(firebase.collection(this.db, 'transactions'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(transactionsRef);
+      const snapshot = await this.db.collection('transactions').where('id', '==', id).get();
       if (snapshot.empty) return undefined;
       
       const docRef = snapshot.docs[0].ref;
-      await firebase.updateDoc(docRef, transaction);
+      await docRef.update(transaction);
       
-      const updatedDoc = await firebase.getDoc(docRef);
+      const updatedDoc = await docRef.get();
       const data = updatedDoc.data();
       
       return {
-        id: data.id,
-        type: data.type,
-        amount: data.amount,
-        entityId: data.entityId,
-        entityType: data.entityType,
-        date: this.convertTimestamp(data.date),
-        description: data.description || null
+        id: data!.id,
+        type: data!.type,
+        amount: data!.amount,
+        entityId: data!.entityId,
+        entityType: data!.entityType,
+        date: this.convertTimestamp(data!.date),
+        description: data!.description || null
       };
     } catch (error) {
       console.error('Error updating transaction:', error);
@@ -696,11 +658,10 @@ export class FirebaseStorage implements IStorage {
 
   async deleteTransaction(id: string): Promise<boolean> {
     try {
-      const transactionsRef = firebase.query(firebase.collection(this.db, 'transactions'), firebase.where('id', '==', id));
-      const snapshot = await firebase.getDocs(transactionsRef);
+      const snapshot = await this.db.collection('transactions').where('id', '==', id).get();
       if (snapshot.empty) return false;
       
-      await firebase.deleteDoc(snapshot.docs[0].ref);
+      await snapshot.docs[0].ref.delete();
       return true;
     } catch (error) {
       console.error('Error deleting transaction:', error);
@@ -709,4 +670,4 @@ export class FirebaseStorage implements IStorage {
   }
 }
 
-export const firebaseStorage = new FirebaseStorage();
+export const firestoreStorage = new FirestoreStorage();

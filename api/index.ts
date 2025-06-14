@@ -5,6 +5,8 @@ import { BalanceValidator } from "../server/balance-validator";
 import { enterpriseFirebase } from "../server/enterprise-firebase-init";
 import { enterpriseErrorMiddleware, errorHandler } from "../server/enterprise-error-handler";
 import { monitoringMiddleware, monitoring } from "../server/enterprise-monitoring";
+import { productionConfig } from "../server/production-config";
+import { enterpriseValidator } from "../server/enterprise-validation";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   insertSupplierSchema, 
@@ -15,19 +17,31 @@ import {
 } from "../shared/schema";
 import { z } from "zod";
 
+// Initialize production configuration
+productionConfig.logConfiguration();
+
 const app = express();
 
-// Parse JSON request body
-app.use(express.json());
+// Parse JSON request body with production limits
+const performanceConfig = productionConfig.getPerformanceConfig();
+app.use(express.json({ limit: performanceConfig.maxPayloadSize }));
 
 // Enterprise monitoring middleware
 app.use(monitoringMiddleware);
 
-// Add CORS headers for Vercel
+// Production CORS configuration
+const securityConfig = productionConfig.getSecurityConfig();
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  const allowedOrigins = securityConfig.allowedOrigins;
+  
+  if (allowedOrigins.includes('*') || (origin && allowedOrigins.includes(origin))) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
@@ -77,15 +91,20 @@ app.get("/api/enterprise/status", async (req: Request, res: Response) => {
     const performanceMetrics = monitoring.getPerformanceMetrics();
     const healthScore = monitoring.getHealthScore();
     const errorMetrics = errorHandler.getMetrics();
+    const configValidation = productionConfig.validateConfiguration();
+    const environmentInfo = productionConfig.getEnvironmentInfo();
 
     res.json({
-      status: "operational",
+      status: healthScore.score > 70 ? "operational" : "degraded",
       timestamp: new Date().toISOString(),
+      environment: environmentInfo,
       firebase: firebaseHealth,
       performance: performanceMetrics,
       health: healthScore,
       errors: errorMetrics,
-      environment: process.env.NODE_ENV || 'production'
+      configuration: configValidation,
+      uptime: process.uptime() * 1000,
+      version: "1.0.0-enterprise"
     });
   } catch (error) {
     res.status(500).json({
@@ -686,22 +705,16 @@ app.get("/api/reports", async (req: Request, res: Response) => {
   }
 });
 
-// Global error handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Global error handler:', err);
-  res.status(500).json({ 
-    message: "Internal server error",
-    error: err.message,
-    timestamp: new Date().toISOString()
-  });
-});
+// Enterprise error handling middleware
+app.use(enterpriseErrorMiddleware);
 
 // Catch-all route for unmatched paths
 app.use('*', (req: Request, res: Response) => {
   res.status(404).json({ 
     message: "Route not found",
     path: req.originalUrl,
-    method: req.method
+    method: req.method,
+    timestamp: new Date().toISOString()
   });
 });
 

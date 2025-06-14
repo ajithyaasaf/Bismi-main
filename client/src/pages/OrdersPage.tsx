@@ -167,79 +167,71 @@ export default function OrdersPage() {
     if (!orderToDelete) return;
     
     try {
-      // First check if order exists by fetching current orders
-      const currentOrders = await fetch('/api/orders').then(res => res.json());
-      const orderExists = currentOrders.some((order: any) => order.id === orderToDelete.id);
+      console.log(`Deleting order via API with ID: ${orderToDelete.id}`);
       
-      if (!orderExists) {
-        // Order doesn't exist, treat as already deleted
-        toast({
-          title: "Order deleted",
-          description: "The order has been successfully deleted",
-        });
-        
-        // Remove from local state
-        setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
-        
-        // Refresh all data
-        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-        
-        const updatedOrders = await OrderService.getOrders();
-        setFirestoreOrders(updatedOrders);
-        
-        return;
-      }
-      
-      // Order exists, proceed with deletion
+      // Use API as the single source of truth for enterprise-level consistency
       await apiRequest('DELETE', `/api/orders/${orderToDelete.id}`, undefined);
       
-      // Success toast
       toast({
         title: "Order deleted",
         description: "The order has been successfully deleted",
       });
       
-      // Refresh local state immediately
+      // Update local state immediately for instant UI feedback
       setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
       
-      // Refresh data via query cache
+      // Refresh data via query cache to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       
-      // Refresh Firebase data
-      const updatedOrders = await OrderService.getOrders();
-      setFirestoreOrders(updatedOrders);
+      // Close dialog immediately on success
+      setIsDeleteDialogOpen(false);
+      setOrderToDelete(null);
+      
+      // Refresh Firestore data in background to maintain dual-source sync
+      setTimeout(async () => {
+        try {
+          const refreshedOrders = await OrderService.getOrders();
+          console.log("Background refresh after deletion:", refreshedOrders.length, "orders");
+          setFirestoreOrders(refreshedOrders);
+        } catch (error) {
+          console.error("Background refresh failed:", error);
+        }
+      }, 1000);
       
     } catch (error) {
-      console.error("Error deleting order:", error);
+      console.error("Error during order deletion:", error);
       
-      // Check if it's a 404 error (order already deleted)
-      if (error instanceof Error && error.message.includes('404')) {
-        // Treat as success since order is gone
+      // Enhanced error handling for different scenarios
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNotFoundError = errorMessage.includes('404') || errorMessage.includes('ORDER_NOT_FOUND');
+      
+      if (isNotFoundError) {
+        // Order was already deleted or doesn't exist, treat as success
+        console.log("Order was already deleted, updating UI accordingly");
         toast({
           title: "Order deleted",
-          description: "The order has been successfully deleted",
+          description: "The order has been successfully removed",
         });
         
-        // Refresh local state
+        // Update local state
         setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
-        
-        // Refresh Firebase data
-        const updatedOrders = await OrderService.getOrders();
-        setFirestoreOrders(updatedOrders);
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       } else {
-        // Real error occurred
+        // Actual deletion error
+        console.error("Actual deletion error occurred:", error);
         toast({
           title: "Error",
-          description: "Failed to delete order",
+          description: "Failed to delete order. Please try again.",
           variant: "destructive",
         });
       }
-    } finally {
-      setOrderToDelete(null);
-      setIsDeleteDialogOpen(false);
     }
+    
+    // Always close the dialog and cleanup state
+    setIsDeleteDialogOpen(false);
+    setOrderToDelete(null);
   };
 
   // For form modal closure, make sure to refresh Firestore data

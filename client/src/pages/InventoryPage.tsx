@@ -61,40 +61,69 @@ export default function InventoryPage() {
     if (!itemToDelete) return;
     
     try {
-      // First delete from Firestore directly
-      try {
-        const result = await InventoryService.deleteInventoryItem(itemToDelete.id);
-        console.log(`Delete result from Firestore: ${result ? 'Success' : 'Not found'}`);
-      } catch (firestoreError) {
-        console.error("Error deleting inventory item from Firestore:", firestoreError);
-      }
+      console.log(`Deleting inventory item via API with ID: ${itemToDelete.id}`);
       
-      // Then delete via API for backward compatibility
-      try {
-        await apiRequest('DELETE', `/api/inventory/${itemToDelete.id}`, undefined);
-      } catch (apiError) {
-        console.error("API error during inventory deletion:", apiError);
-        // Continue anyway since Firestore operation likely succeeded
-      }
+      // Use API as the single source of truth for enterprise-level consistency
+      await apiRequest('DELETE', `/api/inventory/${itemToDelete.id}`, undefined);
       
       toast({
         title: "Item deleted",
         description: `${itemToDelete.type} has been successfully deleted`,
       });
       
-      // Refresh local state
+      // Update local state immediately for instant UI feedback
       setFirestoreInventory((prev: any) => prev.filter((i: any) => i.id !== itemToDelete.id));
       
-      // Refresh inventory data via query cache
+      // Refresh data via query cache to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+      
+      // Close dialog immediately on success
+      setIsDeleteDialogOpen(false);
+      setItemToDelete(null);
+      
+      // Refresh Firestore data in background to maintain dual-source sync
+      setTimeout(async () => {
+        try {
+          const refreshedInventory = await InventoryService.getInventoryItems();
+          console.log("Background refresh after deletion:", refreshedInventory.length, "items");
+          setFirestoreInventory(refreshedInventory);
+        } catch (error) {
+          console.error("Background refresh failed:", error);
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error("Error during inventory item deletion:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete inventory item",
-        variant: "destructive",
-      });
+      
+      // Enhanced error handling for different scenarios
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNotFoundError = errorMessage.includes('404') || errorMessage.includes('ITEM_NOT_FOUND');
+      
+      if (isNotFoundError) {
+        // Item was already deleted or doesn't exist, treat as success
+        console.log("Item was already deleted, updating UI accordingly");
+        toast({
+          title: "Item deleted",
+          description: `${itemToDelete.type} has been successfully removed`,
+        });
+        
+        // Update local state
+        setFirestoreInventory((prev: any) => prev.filter((i: any) => i.id !== itemToDelete.id));
+        queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+      } else {
+        // Actual deletion error
+        console.error("Actual deletion error occurred:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete inventory item. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
+    
+    // Always close the dialog and cleanup state
+    setIsDeleteDialogOpen(false);
+    setItemToDelete(null);
   };
 
   const handleCloseForm = () => {

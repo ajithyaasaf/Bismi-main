@@ -245,15 +245,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   apiRouter.delete("/inventory/:id", async (req: Request, res: Response) => {
     try {
+      const itemId = req.params.id;
+      console.log(`API: Processing deletion request for inventory item ID: ${itemId}`);
+      
       const storage = await getStorage();
-      const success = await storage.deleteInventoryItem(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Inventory item not found" });
+      
+      // First check if item exists
+      const existingItem = await storage.getInventoryItem(itemId);
+      if (!existingItem) {
+        console.log(`API: Inventory item ${itemId} not found, returning 404`);
+        return res.status(404).json({ 
+          message: "Inventory item not found",
+          code: "ITEM_NOT_FOUND",
+          itemId: itemId
+        });
       }
+      
+      // Proceed with deletion
+      const success = await storage.deleteInventoryItem(itemId);
+      if (!success) {
+        console.log(`API: Deletion failed for inventory item ${itemId}`);
+        return res.status(500).json({ 
+          message: "Failed to delete inventory item from database",
+          code: "DELETION_FAILED",
+          itemId: itemId
+        });
+      }
+      
+      console.log(`API: Inventory item ${itemId} deleted successfully`);
       res.status(204).send();
+      
     } catch (error) {
-      console.error("Failed to delete inventory item:", error);
-      res.status(500).json({ message: "Failed to delete inventory item" });
+      console.error("API: Error during inventory item deletion:", error);
+      res.status(500).json({ 
+        message: "Internal server error during deletion",
+        code: "INTERNAL_ERROR",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
@@ -392,15 +420,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   apiRouter.delete("/customers/:id", async (req: Request, res: Response) => {
     try {
+      const customerId = req.params.id;
+      console.log(`API: Processing deletion request for customer ID: ${customerId}`);
+      
       const storage = await getStorage();
-      const success = await storage.deleteCustomer(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Customer not found" });
+      
+      // First check if customer exists
+      const existingCustomer = await storage.getCustomer(customerId);
+      if (!existingCustomer) {
+        console.log(`API: Customer ${customerId} not found, returning 404`);
+        return res.status(404).json({ 
+          message: "Customer not found",
+          code: "CUSTOMER_NOT_FOUND",
+          customerId: customerId
+        });
       }
+      
+      // Proceed with deletion
+      const success = await storage.deleteCustomer(customerId);
+      if (!success) {
+        console.log(`API: Deletion failed for customer ${customerId}`);
+        return res.status(500).json({ 
+          message: "Failed to delete customer from database",
+          code: "DELETION_FAILED",
+          customerId: customerId
+        });
+      }
+      
+      console.log(`API: Customer ${customerId} deleted successfully`);
       res.status(204).send();
+      
     } catch (error) {
-      console.error("Failed to delete customer:", error);
-      res.status(500).json({ message: "Failed to delete customer" });
+      console.error("API: Error during customer deletion:", error);
+      res.status(500).json({ 
+        message: "Internal server error during deletion",
+        code: "INTERNAL_ERROR",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
@@ -593,15 +649,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   apiRouter.delete("/orders/:id", async (req: Request, res: Response) => {
     try {
+      const orderId = req.params.id;
+      console.log(`API: Processing deletion request for order ID: ${orderId}`);
+      
       const storage = await getStorage();
-      const success = await storage.deleteOrder(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Order not found" });
+      
+      // First check if order exists
+      const existingOrder = await storage.getOrder(orderId);
+      if (!existingOrder) {
+        console.log(`API: Order ${orderId} not found, returning 404`);
+        return res.status(404).json({ 
+          message: "Order not found",
+          code: "ORDER_NOT_FOUND",
+          orderId: orderId
+        });
       }
+      
+      // Proceed with deletion
+      const success = await storage.deleteOrder(orderId);
+      if (!success) {
+        console.log(`API: Deletion failed for order ${orderId}`);
+        return res.status(500).json({ 
+          message: "Failed to delete order from database",
+          code: "DELETION_FAILED",
+          orderId: orderId
+        });
+      }
+      
+      console.log(`API: Order ${orderId} deleted successfully`);
       res.status(204).send();
+      
     } catch (error) {
-      console.error("Failed to delete order:", error);
-      res.status(500).json({ message: "Failed to delete order" });
+      console.error("API: Error during order deletion:", error);
+      res.status(500).json({ 
+        message: "Internal server error during deletion",
+        code: "INTERNAL_ERROR",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

@@ -85,25 +85,69 @@ export default function CustomersPage() {
     if (!customerToDelete) return;
 
     try {
+      console.log(`Deleting customer via API with ID: ${customerToDelete.id}`);
+      
+      // Use API as the single source of truth for enterprise-level consistency
       await apiRequest('DELETE', `/api/customers/${customerToDelete.id}`);
       
       toast({
         title: "Customer deleted",
-        description: `${customerToDelete.name} has been deleted successfully`,
+        description: `${customerToDelete.name} has been successfully deleted`,
       });
 
+      // Update local state immediately for instant UI feedback
+      setFirestoreCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+      
+      // Refresh data via query cache to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-    } catch (error) {
-      console.error("Failed to delete customer:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete customer",
-        variant: "destructive",
-      });
-    } finally {
+      
+      // Close dialog immediately on success
       setIsDeleteDialogOpen(false);
       setCustomerToDelete(null);
+      
+      // Refresh Firestore data in background to maintain dual-source sync
+      setTimeout(async () => {
+        try {
+          const refreshedCustomers = await CustomerService.getCustomers();
+          console.log("Background refresh after deletion:", refreshedCustomers.length, "customers");
+          setFirestoreCustomers(refreshedCustomers);
+        } catch (error) {
+          console.error("Background refresh failed:", error);
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error("Error during customer deletion:", error);
+      
+      // Enhanced error handling for different scenarios
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNotFoundError = errorMessage.includes('404') || errorMessage.includes('CUSTOMER_NOT_FOUND');
+      
+      if (isNotFoundError) {
+        // Customer was already deleted or doesn't exist, treat as success
+        console.log("Customer was already deleted, updating UI accordingly");
+        toast({
+          title: "Customer deleted",
+          description: `${customerToDelete.name} has been successfully removed`,
+        });
+        
+        // Update local state
+        setFirestoreCustomers(prev => prev.filter(c => c.id !== customerToDelete.id));
+        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      } else {
+        // Actual deletion error
+        console.error("Actual deletion error occurred:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete customer. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
+    
+    // Always close the dialog and cleanup state
+    setIsDeleteDialogOpen(false);
+    setCustomerToDelete(null);
   };
 
   const openPaymentModal = (customerId: string, customerName: string) => {

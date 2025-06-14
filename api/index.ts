@@ -17,9 +17,41 @@ const app = express();
 // Parse JSON request body
 app.use(express.json());
 
-// Use enterprise storage with Firestore exclusively
+// Add CORS headers for Vercel
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
+// Initialize storage once and cache it
+let storageInstance: any = null;
+
 async function getStorage() {
-  return await storageManager.initialize();
+  if (!storageInstance) {
+    console.log('Initializing storage for Vercel serverless function...');
+    try {
+      // Add timeout for Firebase initialization (Vercel functions have 10s timeout)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Firebase initialization timeout')), 8000)
+      );
+      
+      const initPromise = storageManager.initialize();
+      
+      storageInstance = await Promise.race([initPromise, timeoutPromise]);
+      console.log('Storage initialized successfully');
+    } catch (error) {
+      console.error('Storage initialization failed:', error);
+      throw new Error(`Storage initialization failed: ${(error as Error).message}`);
+    }
+  }
+  return storageInstance;
 }
 
 // Health check endpoint
@@ -558,8 +590,21 @@ app.get("/api/reports", async (req: Request, res: Response) => {
 
 // Global error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "Something went wrong!" });
+  console.error('Global error handler:', err);
+  res.status(500).json({ 
+    message: "Internal server error",
+    error: err.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Catch-all route for unmatched paths
+app.use('*', (req: Request, res: Response) => {
+  res.status(404).json({ 
+    message: "Route not found",
+    path: req.originalUrl,
+    method: req.method
+  });
 });
 
 // Export for Vercel serverless

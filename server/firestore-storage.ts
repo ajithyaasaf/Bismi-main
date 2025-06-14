@@ -23,10 +23,11 @@ export class FirestoreStorage implements IStorage {
 
   constructor() {
     try {
-      console.log('Initializing Firebase Admin SDK...');
+      console.log('Initializing Firebase Admin SDK for Vercel...');
       
       // Initialize Firebase Admin if not already initialized
       if (!admin.apps || admin.apps.length === 0) {
+        console.log('No existing Firebase app found, initializing new instance...');
         // Try service account key first (for Vercel)
         const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         

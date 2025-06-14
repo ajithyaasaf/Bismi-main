@@ -134,6 +134,26 @@ app.get("/api/enterprise/metrics", async (req: Request, res: Response) => {
   }
 });
 
+app.get("/api/enterprise/readiness", async (req: Request, res: Response) => {
+  try {
+    const deploymentReadiness = await enterpriseValidator.validateDeploymentReadiness();
+    const runtimeHealth = await enterpriseValidator.validateRuntimeHealth();
+    
+    res.json({
+      deployment: deploymentReadiness,
+      runtime: runtimeHealth,
+      overallStatus: deploymentReadiness.isReady && runtimeHealth.healthy ? 'ready' : 'not-ready',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Readiness check failed',
+      message: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.get("/api/debug/firebase", async (req: Request, res: Response) => {
   try {
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;

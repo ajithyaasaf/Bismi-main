@@ -1,18 +1,7 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.ts",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist/public"
-      }
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/public",
   "routes": [
     {
       "src": "/api/(.*)",
@@ -26,12 +15,9 @@
       "dest": "/index.html"
     }
   ],
-  "env": {
-    "USE_FIRESTORE": "true",
-    "NODE_ENV": "production"
-  },
   "functions": {
     "api/index.ts": {
+      "runtime": "nodejs18.x",
       "maxDuration": 30
     }
   }

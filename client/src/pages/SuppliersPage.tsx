@@ -19,6 +19,7 @@ export default function SuppliersPage() {
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [supplierForPayment, setSupplierForPayment] = useState<Supplier | null>(null);
+  const [isDeletingSupplier, setIsDeletingSupplier] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -61,18 +62,13 @@ export default function SuppliersPage() {
   };
   
   const confirmDelete = async () => {
-    if (!supplierToDelete) return;
+    if (!supplierToDelete || isDeletingSupplier) return;
     
     try {
-      // First delete from Firestore directly
-      try {
-        const result = await SupplierService.deleteSupplier(supplierToDelete.id);
-        console.log(`Delete result from Firestore: ${result ? 'Success' : 'Not found'}`);
-      } catch (firestoreError) {
-        console.error("Error deleting supplier from Firestore:", firestoreError);
-      }
+      setIsDeletingSupplier(true);
+      console.log(`Deleting supplier via API with ID: ${supplierToDelete.id}`);
       
-      // Then delete via API for backward compatibility
+      // Use API as the single source of truth for enterprise-level consistency
       await apiRequest('DELETE', `/api/suppliers/${supplierToDelete.id}`, undefined);
       
       toast({
@@ -80,19 +76,59 @@ export default function SuppliersPage() {
         description: `${supplierToDelete.name} has been successfully deleted`,
       });
       
-      // Update local state
+      // Update local Firestore state immediately for instant UI feedback
       setFirestoreSuppliers(prev => prev.filter(s => s.id !== supplierToDelete.id));
       
-      // Refresh API data
+      // Refresh data via query cache to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      
+      // Close dialog immediately on success
+      setIsDeleteDialogOpen(false);
+      setSupplierToDelete(null);
+      
+      // Refresh Firestore data in background to maintain dual-source sync
+      setTimeout(async () => {
+        try {
+          const refreshedSuppliers = await SupplierService.getSuppliers();
+          console.log("Background refresh after deletion:", refreshedSuppliers.length, "suppliers");
+          setFirestoreSuppliers(refreshedSuppliers);
+        } catch (error) {
+          console.error("Background refresh failed:", error);
+        }
+      }, 1000);
+      
     } catch (error) {
       console.error("Error during supplier deletion:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete supplier",
-        variant: "destructive",
-      });
+      
+      // Enhanced error handling for different scenarios
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNotFoundError = errorMessage.includes('404') || errorMessage.includes('SUPPLIER_NOT_FOUND');
+      
+      if (isNotFoundError) {
+        // Supplier was already deleted or doesn't exist, treat as success
+        console.log("Supplier was already deleted, updating UI accordingly");
+        toast({
+          title: "Supplier deleted",
+          description: `${supplierToDelete.name} has been successfully removed`,
+        });
+        
+        // Update local state
+        setFirestoreSuppliers(prev => prev.filter(s => s.id !== supplierToDelete.id));
+        queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      } else {
+        // Actual deletion error
+        console.error("Actual deletion error occurred:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete supplier. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
+    
+    // Always close the dialog and cleanup state
+    setIsDeleteDialogOpen(false);
+    setSupplierToDelete(null);
   };
 
   const handlePayment = (supplierId: string, supplierName: string) => {

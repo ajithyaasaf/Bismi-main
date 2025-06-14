@@ -104,15 +104,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   apiRouter.delete("/suppliers/:id", async (req: Request, res: Response) => {
     try {
+      const supplierId = req.params.id;
+      console.log(`API: Processing deletion request for supplier ID: ${supplierId}`);
+      
       const storage = await getStorage();
-      const success = await storage.deleteSupplier(req.params.id);
-      if (!success) {
-        return res.status(404).json({ message: "Supplier not found" });
+      
+      // First check if supplier exists
+      const existingSupplier = await storage.getSupplier(supplierId);
+      if (!existingSupplier) {
+        console.log(`API: Supplier ${supplierId} not found, returning 404`);
+        return res.status(404).json({ 
+          message: "Supplier not found",
+          code: "SUPPLIER_NOT_FOUND",
+          supplierId: supplierId
+        });
       }
+      
+      // Proceed with deletion
+      const success = await storage.deleteSupplier(supplierId);
+      if (!success) {
+        console.log(`API: Deletion failed for supplier ${supplierId}`);
+        return res.status(500).json({ 
+          message: "Failed to delete supplier from database",
+          code: "DELETION_FAILED",
+          supplierId: supplierId
+        });
+      }
+      
+      console.log(`API: Supplier ${supplierId} deleted successfully`);
       res.status(204).send();
+      
     } catch (error) {
-      console.error("Failed to delete supplier:", error);
-      res.status(500).json({ message: "Failed to delete supplier" });
+      console.error("API: Error during supplier deletion:", error);
+      res.status(500).json({ 
+        message: "Internal server error during deletion",
+        code: "INTERNAL_ERROR",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

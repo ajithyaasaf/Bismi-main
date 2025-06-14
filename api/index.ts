@@ -36,14 +36,25 @@ let storageInstance: any = null;
 async function getStorage() {
   if (!storageInstance) {
     console.log('Initializing storage for Vercel serverless function...');
+    
+    // Check for Firebase service account key first
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const hasIndividualVars = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+    
     console.log('Environment check:', {
       nodeEnv: process.env.NODE_ENV,
       useFirestore: process.env.USE_FIRESTORE,
+      hasServiceAccountKey: !!serviceAccountKey,
       hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
       hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
       hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      hasIndividualVars,
       projectId: process.env.FIREBASE_PROJECT_ID
     });
+    
+    if (!serviceAccountKey && !hasIndividualVars) {
+      throw new Error('Missing Firebase credentials. Please set either FIREBASE_SERVICE_ACCOUNT_KEY or individual Firebase environment variables.');
+    }
     
     try {
       // Add timeout for Firebase initialization (Vercel functions have 10s timeout)
@@ -67,6 +78,33 @@ async function getStorage() {
   }
   return storageInstance;
 }
+
+// Debug endpoint for Firebase configuration
+app.get("/api/debug/firebase", async (req: Request, res: Response) => {
+  try {
+    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    const hasIndividualVars = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+    
+    res.json({
+      environment: process.env.NODE_ENV,
+      hasServiceAccountKey: !!serviceAccountKey,
+      hasIndividualVars,
+      firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
+      hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      privateKeyLength: process.env.FIREBASE_PRIVATE_KEY?.length || 0,
+      privateKeyStartsWith: process.env.FIREBASE_PRIVATE_KEY?.substring(0, 30) || 'none',
+      useFirestore: process.env.USE_FIRESTORE,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Debug endpoint failed',
+      message: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
 // Health check endpoint
 app.get("/api/health", async (req: Request, res: Response) => {
@@ -95,7 +133,16 @@ app.get("/api/suppliers", async (req: Request, res: Response) => {
     res.json(suppliers);
   } catch (error) {
     console.error("Failed to fetch suppliers:", error);
-    res.status(500).json({ message: "Failed to fetch suppliers" });
+    console.error("Error details:", {
+      message: (error as Error).message,
+      stack: (error as Error).stack,
+      name: (error as Error).name
+    });
+    res.status(500).json({ 
+      message: "Failed to fetch suppliers",
+      error: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

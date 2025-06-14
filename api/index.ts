@@ -417,12 +417,23 @@ app.delete("/api/orders/:id", async (req: Request, res: Response) => {
 // Transaction routes
 app.get("/api/transactions", async (req: Request, res: Response) => {
   try {
+    console.log("Attempting to get storage...");
     const storage = await getStorage();
+    console.log("Storage obtained, fetching transactions...");
     const transactions = await storage.getAllTransactions();
+    console.log(`Successfully fetched ${transactions.length} transactions`);
     res.json(transactions);
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
-    res.status(500).json({ message: "Failed to fetch transactions" });
+    console.error("Error details:", {
+      message: (error as Error).message,
+      stack: (error as Error).stack,
+    });
+    res.status(500).json({ 
+      message: "Failed to fetch transactions",
+      error: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
   }
 });
 

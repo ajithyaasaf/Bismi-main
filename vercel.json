@@ -2,6 +2,10 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/index.ts",
+      "use": "@vercel/node"
+    },
+    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -21,10 +25,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "env": {
-    "USE_FIRESTORE": "true",
-    "FIREBASE_PROJECT_ID": "bismi-broilers-3ca96",
-    "NODE_ENV": "production"
-  }
+  ]
 }

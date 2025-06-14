@@ -1,1 +1,1 @@
-// This file is not needed - removing in favor of proper Express handler
+// REMOVED - This file was causing deployment conflicts with API routing

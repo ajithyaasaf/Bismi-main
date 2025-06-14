@@ -89,8 +89,11 @@ app.get('/health', (req: Request, res: Response) => {
       res.status(404).json({ message: 'Route not found' });
     });
 
-    const port = process.env.PORT || 10000;
-    server.listen(port, '0.0.0.0', () => {
+    const port = parseInt(process.env.PORT || '10000');
+    server.listen({
+      port,
+      host: '0.0.0.0',
+    }, () => {
       console.log(`🚀 Production server running on port ${port}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
     });

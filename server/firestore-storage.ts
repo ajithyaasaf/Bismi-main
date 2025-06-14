@@ -25,32 +25,50 @@ export class FirestoreStorage implements IStorage {
     try {
       // Initialize Firebase Admin if not already initialized
       if (!admin.apps || admin.apps.length === 0) {
-        // Try service account key first (for Vercel)
         const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         
         if (serviceAccountKey) {
-          const serviceAccount = JSON.parse(serviceAccountKey);
-          admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
-          });
+          try {
+            // Parse the service account key
+            const serviceAccount = typeof serviceAccountKey === 'string' 
+              ? JSON.parse(serviceAccountKey) 
+              : serviceAccountKey;
+            
+            console.log('Initializing Firebase Admin with service account for project:', serviceAccount.project_id);
+            
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount),
+              projectId: serviceAccount.project_id,
+            });
+          } catch (parseError) {
+            console.error('Failed to parse service account key:', parseError);
+            throw new Error('Invalid Firebase service account key format');
+          }
         } else {
           // Fallback to individual environment variables
           const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+          const projectId = process.env.FIREBASE_PROJECT_ID;
+          const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+          
+          if (!projectId || !clientEmail || !privateKey) {
+            throw new Error('Missing Firebase configuration. Please provide FIREBASE_SERVICE_ACCOUNT_KEY or individual Firebase environment variables.');
+          }
+          
+          console.log('Initializing Firebase Admin with individual credentials for project:', projectId);
           
           admin.initializeApp({
             credential: admin.credential.cert({
-              projectId: process.env.FIREBASE_PROJECT_ID,
-              clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+              projectId: projectId,
+              clientEmail: clientEmail,
               privateKey: privateKey,
             }),
-            projectId: process.env.FIREBASE_PROJECT_ID,
+            projectId: projectId,
           });
         }
       }
       
       this.db = admin.firestore();
-      console.log('Firebase Firestore storage initialized with service account credentials');
+      console.log('Firebase Firestore storage initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Firebase Admin SDK:', error);
       throw error;

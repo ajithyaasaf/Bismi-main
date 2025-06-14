@@ -14,12 +14,37 @@ import { z } from "zod";
 
 const app = express();
 
+// CORS middleware for Vercel
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
+
 // Parse JSON request body
 app.use(express.json());
 
-// Use enterprise storage with Firestore exclusively
+// Initialize storage once for serverless functions
+let storageInstance: any = null;
+
 async function getStorage() {
-  return await storageManager.initialize();
+  if (!storageInstance) {
+    try {
+      console.log('Initializing storage for serverless function...');
+      storageInstance = await storageManager.initialize();
+      console.log('Storage initialized successfully:', storageManager.getStorageType());
+    } catch (error) {
+      console.error('Failed to initialize storage:', error);
+      throw error;
+    }
+  }
+  return storageInstance;
 }
 
 // Health check endpoint
@@ -545,10 +570,23 @@ app.get("/api/reports", async (req: Request, res: Response) => {
   }
 });
 
-// Global error handler
+// Global error handler with detailed Firebase error reporting
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "Something went wrong!" });
+  console.error('API Error:', err);
+  
+  // Provide specific error messages for common Firebase issues
+  if (err.message?.includes('service account') || err.message?.includes('Firebase')) {
+    res.status(500).json({ 
+      message: "Firebase configuration error", 
+      error: err.message,
+      details: "Check Firebase service account credentials in environment variables"
+    });
+  } else {
+    res.status(500).json({ 
+      message: "Server error", 
+      error: err.message || "Unknown error occurred"
+    });
+  }
 });
 
 // Export for Vercel serverless

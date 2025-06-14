@@ -1,0 +1,73 @@
+Failed to load resource: the server responded with a status of 500 ()
+index-BgYkesJR.js:48 API Error: Error: 500: A server error has occurred
+
+FUNCTION_INVOCATION_FAILED
+
+bom1::n7t8f-1749903467125-68357a8f6d6d
+
+    at Dz (index-BgYkesJR.js:48:40626)
+    at async index-BgYkesJR.js:48:41079
+Dz @ index-BgYkesJR.js:48
+/api/customers:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+index-BgYkesJR.js:48 API Error: Error: 500: A server error has occurred
+
+FUNCTION_INVOCATION_FAILED
+
+bom1::7jwgm-1749903467248-7332cbd4a592
+
+    at Dz (index-BgYkesJR.js:48:40626)
+    at async index-BgYkesJR.js:48:41079
+Dz @ index-BgYkesJR.js:48
+transactions:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+index-BgYkesJR.js:48 API Error: Error: 500: A server error has occurred
+
+FUNCTION_INVOCATION_FAILED
+
+bom1::r7l8r-1749903468925-6f0f5dc7bbb1
+
+    at Dz (index-BgYkesJR.js:48:40626)
+    at async index-BgYkesJR.js:48:41079
+Dz @ index-BgYkesJR.js:48
+await in Dz
+(anonymous) @ index-BgYkesJR.js:48
+inventory:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+index-BgYkesJR.js:48 API Error: Error: 500: A server error has occurred
+
+FUNCTION_INVOCATION_FAILED
+
+bom1::m7cnn-1749903469345-c2db27269793
+
+    at Dz (index-BgYkesJR.js:48:40626)
+    at async index-BgYkesJR.js:48:41079
+Dz @ index-BgYkesJR.js:48
+await in Dz
+(anonymous) @ index-BgYkesJR.js:48
+suppliers:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+index-BgYkesJR.js:48 API Error: Error: 500: A server error has occurred
+
+FUNCTION_INVOCATION_FAILED
+
+bom1::jn8lj-1749903471285-e7abf039e4f2
+
+    at Dz (index-BgYkesJR.js:48:40626)
+    at async index-BgYkesJR.js:48:41079
+Dz @ index-BgYkesJR.js:48
+await in Dz
+(anonymous) @ index-BgYkesJR.js:48
+suppliers:1 
+            
+            
+           Failed to load resource: the server responded with a status of 500 ()
+index-BgYkesJR.js:200 Firebase client: Error getting suppliers: SyntaxError: Unexpected token 'A', "A server e"... is not valid JSON

@@ -85,6 +85,12 @@ export class FirestoreStorage implements IStorage {
             console.log('Added missing newlines to private key');
           }
           
+          // Remove any trailing newlines after END marker (common Vercel issue)
+          if (privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
+            privateKey = privateKey.slice(0, -1);
+            console.log('Removed trailing newline after END marker');
+          }
+          
           console.log('Final private key format check:', {
             hasBeginMarker: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
             hasEndMarker: privateKey.includes('-----END PRIVATE KEY-----'),

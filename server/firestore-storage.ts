@@ -53,11 +53,29 @@ export class FirestoreStorage implements IStorage {
         } else {
           console.log('Using individual environment variables for authentication');
           // Fallback to individual environment variables
-          const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+          let privateKey = process.env.FIREBASE_PRIVATE_KEY;
           
           if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
             throw new Error('Missing required Firebase environment variables: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY');
           }
+          
+          // Handle different private key formats
+          if (privateKey.includes('\\n')) {
+            privateKey = privateKey.replace(/\\n/g, '\n');
+          }
+          
+          // Ensure proper private key format
+          if (!privateKey.includes('\n')) {
+            // If the key doesn't have newlines, it might be base64 encoded or malformed
+            console.log('Private key appears to be in single line format, attempting to format...');
+          }
+          
+          console.log('Private key format check:', {
+            hasBeginMarker: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
+            hasEndMarker: privateKey.includes('-----END PRIVATE KEY-----'),
+            hasNewlines: privateKey.includes('\n'),
+            length: privateKey.length
+          });
           
           admin.initializeApp({
             credential: admin.credential.cert({

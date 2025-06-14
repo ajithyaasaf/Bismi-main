@@ -1,0 +1,1 @@
+// This file is not needed - removing in favor of proper Express handler

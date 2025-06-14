@@ -60,22 +60,38 @@ export class FirestoreStorage implements IStorage {
             throw new Error('Missing required Firebase environment variables: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY');
           }
           
-          // Handle different private key formats
+          // Handle different private key formats for Vercel deployment
+          console.log('Original private key format check:', {
+            hasEscapedNewlines: privateKey.includes('\\n'),
+            hasRealNewlines: privateKey.includes('\n'),
+            hasBeginMarker: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
+            hasEndMarker: privateKey.includes('-----END PRIVATE KEY-----'),
+            length: privateKey.length
+          });
+          
+          // Replace escaped newlines with actual newlines
           if (privateKey.includes('\\n')) {
             privateKey = privateKey.replace(/\\n/g, '\n');
+            console.log('Converted escaped newlines to actual newlines');
           }
           
-          // Ensure proper private key format
-          if (!privateKey.includes('\n')) {
-            // If the key doesn't have newlines, it might be base64 encoded or malformed
-            console.log('Private key appears to be in single line format, attempting to format...');
+          // For Vercel, sometimes the key comes without proper line breaks
+          // Ensure the key has proper BEGIN and END markers with newlines
+          if (!privateKey.includes('\n') && privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+            // Split at the markers and add proper formatting
+            privateKey = privateKey
+              .replace('-----BEGIN PRIVATE KEY-----', '-----BEGIN PRIVATE KEY-----\n')
+              .replace('-----END PRIVATE KEY-----', '\n-----END PRIVATE KEY-----');
+            console.log('Added missing newlines to private key');
           }
           
-          console.log('Private key format check:', {
+          console.log('Final private key format check:', {
             hasBeginMarker: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
             hasEndMarker: privateKey.includes('-----END PRIVATE KEY-----'),
             hasNewlines: privateKey.includes('\n'),
-            length: privateKey.length
+            length: privateKey.length,
+            startsCorrectly: privateKey.startsWith('-----BEGIN PRIVATE KEY-----'),
+            endsCorrectly: privateKey.endsWith('-----END PRIVATE KEY-----')
           });
           
           admin.initializeApp({

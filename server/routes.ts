@@ -41,6 +41,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint for Firebase configuration (for deployment troubleshooting)
+  apiRouter.get("/debug/firebase", async (req: Request, res: Response) => {
+    try {
+      res.json({
+        environment: process.env.NODE_ENV,
+        useFirestore: process.env.USE_FIRESTORE,
+        hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
+        hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+        hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+        hasFirebaseServiceAccountKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY,
+        firebaseProjectId: process.env.FIREBASE_PROJECT_ID, // Safe to expose project ID
+        storageType: storageManager.getStorageType(),
+        timestamp: new Date().toISOString(),
+        privateKeyInfo: process.env.FIREBASE_PRIVATE_KEY ? {
+          length: process.env.FIREBASE_PRIVATE_KEY.length,
+          hasBeginMarker: process.env.FIREBASE_PRIVATE_KEY.includes('-----BEGIN PRIVATE KEY-----'),
+          hasEndMarker: process.env.FIREBASE_PRIVATE_KEY.includes('-----END PRIVATE KEY-----'),
+          hasEscapedNewlines: process.env.FIREBASE_PRIVATE_KEY.includes('\\n'),
+          hasRealNewlines: process.env.FIREBASE_PRIVATE_KEY.includes('\n'),
+          firstChars: process.env.FIREBASE_PRIVATE_KEY.substring(0, 30),
+          lastChars: process.env.FIREBASE_PRIVATE_KEY.substring(process.env.FIREBASE_PRIVATE_KEY.length - 30)
+        } : null
+      });
+    } catch (error) {
+      res.status(500).json({
+        error: (error as Error).message,
+        stack: (error as Error).stack,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   // Supplier routes
   apiRouter.get("/suppliers", async (req: Request, res: Response) => {
     try {

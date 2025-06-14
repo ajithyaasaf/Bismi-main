@@ -28,7 +28,6 @@
   ],
   "env": {
     "USE_FIRESTORE": "true",
-    "FIREBASE_PROJECT_ID": "bismi-broilers-3ca96",
     "NODE_ENV": "production"
   }
 }

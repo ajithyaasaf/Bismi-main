@@ -24,42 +24,42 @@ export default function DashboardPage() {
   const [firestoreTransactions, setFirestoreTransactions] = useState<any[]>([]);
   
   // Load data from Firestore directly
-  useEffect(() => {
-    async function loadFirestoreData() {
-      try {
-        setIsFirestoreLoading(true);
-        
-        // Load suppliers
-        const suppliers = await SupplierService.getSuppliers();
-        console.log("Loaded suppliers directly from Firestore:", suppliers);
-        setFirestoreSuppliers(suppliers);
-        
-        // Load inventory
-        const inventory = await InventoryService.getInventoryItems();
-        console.log("Loaded inventory directly from Firestore:", inventory);
-        setFirestoreInventory(inventory);
-        
-        // Load customers
-        const customers = await CustomerService.getCustomers();
-        console.log("Loaded customers directly from Firestore:", customers);
-        setFirestoreCustomers(customers);
-        
-        // Load orders
-        const orders = await OrderService.getOrders();
-        console.log("Loaded orders directly from Firestore:", orders);
-        setFirestoreOrders(orders);
-        
-        // Load transactions
-        const transactions = await TransactionService.getTransactions();
-        console.log("Loaded transactions directly from Firestore:", transactions);
-        setFirestoreTransactions(transactions);
-      } catch (error) {
-        console.error("Error loading data from Firestore:", error);
-      } finally {
-        setIsFirestoreLoading(false);
-      }
+  const loadFirestoreData = async () => {
+    try {
+      setIsFirestoreLoading(true);
+      
+      // Load suppliers
+      const suppliers = await SupplierService.getSuppliers();
+      console.log("Loaded suppliers directly from Firestore:", suppliers);
+      setFirestoreSuppliers(suppliers);
+      
+      // Load inventory
+      const inventory = await InventoryService.getInventoryItems();
+      console.log("Loaded inventory directly from Firestore:", inventory);
+      setFirestoreInventory(inventory);
+      
+      // Load customers
+      const customers = await CustomerService.getCustomers();
+      console.log("Loaded customers directly from Firestore:", customers);
+      setFirestoreCustomers(customers);
+      
+      // Load orders
+      const orders = await OrderService.getOrders();
+      console.log("Loaded orders directly from Firestore:", orders);
+      setFirestoreOrders(orders);
+      
+      // Load transactions
+      const transactions = await TransactionService.getTransactions();
+      console.log("Loaded transactions directly from Firestore:", transactions);
+      setFirestoreTransactions(transactions);
+    } catch (error) {
+      console.error("Error loading data from Firestore:", error);
+    } finally {
+      setIsFirestoreLoading(false);
     }
-    
+  };
+
+  useEffect(() => {
     loadFirestoreData();
   }, []);
   
@@ -124,10 +124,18 @@ export default function DashboardPage() {
 
   // Handle modal toggling
   const openAddStockModal = () => setIsAddStockModalOpen(true);
-  const closeAddStockModal = () => setIsAddStockModalOpen(false);
+  const closeAddStockModal = () => {
+    setIsAddStockModalOpen(false);
+    // Refresh data after stock operations
+    loadFirestoreData();
+  };
   
   const openNewOrderModal = () => setIsNewOrderModalOpen(true);
-  const closeNewOrderModal = () => setIsNewOrderModalOpen(false);
+  const closeNewOrderModal = () => {
+    setIsNewOrderModalOpen(false);
+    // Refresh data after order operations
+    loadFirestoreData();
+  };
 
   return (
     <>

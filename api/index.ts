@@ -36,18 +36,32 @@ let storageInstance: any = null;
 async function getStorage() {
   if (!storageInstance) {
     console.log('Initializing storage for Vercel serverless function...');
+    console.log('Environment check:', {
+      nodeEnv: process.env.NODE_ENV,
+      useFirestore: process.env.USE_FIRESTORE,
+      hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+      projectId: process.env.FIREBASE_PROJECT_ID
+    });
+    
     try {
       // Add timeout for Firebase initialization (Vercel functions have 10s timeout)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firebase initialization timeout')), 8000)
+        setTimeout(() => reject(new Error('Firebase initialization timeout after 8 seconds')), 8000)
       );
       
       const initPromise = storageManager.initialize();
       
       storageInstance = await Promise.race([initPromise, timeoutPromise]);
-      console.log('Storage initialized successfully');
+      console.log('Storage initialized successfully for Vercel');
     } catch (error) {
-      console.error('Storage initialization failed:', error);
+      console.error('Storage initialization failed in Vercel:', error);
+      console.error('Error details:', {
+        message: (error as Error).message,
+        stack: (error as Error).stack,
+        name: (error as Error).name
+      });
       throw new Error(`Storage initialization failed: ${(error as Error).message}`);
     }
   }

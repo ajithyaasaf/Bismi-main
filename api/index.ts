@@ -2,11 +2,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import { storageManager } from "../server/storage-manager";
 import { BalanceValidator } from "../server/balance-validator";
-import { enterpriseFirebase } from "../server/enterprise-firebase-init";
-import { enterpriseErrorMiddleware, errorHandler } from "../server/enterprise-error-handler";
-import { monitoringMiddleware, monitoring } from "../server/enterprise-monitoring";
-import { productionConfig } from "../server/production-config";
-import { enterpriseValidator } from "../server/enterprise-validation";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   insertSupplierSchema, 
@@ -17,170 +12,15 @@ import {
 } from "../shared/schema";
 import { z } from "zod";
 
-// Initialize production configuration
-productionConfig.logConfiguration();
-
 const app = express();
 
-// Parse JSON request body with production limits
-const performanceConfig = productionConfig.getPerformanceConfig();
-app.use(express.json({ limit: performanceConfig.maxPayloadSize }));
+// Parse JSON request body
+app.use(express.json());
 
-// Enterprise monitoring middleware
-app.use(monitoringMiddleware);
-
-// Production CORS configuration
-const securityConfig = productionConfig.getSecurityConfig();
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  const allowedOrigins = securityConfig.allowedOrigins;
-  
-  if (allowedOrigins.includes('*') || (origin && allowedOrigins.includes(origin))) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
-  }
-});
-
-// Initialize storage once and cache it
-let storageInstance: any = null;
-
+// Use enterprise storage with Firestore exclusively
 async function getStorage() {
-  if (!storageInstance) {
-    try {
-      console.log('🚀 Initializing enterprise storage for Vercel...');
-      
-      // Initialize Firebase using enterprise manager
-      await enterpriseFirebase.initialize();
-      
-      // Initialize storage manager
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Storage initialization timeout after 10 seconds')), 10000)
-      );
-      
-      const initPromise = storageManager.initialize();
-      storageInstance = await Promise.race([initPromise, timeoutPromise]);
-      
-      console.log('✅ Enterprise storage initialized successfully');
-    } catch (error) {
-      errorHandler.logError(error as Error, {
-        endpoint: 'storage-initialization',
-        method: 'INIT',
-        timestamp: new Date(),
-        environment: process.env.NODE_ENV || 'production'
-      }, 'critical');
-      
-      throw new Error(`Enterprise storage initialization failed: ${(error as Error).message}`);
-    }
-  }
-  return storageInstance;
+  return await storageManager.initialize();
 }
-
-// Enterprise monitoring and debug endpoints
-app.get("/api/enterprise/status", async (req: Request, res: Response) => {
-  try {
-    const firebaseHealth = enterpriseFirebase.getHealthStatus();
-    const performanceMetrics = monitoring.getPerformanceMetrics();
-    const healthScore = monitoring.getHealthScore();
-    const errorMetrics = errorHandler.getMetrics();
-    const configValidation = productionConfig.validateConfiguration();
-    const environmentInfo = productionConfig.getEnvironmentInfo();
-
-    res.json({
-      status: healthScore.score > 70 ? "operational" : "degraded",
-      timestamp: new Date().toISOString(),
-      environment: environmentInfo,
-      firebase: firebaseHealth,
-      performance: performanceMetrics,
-      health: healthScore,
-      errors: errorMetrics,
-      configuration: configValidation,
-      uptime: process.uptime() * 1000,
-      version: "1.0.0-enterprise"
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "degraded",
-      error: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-app.get("/api/enterprise/metrics", async (req: Request, res: Response) => {
-  try {
-    const report = monitoring.generateReport();
-    const firebaseMetrics = enterpriseFirebase.getMetrics();
-    
-    res.json({
-      ...report,
-      firebase: firebaseMetrics,
-      endpoints: monitoring.getEndpointMetrics()
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Metrics endpoint failed',
-      message: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-app.get("/api/enterprise/readiness", async (req: Request, res: Response) => {
-  try {
-    const deploymentReadiness = await enterpriseValidator.validateDeploymentReadiness();
-    const runtimeHealth = await enterpriseValidator.validateRuntimeHealth();
-    
-    res.json({
-      deployment: deploymentReadiness,
-      runtime: runtimeHealth,
-      overallStatus: deploymentReadiness.isReady && runtimeHealth.healthy ? 'ready' : 'not-ready',
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Readiness check failed',
-      message: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-app.get("/api/debug/firebase", async (req: Request, res: Response) => {
-  try {
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const hasIndividualVars = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
-    const firebaseStatus = enterpriseFirebase.getHealthStatus();
-    
-    res.json({
-      environment: process.env.NODE_ENV,
-      hasServiceAccountKey: !!serviceAccountKey,
-      hasIndividualVars,
-      firebaseProjectId: process.env.FIREBASE_PROJECT_ID,
-      hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-      hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-      privateKeyLength: process.env.FIREBASE_PRIVATE_KEY?.length || 0,
-      privateKeyStartsWith: process.env.FIREBASE_PRIVATE_KEY?.substring(0, 30) || 'none',
-      useFirestore: process.env.USE_FIRESTORE,
-      firebaseHealth: firebaseStatus,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      error: 'Debug endpoint failed',
-      message: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
 
 // Health check endpoint
 app.get("/api/health", async (req: Request, res: Response) => {
@@ -209,16 +49,7 @@ app.get("/api/suppliers", async (req: Request, res: Response) => {
     res.json(suppliers);
   } catch (error) {
     console.error("Failed to fetch suppliers:", error);
-    console.error("Error details:", {
-      message: (error as Error).message,
-      stack: (error as Error).stack,
-      name: (error as Error).name
-    });
-    res.status(500).json({ 
-      message: "Failed to fetch suppliers",
-      error: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
+    res.status(500).json({ message: "Failed to fetch suppliers" });
   }
 });
 
@@ -586,23 +417,12 @@ app.delete("/api/orders/:id", async (req: Request, res: Response) => {
 // Transaction routes
 app.get("/api/transactions", async (req: Request, res: Response) => {
   try {
-    console.log("Attempting to get storage...");
     const storage = await getStorage();
-    console.log("Storage obtained, fetching transactions...");
     const transactions = await storage.getAllTransactions();
-    console.log(`Successfully fetched ${transactions.length} transactions`);
     res.json(transactions);
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
-    console.error("Error details:", {
-      message: (error as Error).message,
-      stack: (error as Error).stack,
-    });
-    res.status(500).json({ 
-      message: "Failed to fetch transactions",
-      error: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
+    res.status(500).json({ message: "Failed to fetch transactions" });
   }
 });
 
@@ -725,17 +545,10 @@ app.get("/api/reports", async (req: Request, res: Response) => {
   }
 });
 
-// Enterprise error handling middleware
-app.use(enterpriseErrorMiddleware);
-
-// Catch-all route for unmatched paths
-app.use('*', (req: Request, res: Response) => {
-  res.status(404).json({ 
-    message: "Route not found",
-    path: req.originalUrl,
-    method: req.method,
-    timestamp: new Date().toISOString()
-  });
+// Global error handler
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Something went wrong!" });
 });
 
 // Export for Vercel serverless

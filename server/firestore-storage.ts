@@ -23,96 +23,36 @@ export class FirestoreStorage implements IStorage {
 
   constructor() {
     try {
-      console.log('Initializing Firebase Admin SDK for Vercel...');
-      
       // Initialize Firebase Admin if not already initialized
       if (!admin.apps || admin.apps.length === 0) {
-        console.log('No existing Firebase app found, initializing new instance...');
         // Try service account key first (for Vercel)
         const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
         
-        console.log('Environment variables check:', {
-          hasServiceAccountKey: !!serviceAccountKey,
-          hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
-          hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-          hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY
-        });
-        
         if (serviceAccountKey) {
-          console.log('Using FIREBASE_SERVICE_ACCOUNT_KEY for authentication');
-          try {
-            const serviceAccount = JSON.parse(serviceAccountKey);
-            admin.initializeApp({
-              credential: admin.credential.cert(serviceAccount),
-              projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
-            });
-            console.log('Firebase initialized with service account key successfully');
-          } catch (parseError) {
-            console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_KEY:', parseError);
-            throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT_KEY format: ${(parseError as Error).message}`);
-          }
-        } else {
-          console.log('Using individual environment variables for authentication');
-          // Fallback to individual environment variables
-          let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-          
-          if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-            throw new Error('Missing required Firebase environment variables: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY');
-          }
-          
-          // Handle different private key formats for Vercel deployment
-          console.log('Original private key format check:', {
-            hasEscapedNewlines: privateKey.includes('\\n'),
-            hasRealNewlines: privateKey.includes('\n'),
-            hasBeginMarker: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
-            hasEndMarker: privateKey.includes('-----END PRIVATE KEY-----'),
-            length: privateKey.length
-          });
-          
-          // Replace escaped newlines with actual newlines
-          if (privateKey.includes('\\n')) {
-            privateKey = privateKey.replace(/\\n/g, '\n');
-            console.log('Converted escaped newlines to actual newlines');
-          }
-          
-          // Remove any trailing newlines after END marker (common Vercel issue)
-          if (privateKey.endsWith('-----END PRIVATE KEY-----\n')) {
-            privateKey = privateKey.slice(0, -1);
-            console.log('Removed trailing newline after END marker');
-          }
-          
-          console.log('Final private key format check:', {
-            hasBeginMarker: privateKey.includes('-----BEGIN PRIVATE KEY-----'),
-            hasEndMarker: privateKey.includes('-----END PRIVATE KEY-----'),
-            hasNewlines: privateKey.includes('\n'),
-            length: privateKey.length,
-            startsCorrectly: privateKey.startsWith('-----BEGIN PRIVATE KEY-----'),
-            endsCorrectly: privateKey.endsWith('-----END PRIVATE KEY-----')
-          });
-          
-          const { credential } = admin;
+          const serviceAccount = JSON.parse(serviceAccountKey);
           admin.initializeApp({
-            credential: credential.cert({
+            credential: admin.credential.cert(serviceAccount),
+            projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
+          });
+        } else {
+          // Fallback to individual environment variables
+          const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+          
+          admin.initializeApp({
+            credential: admin.credential.cert({
               projectId: process.env.FIREBASE_PROJECT_ID,
               clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
               privateKey: privateKey,
             }),
             projectId: process.env.FIREBASE_PROJECT_ID,
           });
-          console.log('Firebase initialized with individual environment variables');
         }
-      } else {
-        console.log('Firebase Admin already initialized');
       }
       
       this.db = admin.firestore();
       console.log('Firebase Firestore storage initialized with service account credentials');
     } catch (error) {
       console.error('Failed to initialize Firebase Admin SDK:', error);
-      console.error('Error details:', {
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-      });
       throw error;
     }
   }

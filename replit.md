@@ -124,11 +124,6 @@ The application includes specialized build scripts and configuration files for s
 
 ## Changelog
 
-- June 14, 2025. Fixed critical Firebase deployment issue for Vercel
-  - Resolved Firebase Admin SDK import and initialization errors
-  - Enhanced private key handling for Vercel environment variables
-  - Added comprehensive debugging and error reporting
-  - Verified Firebase connection working in both development and production environments
 - June 13, 2025. Initial setup
 
 ## User Preferences

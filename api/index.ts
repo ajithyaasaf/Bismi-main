@@ -2,6 +2,9 @@
 import express, { Request, Response, NextFunction } from "express";
 import { storageManager } from "../server/storage-manager";
 import { BalanceValidator } from "../server/balance-validator";
+import { enterpriseFirebase } from "../server/enterprise-firebase-init";
+import { enterpriseErrorMiddleware, errorHandler } from "../server/enterprise-error-handler";
+import { monitoringMiddleware, monitoring } from "../server/enterprise-monitoring";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   insertSupplierSchema, 
@@ -16,6 +19,9 @@ const app = express();
 
 // Parse JSON request body
 app.use(express.json());
+
+// Enterprise monitoring middleware
+app.use(monitoringMiddleware);
 
 // Add CORS headers for Vercel
 app.use((req, res, next) => {
@@ -35,55 +41,85 @@ let storageInstance: any = null;
 
 async function getStorage() {
   if (!storageInstance) {
-    console.log('Initializing storage for Vercel serverless function...');
-    
-    // Check for Firebase service account key first
-    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    const hasIndividualVars = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
-    
-    console.log('Environment check:', {
-      nodeEnv: process.env.NODE_ENV,
-      useFirestore: process.env.USE_FIRESTORE,
-      hasServiceAccountKey: !!serviceAccountKey,
-      hasFirebaseProjectId: !!process.env.FIREBASE_PROJECT_ID,
-      hasFirebaseClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-      hasFirebasePrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-      hasIndividualVars,
-      projectId: process.env.FIREBASE_PROJECT_ID
-    });
-    
-    if (!serviceAccountKey && !hasIndividualVars) {
-      throw new Error('Missing Firebase credentials. Please set either FIREBASE_SERVICE_ACCOUNT_KEY or individual Firebase environment variables.');
-    }
-    
     try {
-      // Add timeout for Firebase initialization (Vercel functions have 10s timeout)
+      console.log('🚀 Initializing enterprise storage for Vercel...');
+      
+      // Initialize Firebase using enterprise manager
+      await enterpriseFirebase.initialize();
+      
+      // Initialize storage manager
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Firebase initialization timeout after 8 seconds')), 8000)
+        setTimeout(() => reject(new Error('Storage initialization timeout after 10 seconds')), 10000)
       );
       
       const initPromise = storageManager.initialize();
-      
       storageInstance = await Promise.race([initPromise, timeoutPromise]);
-      console.log('Storage initialized successfully for Vercel');
+      
+      console.log('✅ Enterprise storage initialized successfully');
     } catch (error) {
-      console.error('Storage initialization failed in Vercel:', error);
-      console.error('Error details:', {
-        message: (error as Error).message,
-        stack: (error as Error).stack,
-        name: (error as Error).name
-      });
-      throw new Error(`Storage initialization failed: ${(error as Error).message}`);
+      errorHandler.logError(error as Error, {
+        endpoint: 'storage-initialization',
+        method: 'INIT',
+        timestamp: new Date(),
+        environment: process.env.NODE_ENV || 'production'
+      }, 'critical');
+      
+      throw new Error(`Enterprise storage initialization failed: ${(error as Error).message}`);
     }
   }
   return storageInstance;
 }
 
-// Debug endpoint for Firebase configuration
+// Enterprise monitoring and debug endpoints
+app.get("/api/enterprise/status", async (req: Request, res: Response) => {
+  try {
+    const firebaseHealth = enterpriseFirebase.getHealthStatus();
+    const performanceMetrics = monitoring.getPerformanceMetrics();
+    const healthScore = monitoring.getHealthScore();
+    const errorMetrics = errorHandler.getMetrics();
+
+    res.json({
+      status: "operational",
+      timestamp: new Date().toISOString(),
+      firebase: firebaseHealth,
+      performance: performanceMetrics,
+      health: healthScore,
+      errors: errorMetrics,
+      environment: process.env.NODE_ENV || 'production'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "degraded",
+      error: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get("/api/enterprise/metrics", async (req: Request, res: Response) => {
+  try {
+    const report = monitoring.generateReport();
+    const firebaseMetrics = enterpriseFirebase.getMetrics();
+    
+    res.json({
+      ...report,
+      firebase: firebaseMetrics,
+      endpoints: monitoring.getEndpointMetrics()
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Metrics endpoint failed',
+      message: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.get("/api/debug/firebase", async (req: Request, res: Response) => {
   try {
     const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
     const hasIndividualVars = !!(process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+    const firebaseStatus = enterpriseFirebase.getHealthStatus();
     
     res.json({
       environment: process.env.NODE_ENV,
@@ -95,6 +131,7 @@ app.get("/api/debug/firebase", async (req: Request, res: Response) => {
       privateKeyLength: process.env.FIREBASE_PRIVATE_KEY?.length || 0,
       privateKeyStartsWith: process.env.FIREBASE_PRIVATE_KEY?.substring(0, 30) || 'none',
       useFirestore: process.env.USE_FIRESTORE,
+      firebaseHealth: firebaseStatus,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

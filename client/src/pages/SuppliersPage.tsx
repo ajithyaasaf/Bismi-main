@@ -129,6 +129,7 @@ export default function SuppliersPage() {
     // Always close the dialog and cleanup state
     setIsDeleteDialogOpen(false);
     setSupplierToDelete(null);
+    setIsDeletingSupplier(false);
   };
 
   const handlePayment = (supplierId: string, supplierName: string) => {
@@ -252,13 +253,14 @@ export default function SuppliersPage() {
       {supplierToDelete && (
         <ConfirmationDialog
           isOpen={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
+          onClose={() => !isDeletingSupplier && setIsDeleteDialogOpen(false)}
           onConfirm={confirmDelete}
           title="Confirm Deletion"
           description={`Are you sure you want to delete ${supplierToDelete.name}? This action cannot be undone.`}
-          confirmText="Delete"
+          confirmText={isDeletingSupplier ? "Deleting..." : "Delete"}
           cancelText="Cancel"
           variant="destructive"
+          isLoading={isDeletingSupplier}
         />
       )}
       

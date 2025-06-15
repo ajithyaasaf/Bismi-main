@@ -1,7 +1,7 @@
 // A simplified version of the server for Vercel deployment
 import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
-import { storage } from "./storage";
+import { storageManager } from "./storage-manager";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   insertSupplierSchema, 
@@ -11,6 +11,15 @@ import {
   insertTransactionSchema 
 } from "../shared/schema";
 import path from "path";
+
+// Initialize storage
+let storage: any;
+async function getStorage() {
+  if (!storage) {
+    storage = await storageManager.initialize();
+  }
+  return storage;
+}
 
 const app = express();
 
@@ -24,6 +33,7 @@ app.use("/api", apiRouter);
 // Supplier routes
 apiRouter.get("/suppliers", async (req: Request, res: Response) => {
   try {
+    const storage = await getStorage();
     const suppliers = await storage.getAllSuppliers();
     res.json(suppliers);
   } catch (error) {

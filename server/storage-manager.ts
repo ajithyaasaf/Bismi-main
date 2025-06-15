@@ -1,5 +1,5 @@
 import { IStorage } from './storage';
-import { enterpriseStorage } from './enterprise-storage';
+import { firestoreStorage } from './firestore-storage';
 
 class StorageManager {
   private static instance: StorageManager;
@@ -20,9 +20,9 @@ class StorageManager {
     }
 
     try {
-      // Use enterprise storage with Firestore exclusively
-      this.currentStorage = enterpriseStorage;
-      console.log(`Storage initialized: ${enterpriseStorage.getStorageType()}`);
+      // Use Firestore storage directly
+      this.currentStorage = firestoreStorage;
+      console.log('Storage initialized: Firestore');
       return this.currentStorage;
 
     } catch (error) {
@@ -39,11 +39,11 @@ class StorageManager {
   }
 
   getStorageType(): string {
-    return this.currentStorage ? enterpriseStorage.getStorageType() : 'Not initialized';
+    return 'Firestore';
   }
 
   isUsingFirestoreStorage(): boolean {
-    return this.currentStorage ? enterpriseStorage.isUsingFirestoreStorage() : false;
+    return true;
   }
 }
 

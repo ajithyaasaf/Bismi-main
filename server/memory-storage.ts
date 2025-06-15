@@ -35,7 +35,6 @@ export class MemoryStorage implements IStorage {
     const newUser: User = {
       id: this.users.length + 1,
       ...user,
-      createdAt: new Date(),
     };
     this.users.push(newUser);
     return newUser;
@@ -53,7 +52,9 @@ export class MemoryStorage implements IStorage {
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
     const newSupplier: Supplier = {
       id: `supplier_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...supplier,
+      name: supplier.name,
+      debt: supplier.debt ?? 0,
+      contact: supplier.contact ?? null,
       createdAt: new Date(),
     };
     this.suppliers.push(newSupplier);
@@ -88,8 +89,10 @@ export class MemoryStorage implements IStorage {
   async createInventoryItem(item: InsertInventory): Promise<Inventory> {
     const newItem: Inventory = {
       id: `inventory_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...item,
-      createdAt: new Date(),
+      type: item.type,
+      quantity: item.quantity ?? 0,
+      rate: item.rate ?? 0,
+      updatedAt: new Date(),
     };
     this.inventory.push(newItem);
     return newItem;
@@ -123,7 +126,10 @@ export class MemoryStorage implements IStorage {
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
     const newCustomer: Customer = {
       id: `customer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...customer,
+      name: customer.name,
+      type: customer.type,
+      contact: customer.contact || null,
+      pendingAmount: customer.pendingAmount || 0,
       createdAt: new Date(),
     };
     this.customers.push(newCustomer);
@@ -162,8 +168,11 @@ export class MemoryStorage implements IStorage {
   async createOrder(order: InsertOrder & { createdAt?: Date }): Promise<Order> {
     const newOrder: Order = {
       id: `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...order,
-      date: order.date || new Date().toISOString(),
+      customerId: order.customerId,
+      items: order.items,
+      total: order.total,
+      status: order.status,
+      date: order.date ? new Date(order.date) : new Date(),
       createdAt: order.createdAt || new Date(),
     };
     this.orders.push(newOrder);
@@ -202,8 +211,12 @@ export class MemoryStorage implements IStorage {
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     const newTransaction: Transaction = {
       id: `transaction_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      ...transaction,
-      createdAt: new Date(),
+      type: transaction.type,
+      entityId: transaction.entityId,
+      entityType: transaction.entityType,
+      amount: transaction.amount,
+      description: transaction.description || null,
+      date: transaction.date || new Date(),
     };
     this.transactions.push(newTransaction);
     return newTransaction;

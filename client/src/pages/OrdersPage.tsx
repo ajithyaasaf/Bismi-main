@@ -15,298 +15,100 @@ export default function OrdersPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Load data from API to ensure consistency
-  useEffect(() => {
-    async function loadConsistentData() {
-      try {
-        setIsFirestoreLoading(true);
-        
-        // Load orders from API (which uses Firebase Admin SDK)
-        const ordersResponse = await fetch('/api/orders');
-        const orders = await ordersResponse.json();
-        console.log("Loaded orders from API:", orders);
-        setFirestoreOrders(orders);
-        
-        // Load customers from API
-        const customersResponse = await fetch('/api/customers');
-        const customers = await customersResponse.json();
-        console.log("Loaded customers from API:", customers);
-        setFirestoreCustomers(customers);
-        
-        // Load inventory from API
-        const inventoryResponse = await fetch('/api/inventory');
-        const inventory = await inventoryResponse.json();
-        console.log("Loaded inventory from API:", inventory);
-        setFirestoreInventory(inventory);
-      } catch (error) {
-        console.error("Error loading data from API:", error);
-        // Fallback to Firebase client SDK if API fails
-        try {
-          const orders = await OrderService.getOrders();
-          setFirestoreOrders(orders);
-          
-          const customers = await CustomerService.getCustomers();
-          setFirestoreCustomers(customers);
-          
-          const inventory = await InventoryService.getInventoryItems();
-          setFirestoreInventory(inventory);
-        } catch (fallbackError) {
-          console.error("Fallback data loading failed:", fallbackError);
-        }
-      } finally {
-        setIsFirestoreLoading(false);
-      }
-    }
-    
-    loadConsistentData();
-  }, []);
-
-  // Fetch orders from API as backup
-  const { data: orders = [], isLoading } = useQuery<Order[]>({
+  // API data queries
+  const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ['/api/orders'],
   });
 
-  // Fetch customers for order details from API as backup
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
   });
 
-  // Fetch inventory for order creation from API as backup
   const { data: inventory = [] } = useQuery<Inventory[]>({
     queryKey: ['/api/inventory'],
   });
 
-  const handleUpdateStatusClick = async (order: Order) => {
-    const newStatus = order.status === "pending" ? "paid" : "pending";
-    try {
-      // First update in Firestore
-      try {
-        console.log(`Attempting to update order ${order.id} status to ${newStatus}`);
-        const result = await OrderService.updateOrder(order.id, { status: newStatus });
-        console.log("Order status updated in Firestore:", result);
-        
-        // If payment status is changing from pending to paid, update the customer's pending amount
-        if (newStatus === 'paid' && order.status === 'pending') {
-          console.log(`Order changed to paid, need to update customer pending amount`);
-          const customer = displayCustomers.find(c => c.id === order.customerId);
-          
-          if (customer && customer.pendingAmount) {
-            const updatedPendingAmount = Math.max(0, customer.pendingAmount - order.total);
-            console.log(`Updating customer ${customer.id} pending amount from ${customer.pendingAmount} to ${updatedPendingAmount}`);
-            
-            await CustomerService.updateCustomer(customer.id, {
-              pendingAmount: updatedPendingAmount
-            });
-          }
-        }
-        
-        // Success toast after Firestore update
-        toast({
-          title: "Order updated",
-          description: `Order status changed to ${newStatus}`,
-        });
-        
-        // Refresh local state
-        setFirestoreOrders(prev => 
-          prev.map(o => o.id === order.id ? {...o, status: newStatus} : o)
-        );
-        
-        // Refresh Firestore data after updating
-        const updatedOrders = await OrderService.getOrders();
-        setFirestoreOrders(updatedOrders);
-        
-        const updatedCustomers = await CustomerService.getCustomers();
-        setFirestoreCustomers(updatedCustomers);
-      } catch (firestoreError) {
-        console.error("Error updating order status in Firestore:", firestoreError);
-        
-        // Show error toast for Firestore failure
-        toast({
-          title: "Error",
-          description: "Failed to update order status in database",
-          variant: "destructive",
-        });
-        return; // Exit early if Firestore update fails
-      }
-      
-      // Try to update via API for backward compatibility, but don't fail if it doesn't work
-      try {
-        await apiRequest('PUT', `/api/orders/${order.id}`, { 
-          status: newStatus 
-        });
-        // Refresh API data via query cache
-        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      } catch (apiError) {
-        console.error("API update failed but Firestore update succeeded:", apiError);
-        // No need to show error toast since Firestore update succeeded
-      }
-    } catch (error) {
-      console.error("Error during order status update:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update order status",
-        variant: "destructive",
-      });
-    }
+  const openNewOrderModal = () => setIsNewOrderModalOpen(true);
+  const closeNewOrderModal = () => {
+    setIsNewOrderModalOpen(false);
+    queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
   };
 
-  const handleDeleteClick = (order: Order) => {
+  const handleDeleteOrder = async (order: Order) => {
     setOrderToDelete(order);
     setIsDeleteDialogOpen(true);
   };
-  
-  const confirmDelete = async () => {
+
+  const confirmDeleteOrder = async () => {
     if (!orderToDelete) return;
-    
+
     try {
-      console.log(`Deleting order via API with ID: ${orderToDelete.id}`);
+      const response = await apiRequest('DELETE', `/api/orders/${orderToDelete.id}`);
       
-      // Use API as the single source of truth for enterprise-level consistency
-      await apiRequest('DELETE', `/api/orders/${orderToDelete.id}`, undefined);
-      
-      toast({
-        title: "Order deleted",
-        description: "The order has been successfully deleted",
-      });
-      
-      // Update local state immediately for instant UI feedback
-      setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
-      
-      // Refresh data via query cache to ensure consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-      
-      // Close dialog immediately on success
-      setIsDeleteDialogOpen(false);
-      setOrderToDelete(null);
-      
-      // Refresh Firestore data in background to maintain dual-source sync
-      setTimeout(async () => {
-        try {
-          const refreshedOrders = await OrderService.getOrders();
-          console.log("Background refresh after deletion:", refreshedOrders.length, "orders");
-          setFirestoreOrders(refreshedOrders);
-        } catch (error) {
-          console.error("Background refresh failed:", error);
-        }
-      }, 1000);
-      
-    } catch (error) {
-      console.error("Error during order deletion:", error);
-      
-      // Enhanced error handling for different scenarios
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const isNotFoundError = errorMessage.includes('404') || errorMessage.includes('ORDER_NOT_FOUND');
-      
-      if (isNotFoundError) {
-        // Order was already deleted or doesn't exist, treat as success
-        console.log("Order was already deleted, updating UI accordingly");
+      if (response.ok) {
         toast({
           title: "Order deleted",
-          description: "The order has been successfully removed",
+          description: "The order has been successfully deleted.",
         });
         
-        // Update local state
-        setFirestoreOrders(prev => prev.filter(o => o.id !== orderToDelete.id));
         queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
         queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
       } else {
-        // Actual deletion error
-        console.error("Actual deletion error occurred:", error);
-        toast({
-          title: "Error",
-          description: "Failed to delete order. Please try again.",
-          variant: "destructive",
-        });
+        throw new Error('Failed to delete order');
       }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete the order. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setOrderToDelete(null);
     }
-    
-    // Always close the dialog and cleanup state
+  };
+
+  const cancelDeleteOrder = () => {
     setIsDeleteDialogOpen(false);
     setOrderToDelete(null);
   };
 
-  // For form modal closure, make sure to refresh Firestore data
-  const handleModalClose = () => {
-    setIsNewOrderModalOpen(false);
-    
-    // Refresh Firestore data
-    async function refreshFirestoreData() {
-      try {
-        const orders = await OrderService.getOrders();
-        console.log("Refreshed orders from Firestore:", orders);
-        setFirestoreOrders(orders);
-        
-        // Also refresh customers and inventory since they might have been updated
-        const customers = await CustomerService.getCustomers();
-        setFirestoreCustomers(customers);
-        
-        const inventory = await InventoryService.getInventoryItems();
-        setFirestoreInventory(inventory);
-      } catch (error) {
-        console.error("Error refreshing data from Firestore:", error);
-      }
-    }
-    
-    refreshFirestoreData();
-  };
-  
-  // Determine which data to display - prefer Firestore data when available
-  const displayOrders = firestoreOrders.length > 0 ? firestoreOrders : orders;
-  const displayCustomers = firestoreCustomers.length > 0 ? firestoreCustomers : customers;
-  const displayInventory = firestoreInventory.length > 0 ? firestoreInventory : inventory;
-  const isPageLoading = isFirestoreLoading && isLoading;
-
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-sans">Orders</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage orders and sales</p>
-        </div>
-        <Button onClick={() => setIsNewOrderModalOpen(true)}>
-          <i className="fas fa-plus mr-2"></i> New Order
+    <>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Orders</h1>
+        <Button onClick={openNewOrderModal}>
+          New Order
         </Button>
       </div>
 
-      {isPageLoading ? (
-        <div className="text-center py-10">
-          <i className="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-          <p className="mt-2 text-gray-600">Loading orders...</p>
-        </div>
-      ) : (
-        <>
-          <OrdersList 
-            orders={displayOrders as Order[]} 
-            customers={displayCustomers as Customer[]}
-            onUpdateStatus={handleUpdateStatusClick}
-            onDelete={handleDeleteClick}
-          />
-        </>
-      )}
+      <OrdersList 
+        orders={orders}
+        customers={customers}
+        inventory={inventory}
+        isLoading={ordersLoading}
+        onDeleteOrder={handleDeleteOrder}
+      />
 
       {isNewOrderModalOpen && (
         <NewOrderModal 
           isOpen={isNewOrderModalOpen} 
-          onClose={handleModalClose}
-          customers={displayCustomers as Customer[]}
-          inventory={displayInventory as Inventory[]}
+          onClose={closeNewOrderModal} 
+          customers={customers}
+          inventory={inventory}
         />
       )}
-      
-      {orderToDelete && (
-        <ConfirmationDialog
-          isOpen={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
-          onConfirm={confirmDelete}
-          title="Confirm Deletion"
-          description="Are you sure you want to delete this order? This action cannot be undone."
-          confirmText="Delete"
-          cancelText="Cancel"
-          variant="destructive"
-        />
-      )}
-    </div>
+
+      <ConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onConfirm={confirmDeleteOrder}
+        onCancel={cancelDeleteOrder}
+        title="Delete Order"
+        description={orderToDelete ? `Are you sure you want to delete order #${orderToDelete.id}? This action cannot be undone.` : ""}
+      />
+    </>
   );
 }

@@ -11,24 +11,41 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   
   // Data fetch from API only
-  const { data: suppliers = [] } = useQuery<Supplier[]>({ 
+  const { data: suppliers = [], isLoading: suppliersLoading, error: suppliersError } = useQuery<Supplier[]>({ 
     queryKey: ['/api/suppliers'],
   });
   
-  const { data: inventory = [] } = useQuery<Inventory[]>({ 
+  const { data: inventory = [], isLoading: inventoryLoading, error: inventoryError } = useQuery<Inventory[]>({ 
     queryKey: ['/api/inventory'],
   });
   
-  const { data: customers = [] } = useQuery<Customer[]>({ 
+  const { data: customers = [], isLoading: customersLoading, error: customersError } = useQuery<Customer[]>({ 
     queryKey: ['/api/customers'],
   });
   
-  const { data: orders = [] } = useQuery<Order[]>({ 
+  const { data: orders = [], isLoading: ordersLoading, error: ordersError } = useQuery<Order[]>({ 
     queryKey: ['/api/orders'],
   });
   
-  const { data: transactions = [] } = useQuery<Transaction[]>({ 
+  const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery<Transaction[]>({ 
     queryKey: ['/api/transactions'],
+  });
+
+  // Check if any data is loading
+  const isLoading = suppliersLoading || inventoryLoading || customersLoading || ordersLoading || transactionsLoading;
+  
+  // Check for errors
+  const hasErrors = suppliersError || inventoryError || customersError || ordersError || transactionsError;
+  
+  // Debug logging
+  console.log('Dashboard Data Debug:', {
+    suppliers: suppliers.length,
+    inventory: inventory.length,
+    customers: customers.length,
+    orders: orders.length,
+    transactions: transactions.length,
+    isLoading,
+    hasErrors
   });
 
   // Calculate totals
@@ -41,9 +58,14 @@ export default function DashboardPage() {
   today.setHours(0, 0, 0, 0);
   
   const todaysOrders = orders.filter(order => {
-    const orderDate = new Date(order.date);
-    orderDate.setHours(0, 0, 0, 0);
-    return orderDate.getTime() === today.getTime();
+    if (!order.date) return false;
+    try {
+      const orderDate = new Date(order.date.toString());
+      orderDate.setHours(0, 0, 0, 0);
+      return orderDate.getTime() === today.getTime();
+    } catch {
+      return false;
+    }
   });
   
   const todaysSales = todaysOrders.reduce((sum, order) => sum + order.total, 0);
@@ -54,7 +76,14 @@ export default function DashboardPage() {
   
   // Recent orders (last 5)
   const recentOrders = [...orders]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter(order => order.date)
+    .sort((a, b) => {
+      try {
+        return new Date(b.date!.toString()).getTime() - new Date(a.date!.toString()).getTime();
+      } catch {
+        return 0;
+      }
+    })
     .slice(0, 5);
   
   // Suppliers with debt
@@ -80,6 +109,34 @@ export default function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
     queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading your business data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasErrors) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠</div>
+          <p className="text-red-600 mb-2">Error loading data</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          >
+            Reload Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

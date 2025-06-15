@@ -51,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Content-Type', 'application/json');
   
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -62,6 +63,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const method = req.method?.toUpperCase();
     
     console.log(`[Vercel API] ${method} ${path}`);
+    console.log(`[Vercel API] Raw URL: ${req.url}`);
+    console.log(`[Vercel API] Headers:`, req.headers);
+    
+    // Normalize path to handle different Vercel routing scenarios
+    const normalizedPath = path.startsWith('/api/') ? path : `/api${path}`;
+    console.log(`[Vercel API] Normalized path: ${normalizedPath}`);
     
     // Health check endpoint
     if (path === '/api/health' && method === 'GET') {
@@ -321,9 +328,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Order routes
-    if (path === '/api/orders' && method === 'GET') {
-      const orders = await storage.getAllOrders();
-      return res.status(200).json(orders);
+    if ((path === '/api/orders' || normalizedPath === '/api/orders') && method === 'GET') {
+      try {
+        console.log('[Vercel API] Fetching orders...');
+        const storage = await getStorage();
+        const orders = await storage.getAllOrders();
+        console.log(`[Vercel API] Found ${orders.length} orders`);
+        return res.status(200).json(orders);
+      } catch (error) {
+        console.error('[Vercel API] Error fetching orders:', error);
+        return res.status(500).json({ 
+          error: 'Failed to fetch orders', 
+          message: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
     }
 
     if (path.startsWith('/api/orders/') && method === 'GET') {
@@ -459,9 +478,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Transaction routes
-    if (path === '/api/transactions' && method === 'GET') {
-      const transactions = await storage.getAllTransactions();
-      return res.status(200).json(transactions);
+    if ((path === '/api/transactions' || normalizedPath === '/api/transactions') && method === 'GET') {
+      try {
+        console.log('[Vercel API] Fetching transactions...');
+        const storage = await getStorage();
+        const transactions = await storage.getAllTransactions();
+        console.log(`[Vercel API] Found ${transactions.length} transactions`);
+        return res.status(200).json(transactions);
+      } catch (error) {
+        console.error('[Vercel API] Error fetching transactions:', error);
+        return res.status(500).json({ 
+          error: 'Failed to fetch transactions', 
+          message: error.message,
+          timestamp: new Date().toISOString()
+        });
+      }
     }
 
     if (path.startsWith('/api/transactions/') && method === 'GET') {

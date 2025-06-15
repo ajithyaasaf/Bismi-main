@@ -1,5 +1,5 @@
 import { IStorage } from './storage';
-import { firestoreStorage } from './firestore-storage';
+import { createFirestoreStorage } from './firestore-storage';
 
 class StorageManager {
   private static instance: StorageManager;
@@ -20,11 +20,15 @@ class StorageManager {
       return this.currentStorage;
     }
 
-    // Always use Firestore - no fallback
-    this.currentStorage = firestoreStorage;
-    this.storageType = 'Firestore';
-    console.log('Storage initialized: Firestore');
-    return this.currentStorage;
+    try {
+      this.currentStorage = createFirestoreStorage();
+      this.storageType = 'Firestore';
+      console.log('Storage initialized: Firestore');
+      return this.currentStorage;
+    } catch (error) {
+      console.error('Failed to initialize Firestore storage:', error);
+      throw new Error(`Storage initialization failed: ${error.message}`);
+    }
   }
 
   getStorage(): IStorage {

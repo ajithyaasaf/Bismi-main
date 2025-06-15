@@ -1,4 +1,5 @@
-import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
+// Temporarily disabled due to build issues
+// import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
 import { Customer, Order, Transaction } from '@shared/schema';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
@@ -259,8 +260,10 @@ const styles = StyleSheet.create({
   },
 });
 
-// PDF Document Component
+// PDF Document Component - Temporarily disabled
 const InvoicePDFDocument = ({ data }: { data: InvoiceData }) => {
+  return null; // Disabled due to build issues
+  /*
   const {
     customer,
     orders,

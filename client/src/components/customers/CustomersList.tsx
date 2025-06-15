@@ -38,7 +38,7 @@ export default function CustomersList({
       let latestCustomer = customer;
       
       try {
-        // Try to get the latest customer data from Firestore
+        // Get the latest customer data from API
         const updatedCustomer = await CustomerService.getCustomerById(customer.id) as any;
         if (updatedCustomer) {
           // Use the updated customer data directly, fallback to original if properties are missing

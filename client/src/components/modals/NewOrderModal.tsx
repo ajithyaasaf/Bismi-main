@@ -152,8 +152,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
           return;
         }
         
-        // Create new customer using Firestore directly
-        console.log('Creating new random customer in Firestore');
+        // Create new customer using API
+        console.log('Creating new random customer via API');
         const newCustomer = await CustomerService.addCustomer({
           name: customerName,
           type: 'random',

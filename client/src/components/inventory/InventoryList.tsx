@@ -13,6 +13,7 @@ import {
 
 interface InventoryListProps {
   items: Inventory[];
+  isLoading?: boolean;
   onEdit: (item: Inventory) => void;
   onDelete: (item: Inventory) => void;
 }

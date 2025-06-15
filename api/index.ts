@@ -3,6 +3,7 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import express from 'express';
 import { storageManager } from '../server/storage-manager';
 import { BalanceValidator } from '../server/balance-validator';
+import { v4 as uuidv4 } from 'uuid';
 import { 
   insertSupplierSchema, 
   insertInventorySchema, 
@@ -33,6 +34,7 @@ apiRouter.get("/suppliers", async (req, res) => {
     const suppliers = await storage.getAllSuppliers();
     res.json(suppliers);
   } catch (error) {
+    console.error("Failed to fetch suppliers:", error);
     res.status(500).json({ message: "Failed to fetch suppliers" });
   }
 });
@@ -46,75 +48,123 @@ apiRouter.get("/suppliers/:id", async (req, res) => {
     }
     res.json(supplier);
   } catch (error) {
+    console.error("Failed to fetch supplier:", error);
     res.status(500).json({ message: "Failed to fetch supplier" });
   }
 });
 
 apiRouter.post("/suppliers", async (req, res) => {
   try {
+    const result = insertSupplierSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid supplier data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertSupplierSchema.parse(req.body);
-    const supplier = await storage.createSupplier(data);
+    const supplier = await storage.createSupplier(result.data);
     res.status(201).json(supplier);
   } catch (error) {
-    res.status(400).json({ message: "Invalid supplier data", error });
+    console.error("Failed to create supplier:", error);
+    res.status(500).json({ message: "Failed to create supplier" });
   }
 });
 
 apiRouter.put("/suppliers/:id", async (req, res) => {
   try {
+    const result = insertSupplierSchema.partial().safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid supplier data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertSupplierSchema.partial().parse(req.body);
-    const supplier = await storage.updateSupplier(req.params.id, data);
+    const supplier = await storage.updateSupplier(req.params.id, result.data);
     if (!supplier) {
       return res.status(404).json({ message: "Supplier not found" });
     }
     res.json(supplier);
   } catch (error) {
-    res.status(400).json({ message: "Invalid supplier data", error });
+    console.error("Failed to update supplier:", error);
+    res.status(500).json({ message: "Failed to update supplier" });
   }
 });
 
 apiRouter.delete("/suppliers/:id", async (req, res) => {
   try {
+    const supplierId = req.params.id;
+    console.log(`API: Processing deletion request for supplier ID: ${supplierId}`);
+    
     const storage = await getStorage();
-    const success = await storage.deleteSupplier(req.params.id);
-    if (!success) {
-      return res.status(404).json({ message: "Supplier not found" });
+    
+    // First check if supplier exists
+    const existingSupplier = await storage.getSupplier(supplierId);
+    if (!existingSupplier) {
+      console.log(`API: Supplier ${supplierId} not found, returning 404`);
+      return res.status(404).json({ 
+        message: "Supplier not found",
+        code: "SUPPLIER_NOT_FOUND",
+        supplierId: supplierId
+      });
     }
-    res.status(204).end();
+    
+    // Proceed with deletion
+    const success = await storage.deleteSupplier(supplierId);
+    if (!success) {
+      console.log(`API: Deletion failed for supplier ${supplierId}`);
+      return res.status(500).json({ 
+        message: "Failed to delete supplier from database",
+        code: "DELETION_FAILED",
+        supplierId: supplierId
+      });
+    }
+    
+    console.log(`API: Supplier ${supplierId} deleted successfully`);
+    res.status(204).send();
+    
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete supplier" });
+    console.error("API: Error during supplier deletion:", error);
+    res.status(500).json({ 
+      message: "Internal server error during deletion",
+      code: "INTERNAL_ERROR",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 
+// Supplier payment route
 apiRouter.post("/suppliers/:id/payment", async (req, res) => {
   try {
-    const storage = await getStorage();
     const { amount, description } = req.body;
-    const supplierId = req.params.id;
-    
-    const supplier = await storage.getSupplier(supplierId);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Invalid payment amount" });
+    }
+
+    const storage = await getStorage();
+    const supplier = await storage.getSupplier(req.params.id);
     if (!supplier) {
       return res.status(404).json({ message: "Supplier not found" });
     }
-    
-    const transaction = await storage.createTransaction({
-      type: 'payment',
-      amount,
-      entityId: supplierId,
-      entityType: 'supplier',
-      description,
+
+    // Enterprise-level transaction data preparation
+    const transactionData = {
+      type: "payment",
+      amount: parseFloat(amount),
+      entityId: req.params.id,
+      entityType: "supplier",
+      description: description || `Payment to supplier: ${supplier.name}`,
       date: new Date()
-    });
-    
-    const updatedSupplier = await storage.getSupplier(supplierId);
-    res.status(201).json({ 
-      transaction, 
-      supplier: updatedSupplier 
-    });
+    };
+
+    // Create transaction record
+    const transaction = await storage.createTransaction(transactionData);
+
+    // Update supplier debt
+    const newDebt = (supplier.debt || 0) - parseFloat(amount);
+    await storage.updateSupplier(req.params.id, { debt: Math.max(0, newDebt) });
+
+    res.status(201).json(transaction);
   } catch (error) {
-    res.status(400).json({ message: "Invalid payment data", error });
+    console.error("Failed to process supplier payment:", error);
+    res.status(500).json({ message: "Failed to process payment" });
   }
 });
 
@@ -125,6 +175,7 @@ apiRouter.get("/inventory", async (req, res) => {
     const inventory = await storage.getAllInventory();
     res.json(inventory);
   } catch (error) {
+    console.error("Failed to fetch inventory:", error);
     res.status(500).json({ message: "Failed to fetch inventory" });
   }
 });
@@ -138,45 +189,85 @@ apiRouter.get("/inventory/:id", async (req, res) => {
     }
     res.json(item);
   } catch (error) {
+    console.error("Failed to fetch inventory item:", error);
     res.status(500).json({ message: "Failed to fetch inventory item" });
   }
 });
 
 apiRouter.post("/inventory", async (req, res) => {
   try {
+    const result = insertInventorySchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid inventory data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertInventorySchema.parse(req.body);
-    const item = await storage.createInventoryItem(data);
+    const item = await storage.createInventoryItem(result.data);
     res.status(201).json(item);
   } catch (error) {
-    res.status(400).json({ message: "Invalid inventory data", error });
+    console.error("Failed to create inventory item:", error);
+    res.status(500).json({ message: "Failed to create inventory item" });
   }
 });
 
 apiRouter.put("/inventory/:id", async (req, res) => {
   try {
+    const result = insertInventorySchema.partial().safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid inventory data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertInventorySchema.partial().parse(req.body);
-    const item = await storage.updateInventoryItem(req.params.id, data);
+    const item = await storage.updateInventoryItem(req.params.id, result.data);
     if (!item) {
       return res.status(404).json({ message: "Inventory item not found" });
     }
     res.json(item);
   } catch (error) {
-    res.status(400).json({ message: "Invalid inventory data", error });
+    console.error("Failed to update inventory item:", error);
+    res.status(500).json({ message: "Failed to update inventory item" });
   }
 });
 
 apiRouter.delete("/inventory/:id", async (req, res) => {
   try {
+    const itemId = req.params.id;
+    console.log(`API: Processing deletion request for inventory item ID: ${itemId}`);
+    
     const storage = await getStorage();
-    const success = await storage.deleteInventoryItem(req.params.id);
-    if (!success) {
-      return res.status(404).json({ message: "Inventory item not found" });
+    
+    // First check if item exists
+    const existingItem = await storage.getInventoryItem(itemId);
+    if (!existingItem) {
+      console.log(`API: Inventory item ${itemId} not found, returning 404`);
+      return res.status(404).json({ 
+        message: "Inventory item not found",
+        code: "ITEM_NOT_FOUND",
+        itemId: itemId
+      });
     }
-    res.status(204).end();
+    
+    // Proceed with deletion
+    const success = await storage.deleteInventoryItem(itemId);
+    if (!success) {
+      console.log(`API: Deletion failed for inventory item ${itemId}`);
+      return res.status(500).json({ 
+        message: "Failed to delete inventory item from database",
+        code: "DELETION_FAILED",
+        itemId: itemId
+      });
+    }
+    
+    console.log(`API: Inventory item ${itemId} deleted successfully`);
+    res.status(204).send();
+    
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete inventory item" });
+    console.error("API: Error during inventory item deletion:", error);
+    res.status(500).json({ 
+      message: "Internal server error during deletion",
+      code: "INTERNAL_ERROR",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 
@@ -187,6 +278,7 @@ apiRouter.get("/customers", async (req, res) => {
     const customers = await storage.getAllCustomers();
     res.json(customers);
   } catch (error) {
+    console.error("Failed to fetch customers:", error);
     res.status(500).json({ message: "Failed to fetch customers" });
   }
 });
@@ -200,75 +292,123 @@ apiRouter.get("/customers/:id", async (req, res) => {
     }
     res.json(customer);
   } catch (error) {
+    console.error("Failed to fetch customer:", error);
     res.status(500).json({ message: "Failed to fetch customer" });
   }
 });
 
 apiRouter.post("/customers", async (req, res) => {
   try {
+    const result = insertCustomerSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid customer data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertCustomerSchema.parse(req.body);
-    const customer = await storage.createCustomer(data);
+    const customer = await storage.createCustomer(result.data);
     res.status(201).json(customer);
   } catch (error) {
-    res.status(400).json({ message: "Invalid customer data", error });
+    console.error("Failed to create customer:", error);
+    res.status(500).json({ message: "Failed to create customer" });
   }
 });
 
 apiRouter.put("/customers/:id", async (req, res) => {
   try {
+    const result = insertCustomerSchema.partial().safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid customer data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertCustomerSchema.partial().parse(req.body);
-    const customer = await storage.updateCustomer(req.params.id, data);
+    const customer = await storage.updateCustomer(req.params.id, result.data);
     if (!customer) {
       return res.status(404).json({ message: "Customer not found" });
     }
     res.json(customer);
   } catch (error) {
-    res.status(400).json({ message: "Invalid customer data", error });
+    console.error("Failed to update customer:", error);
+    res.status(500).json({ message: "Failed to update customer" });
   }
 });
 
 apiRouter.delete("/customers/:id", async (req, res) => {
   try {
+    const customerId = req.params.id;
+    console.log(`API: Processing deletion request for customer ID: ${customerId}`);
+    
     const storage = await getStorage();
-    const success = await storage.deleteCustomer(req.params.id);
-    if (!success) {
-      return res.status(404).json({ message: "Customer not found" });
+    
+    // First check if customer exists
+    const existingCustomer = await storage.getCustomer(customerId);
+    if (!existingCustomer) {
+      console.log(`API: Customer ${customerId} not found, returning 404`);
+      return res.status(404).json({ 
+        message: "Customer not found",
+        code: "CUSTOMER_NOT_FOUND",
+        customerId: customerId
+      });
     }
-    res.status(204).end();
+    
+    // Proceed with deletion
+    const success = await storage.deleteCustomer(customerId);
+    if (!success) {
+      console.log(`API: Deletion failed for customer ${customerId}`);
+      return res.status(500).json({ 
+        message: "Failed to delete customer from database",
+        code: "DELETION_FAILED",
+        customerId: customerId
+      });
+    }
+    
+    console.log(`API: Customer ${customerId} deleted successfully`);
+    res.status(204).send();
+    
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete customer" });
+    console.error("API: Error during customer deletion:", error);
+    res.status(500).json({ 
+      message: "Internal server error during deletion",
+      code: "INTERNAL_ERROR",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 
+// Customer payment route
 apiRouter.post("/customers/:id/payment", async (req, res) => {
   try {
-    const storage = await getStorage();
     const { amount, description } = req.body;
-    const customerId = req.params.id;
-    
-    const customer = await storage.getCustomer(customerId);
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: "Invalid payment amount" });
+    }
+
+    const storage = await getStorage();
+    const customer = await storage.getCustomer(req.params.id);
     if (!customer) {
       return res.status(404).json({ message: "Customer not found" });
     }
-    
-    const transaction = await storage.createTransaction({
-      type: 'receipt',
-      amount,
-      entityId: customerId,
-      entityType: 'customer',
-      description,
+
+    // Enterprise-level transaction data preparation
+    const transactionData = {
+      type: "receipt",
+      amount: parseFloat(amount),
+      entityId: req.params.id,
+      entityType: "customer",
+      description: description || `Payment from customer: ${customer.name}`,
       date: new Date()
-    });
-    
-    const updatedCustomer = await storage.getCustomer(customerId);
-    res.status(201).json({ 
-      transaction, 
-      customer: updatedCustomer 
-    });
+    };
+
+    // Create transaction record
+    const transaction = await storage.createTransaction(transactionData);
+
+    // Update customer pending amount
+    const newPending = (customer.pendingAmount || 0) - parseFloat(amount);
+    await storage.updateCustomer(req.params.id, { pendingAmount: Math.max(0, newPending) });
+
+    res.status(201).json(transaction);
   } catch (error) {
-    res.status(400).json({ message: "Invalid payment data", error });
+    console.error("Failed to process customer payment:", error);
+    res.status(500).json({ message: "Failed to process payment" });
   }
 });
 
@@ -279,6 +419,7 @@ apiRouter.get("/orders", async (req, res) => {
     const orders = await storage.getAllOrders();
     res.json(orders);
   } catch (error) {
+    console.error("Failed to fetch orders:", error);
     res.status(500).json({ message: "Failed to fetch orders" });
   }
 });
@@ -292,45 +433,85 @@ apiRouter.get("/orders/:id", async (req, res) => {
     }
     res.json(order);
   } catch (error) {
+    console.error("Failed to fetch order:", error);
     res.status(500).json({ message: "Failed to fetch order" });
   }
 });
 
 apiRouter.post("/orders", async (req, res) => {
   try {
+    const result = insertOrderSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid order data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertOrderSchema.parse(req.body);
-    const order = await storage.createOrder(data);
+    const order = await storage.createOrder(result.data);
     res.status(201).json(order);
   } catch (error) {
-    res.status(400).json({ message: "Invalid order data", error });
+    console.error("Failed to create order:", error);
+    res.status(500).json({ message: "Failed to create order" });
   }
 });
 
 apiRouter.put("/orders/:id", async (req, res) => {
   try {
+    const result = insertOrderSchema.partial().safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid order data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertOrderSchema.partial().parse(req.body);
-    const order = await storage.updateOrder(req.params.id, data);
+    const order = await storage.updateOrder(req.params.id, result.data);
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
     res.json(order);
   } catch (error) {
-    res.status(400).json({ message: "Invalid order data", error });
+    console.error("Failed to update order:", error);
+    res.status(500).json({ message: "Failed to update order" });
   }
 });
 
 apiRouter.delete("/orders/:id", async (req, res) => {
   try {
+    const orderId = req.params.id;
+    console.log(`API: Processing deletion request for order ID: ${orderId}`);
+    
     const storage = await getStorage();
-    const success = await storage.deleteOrder(req.params.id);
-    if (!success) {
-      return res.status(404).json({ message: "Order not found" });
+    
+    // First check if order exists
+    const existingOrder = await storage.getOrder(orderId);
+    if (!existingOrder) {
+      console.log(`API: Order ${orderId} not found, returning 404`);
+      return res.status(404).json({ 
+        message: "Order not found",
+        code: "ORDER_NOT_FOUND",
+        orderId: orderId
+      });
     }
-    res.status(204).end();
+    
+    // Proceed with deletion
+    const success = await storage.deleteOrder(orderId);
+    if (!success) {
+      console.log(`API: Deletion failed for order ${orderId}`);
+      return res.status(500).json({ 
+        message: "Failed to delete order from database",
+        code: "DELETION_FAILED",
+        orderId: orderId
+      });
+    }
+    
+    console.log(`API: Order ${orderId} deleted successfully`);
+    res.status(204).send();
+    
   } catch (error) {
-    res.status(500).json({ message: "Failed to delete order" });
+    console.error("API: Error during order deletion:", error);
+    res.status(500).json({ 
+      message: "Internal server error during deletion",
+      code: "INTERNAL_ERROR",
+      error: error instanceof Error ? error.message : "Unknown error"
+    });
   }
 });
 
@@ -369,48 +550,75 @@ apiRouter.post("/transactions", async (req, res) => {
   }
 });
 
-// Stock management
+// Add stock route - handles inventory updates, supplier debt, and transaction creation
 apiRouter.post("/add-stock", async (req, res) => {
   try {
-    const storage = await getStorage();
-    const { type, quantity, rate, supplierId, description } = req.body;
+    const { type, quantity, rate, supplierId } = req.body;
     
-    if (!type || quantity === undefined || rate === undefined) {
-      return res.status(400).json({ message: "Type, quantity, and rate are required" });
+    // Validate input
+    if (!type || !quantity || !rate || !supplierId) {
+      return res.status(400).json({ message: "Missing required fields: type, quantity, rate, supplierId" });
+    }
+    
+    const qtyNum = parseFloat(quantity);
+    const rateNum = parseFloat(rate);
+    
+    if (isNaN(qtyNum) || isNaN(rateNum) || rateNum <= 0) {
+      return res.status(400).json({ message: "Invalid quantity or rate values" });
     }
 
-    const allInventory = await storage.getAllInventory();
-    let inventoryItem = allInventory.find((item: any) => item.type === type);
+    const storage = await getStorage();
     
-    if (inventoryItem) {
-      const newQuantity = (inventoryItem.quantity || 0) + quantity;
-      inventoryItem = await storage.updateInventoryItem(inventoryItem.id, {
+    // 1. Find or create inventory item
+    const inventoryItems = await storage.getAllInventory();
+    const existingItem = inventoryItems.find(item => item.type === type);
+    
+    let inventoryResult;
+    if (existingItem) {
+      // Update existing inventory
+      const newQuantity = existingItem.quantity + qtyNum;
+      inventoryResult = await storage.updateInventoryItem(existingItem.id, {
         quantity: newQuantity,
-        rate,
-        updatedAt: new Date()
+        rate: rateNum
       });
     } else {
-      inventoryItem = await storage.createInventoryItem({
+      // Create new inventory item
+      inventoryResult = await storage.createInventoryItem({
         type,
-        quantity,
-        rate
+        quantity: qtyNum,
+        rate: rateNum
       });
     }
-
-    if (supplierId) {
-      await storage.createTransaction({
-        type: 'expense',
-        amount: quantity * rate,
-        entityId: supplierId,
-        entityType: 'supplier',
-        description: description || `Stock purchase: ${quantity} kg of ${type} at ₹${rate}/kg`,
-        date: new Date()
-      });
+    
+    // 2. Update supplier debt
+    const supplier = await storage.getSupplier(supplierId);
+    if (!supplier) {
+      return res.status(404).json({ message: "Supplier not found" });
     }
+    
+    const totalAmount = qtyNum * rateNum;
+    const newDebt = (supplier.debt || 0) + totalAmount;
+    
+    await storage.updateSupplier(supplierId, { debt: newDebt });
+    
+    // 3. Create transaction record
+    const transaction = await storage.createTransaction({
+      type: "expense",
+      amount: totalAmount,
+      entityId: supplierId,
+      entityType: "supplier",
+      description: `Stock purchase: ${qtyNum} kg of ${type} at ₹${rateNum}/kg`,
+      date: new Date()
+    });
 
-    res.status(201).json(inventoryItem);
+    res.status(201).json({
+      inventory: inventoryResult,
+      transaction,
+      supplier: { ...supplier, debt: newDebt }
+    });
   } catch (error) {
-    res.status(400).json({ message: "Failed to add stock", error });
+    console.error("Failed to add stock:", error);
+    res.status(500).json({ message: "Failed to add stock" });
   }
 });
 
@@ -437,41 +645,50 @@ apiRouter.post("/fix-balances", async (req, res) => {
   }
 });
 
-// Reports
+// Reports route
 apiRouter.get("/reports", async (req, res) => {
   try {
     const storage = await getStorage();
-    
-    const customers = await storage.getAllCustomers();
-    const suppliers = await storage.getAllSuppliers();
-    const orders = await storage.getAllOrders();
-    const transactions = await storage.getAllTransactions();
-    const inventory = await storage.getAllInventory();
-    
-    const totalPendingCustomers = customers.reduce((sum: number, c: any) => sum + (c.pendingAmount || 0), 0);
-    const totalDebtSuppliers = suppliers.reduce((sum: number, s: any) => sum + (s.debt || 0), 0);
-    const totalInventoryValue = inventory.reduce((sum: number, i: any) => sum + ((i.quantity || 0) * (i.rate || 0)), 0);
-    
+    const [orders, suppliers, customers, inventory, transactions] = await Promise.all([
+      storage.getAllOrders(),
+      storage.getAllSuppliers(),
+      storage.getAllCustomers(),
+      storage.getAllInventory(),
+      storage.getAllTransactions()
+    ]);
+
+    // Calculate metrics
+    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const totalSupplierDebt = suppliers.reduce((sum, supplier) => sum + (supplier.debt || 0), 0);
+    const totalCustomerPending = customers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
+    const lowStockItems = inventory.filter(item => item.quantity < 10);
+
     const report = {
       summary: {
-        totalCustomers: customers.length,
-        totalSuppliers: suppliers.length,
+        totalRevenue,
+        totalSupplierDebt,
+        totalCustomerPending,
+        lowStockCount: lowStockItems.length,
         totalOrders: orders.length,
-        totalTransactions: transactions.length,
-        totalPendingAmount: totalPendingCustomers,
-        totalDebt: totalDebtSuppliers,
-        totalInventoryValue
+        totalSuppliers: suppliers.length,
+        totalCustomers: customers.length,
+        totalInventoryItems: inventory.length
       },
-      customers,
-      suppliers,
-      orders,
-      transactions,
-      inventory
+      lowStockItems,
+      recentTransactions: transactions
+        .filter(t => t.date !== null && t.date !== undefined)
+        .sort((a, b) => {
+          const dateA = new Date(a.date!).getTime();
+          const dateB = new Date(b.date!).getTime();
+          return dateB - dateA;
+        })
+        .slice(0, 10)
     };
-    
+
     res.json(report);
   } catch (error) {
-    res.status(500).json({ message: "Failed to generate report", error });
+    console.error("Failed to generate reports:", error);
+    res.status(500).json({ message: "Failed to generate reports" });
   }
 });
 

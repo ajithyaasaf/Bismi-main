@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Inventory } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -6,38 +6,17 @@ import InventoryForm from "@/components/inventory/InventoryForm";
 import InventoryList from "@/components/inventory/InventoryList";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import * as InventoryService from "@/lib/inventory-service";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 
 export default function InventoryPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Inventory | null>(null);
-  const [firestoreInventory, setFirestoreInventory] = useState<any[]>([]);
-  const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<Inventory | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Load inventory from Firestore directly
-  useEffect(() => {
-    async function loadFirestoreInventory() {
-      try {
-        setIsFirestoreLoading(true);
-        const items = await InventoryService.getInventoryItems();
-        console.log("Loaded inventory directly from Firestore:", items);
-        setFirestoreInventory(items);
-      } catch (error) {
-        console.error("Error loading inventory from Firestore:", error);
-      } finally {
-        setIsFirestoreLoading(false);
-      }
-    }
-    
-    loadFirestoreInventory();
-  }, []);
 
-  // Fetch inventory from API as backup
+  // Fetch inventory from API
   const { data: inventory = [], isLoading } = useQuery<Inventory[]>({
     queryKey: ['/api/inventory'],
   });
@@ -52,18 +31,17 @@ export default function InventoryPage() {
     setIsFormOpen(true);
   };
 
-  const handleDeleteClick = (item: Inventory) => {
+  const handleDeleteRequest = (item: Inventory) => {
     setItemToDelete(item);
     setIsDeleteDialogOpen(true);
   };
-  
-  const confirmDelete = async () => {
+
+  const handleDeleteClick = async () => {
     if (!itemToDelete) return;
     
     try {
-      console.log(`Deleting inventory item via API with ID: ${itemToDelete.id}`);
+      console.log(`Deleting inventory item: ${itemToDelete.id}`);
       
-      // Use API as the single source of truth for enterprise-level consistency
       await apiRequest('DELETE', `/api/inventory/${itemToDelete.id}`, undefined);
       
       toast({
@@ -71,47 +49,25 @@ export default function InventoryPage() {
         description: `${itemToDelete.type} has been successfully deleted`,
       });
       
-      // Update local state immediately for instant UI feedback
-      setFirestoreInventory((prev: any) => prev.filter((i: any) => i.id !== itemToDelete.id));
-      
-      // Refresh data via query cache to ensure consistency
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
       
-      // Close dialog immediately on success
       setIsDeleteDialogOpen(false);
       setItemToDelete(null);
-      
-      // Refresh Firestore data in background to maintain dual-source sync
-      setTimeout(async () => {
-        try {
-          const refreshedInventory = await InventoryService.getInventoryItems();
-          console.log("Background refresh after deletion:", refreshedInventory.length, "items");
-          setFirestoreInventory(refreshedInventory);
-        } catch (error) {
-          console.error("Background refresh failed:", error);
-        }
-      }, 1000);
       
     } catch (error) {
       console.error("Error during inventory item deletion:", error);
       
-      // Enhanced error handling for different scenarios
       const errorMessage = error instanceof Error ? error.message : String(error);
       const isNotFoundError = errorMessage.includes('404') || errorMessage.includes('ITEM_NOT_FOUND');
       
       if (isNotFoundError) {
-        // Item was already deleted or doesn't exist, treat as success
         console.log("Item was already deleted, updating UI accordingly");
         toast({
           title: "Item deleted",
           description: `${itemToDelete.type} has been successfully removed`,
         });
-        
-        // Update local state
-        setFirestoreInventory((prev: any) => prev.filter((i: any) => i.id !== itemToDelete.id));
         queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
       } else {
-        // Actual deletion error
         console.error("Actual deletion error occurred:", error);
         toast({
           title: "Error",
@@ -121,31 +77,15 @@ export default function InventoryPage() {
       }
     }
     
-    // Always close the dialog and cleanup state
     setIsDeleteDialogOpen(false);
     setItemToDelete(null);
   };
 
   const handleCloseForm = () => {
     setIsFormOpen(false);
-    
-    // Refresh Firestore data
-    async function refreshFirestoreInventory() {
-      try {
-        const items = await InventoryService.getInventoryItems();
-        console.log("Refreshed inventory from Firestore:", items);
-        setFirestoreInventory(items);
-      } catch (error) {
-        console.error("Error refreshing inventory from Firestore:", error);
-      }
-    }
-    
-    refreshFirestoreInventory();
+    // Invalidate and refetch inventory data
+    queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
   };
-
-  // Determine which inventory items to display
-  const displayItems = firestoreInventory.length > 0 ? firestoreInventory : inventory;
-  const isPageLoading = isFirestoreLoading && isLoading;
 
   return (
     <div className="space-y-6">
@@ -159,41 +99,32 @@ export default function InventoryPage() {
         </Button>
       </div>
 
-      {isPageLoading ? (
-        <div className="text-center py-10">
-          <i className="fas fa-spinner fa-spin text-2xl text-blue-600"></i>
-          <p className="mt-2 text-gray-600">Loading inventory...</p>
-        </div>
-      ) : (
-        <>
-          <InventoryList 
-            items={displayItems as Inventory[]} 
-            onEdit={handleEditClick}
-            onDelete={handleDeleteClick}
-          />
-        </>
-      )}
+      <InventoryList 
+        items={inventory}
+        isLoading={isLoading}
+        onEdit={handleEditClick}
+        onDelete={handleDeleteRequest}
+      />
 
-      {isFormOpen && (
-        <InventoryForm
-          item={selectedItem}
-          isOpen={isFormOpen}
-          onClose={handleCloseForm}
-        />
-      )}
-      
-      {itemToDelete && (
-        <ConfirmationDialog
-          isOpen={isDeleteDialogOpen}
-          onClose={() => setIsDeleteDialogOpen(false)}
-          onConfirm={confirmDelete}
-          title="Confirm Deletion"
-          description={`Are you sure you want to delete ${itemToDelete.type}? This action cannot be undone.`}
-          confirmText="Delete"
-          cancelText="Cancel"
-          variant="destructive"
-        />
-      )}
+      <InventoryForm
+        isOpen={isFormOpen}
+        onClose={handleCloseForm}
+        item={selectedItem}
+      />
+
+      <ConfirmationDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteClick}
+        title="Delete Inventory Item"
+        description={
+          itemToDelete 
+            ? `Are you sure you want to delete "${itemToDelete.type}"? This action cannot be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        confirmVariant="destructive"
+      />
     </div>
   );
 }

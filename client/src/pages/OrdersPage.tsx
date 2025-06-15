@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Order, Customer, Inventory } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -7,16 +7,9 @@ import NewOrderModal from "@/components/modals/NewOrderModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import * as OrderService from "@/lib/order-service";
-import * as CustomerService from "@/lib/customer-service";
-import * as InventoryService from "@/lib/inventory-service";
 
 export default function OrdersPage() {
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
-  const [firestoreOrders, setFirestoreOrders] = useState<any[]>([]);
-  const [firestoreCustomers, setFirestoreCustomers] = useState<any[]>([]);
-  const [firestoreInventory, setFirestoreInventory] = useState<any[]>([]);
-  const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const { toast } = useToast();

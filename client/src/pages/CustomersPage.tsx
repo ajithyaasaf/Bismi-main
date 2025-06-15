@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Customer, Order } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -11,13 +11,8 @@ import CustomersList from "@/components/customers/CustomersList";
 import PaymentModal from "@/components/modals/PaymentModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { CustomerInvoice } from "@/components/invoices/CustomerInvoice";
-import * as CustomerService from "@/lib/customer-service";
-import * as OrderService from "@/lib/order-service";
 
 export default function CustomersPage() {
-  const [firestoreCustomers, setFirestoreCustomers] = useState<any[]>([]);
-  const [firestoreOrders, setFirestoreOrders] = useState<any[]>([]);
-  const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Supplier } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,10 @@ import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import PaymentModal from "@/components/modals/PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import * as SupplierService from "@/lib/supplier-service";
 
 export default function SuppliersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
-  const [firestoreSuppliers, setFirestoreSuppliers] = useState<any[]>([]);
-  const [isFirestoreLoading, setIsFirestoreLoading] = useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);

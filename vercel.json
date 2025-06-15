@@ -1,12 +1,11 @@
 {
   "functions": {
     "api/index.ts": {
-      "runtime": "@vercel/node",
+      "runtime": "nodejs18.x",
       "memory": 1024,
       "maxDuration": 30
     }
   },
-
   "rewrites": [
     {
       "source": "/api/(.*)",

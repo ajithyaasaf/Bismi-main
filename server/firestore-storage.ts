@@ -21,34 +21,49 @@ export class FirestoreStorage implements IStorage {
   constructor() {
     try {
       if (admin.apps.length === 0) {
+        console.log('[Firestore] Initializing Firebase Admin SDK...');
+        
         if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+          console.log('[Firestore] Using FIREBASE_SERVICE_ACCOUNT_KEY');
           try {
             let serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
             let serviceAccount: any;
             
+            console.log('[Firestore] Service account key length:', serviceAccountString.length);
+            console.log('[Firestore] Key starts with {:', serviceAccountString.startsWith('{'));
+            console.log('[Firestore] Key ends with }:', serviceAccountString.endsWith('}'));
+            
             // Try multiple parsing strategies
             if (serviceAccountString.startsWith('{') && serviceAccountString.endsWith('}')) {
-              // Direct JSON format
+              console.log('[Firestore] Parsing as direct JSON...');
               serviceAccount = JSON.parse(serviceAccountString);
             } else {
-              // Try base64 decoding
+              console.log('[Firestore] Trying base64 decoding...');
               try {
                 const decoded = Buffer.from(serviceAccountString, 'base64').toString('utf-8');
+                console.log('[Firestore] Decoded length:', decoded.length);
+                console.log('[Firestore] Decoded starts with {:', decoded.startsWith('{'));
+                console.log('[Firestore] Decoded ends with }:', decoded.endsWith('}'));
+                
                 if (decoded.startsWith('{') && decoded.endsWith('}')) {
                   serviceAccount = JSON.parse(decoded);
                 } else {
                   throw new Error('Decoded content is not valid JSON');
                 }
               } catch (decodeError) {
-                // If all else fails, try treating it as escaped JSON
+                console.log('[Firestore] Base64 failed, trying escaped JSON...');
                 try {
                   const unescaped = serviceAccountString.replace(/\\n/g, '\n').replace(/\\"/g, '"');
                   serviceAccount = JSON.parse(unescaped);
                 } catch (unescapeError) {
-                  throw new Error(`Unable to parse service account key. Expected JSON format starting with { and ending with }. Got: ${serviceAccountString.substring(0, 50)}...`);
+                  throw new Error(`Unable to parse service account key. Expected JSON format. First 100 chars: ${serviceAccountString.substring(0, 100)}...`);
                 }
               }
             }
+            
+            console.log('[Firestore] Service account parsed successfully');
+            console.log('[Firestore] Project ID:', serviceAccount.project_id);
+            console.log('[Firestore] Client email:', serviceAccount.client_email);
             
             // Validate required fields
             if (!serviceAccount.type || !serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
@@ -59,10 +74,10 @@ export class FirestoreStorage implements IStorage {
               credential: admin.credential.cert(serviceAccount),
               projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
             });
+            
+            console.log('[Firestore] Firebase Admin SDK initialized successfully');
           } catch (error) {
-            console.error('Firebase service account parsing error:', error);
-            console.error('Service account key format check - starts with {:', process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim().startsWith('{'));
-            console.error('Service account key format check - ends with }:', process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim().endsWith('}'));
+            console.error('[Firestore] Firebase service account parsing error:', error);
             throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT_KEY format: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         } else {

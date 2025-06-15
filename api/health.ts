@@ -13,6 +13,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     console.log('[Health API] Health check request');
+    console.log('[Health API] Environment variables check:');
+    console.log('[Health API] FIREBASE_SERVICE_ACCOUNT_KEY exists:', !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    console.log('[Health API] Key length:', process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.length || 0);
     
     // Test Firebase connection
     const storage = await storageManager.initialize();
@@ -22,15 +25,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       storage: 'firestore',
       storageType: storageManager.getStorageType(),
       timestamp: new Date().toISOString(),
-      environment: 'vercel'
+      environment: 'vercel',
+      hasFirebaseKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY
     });
   } catch (error) {
     console.error('[Health API] Error:', error);
+    console.error('[Health API] Error stack:', error.stack);
     return res.status(500).json({
       status: 'unhealthy',
       error: error.message,
+      stack: error.stack,
       timestamp: new Date().toISOString(),
-      environment: 'vercel'
+      environment: 'vercel',
+      hasFirebaseKey: !!process.env.FIREBASE_SERVICE_ACCOUNT_KEY
     });
   }
 }

@@ -1,110 +1,25 @@
-import { FirebaseRealtimeClient } from './firebase-realtime';
-
-// API base URL
-const API_BASE = '/api';
-
-// Helper function to make API requests (Admin SDK backend operations)
-async function apiRequest(endpoint: string, options: RequestInit = {}) {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API Error: ${error}`);
-  }
-  
-  return response.json();
-}
+import { apiRequest } from './queryClient';
 
 // Add a new transaction
 export async function addTransaction(transactionData: any) {
-  try {
-    console.log('Adding transaction via API:', transactionData);
-    const result = await apiRequest('/transactions', {
-      method: 'POST',
-      body: JSON.stringify(transactionData),
-    });
-    console.log('Transaction added successfully:', result);
-    return result;
-  } catch (error) {
-    console.error('Error adding transaction:', error);
-    throw error;
-  }
+  const response = await apiRequest('POST', '/api/transactions', transactionData);
+  return response.json();
 }
 
-// Get all transactions (uses Firebase client SDK for real-time data)
+// Get all transactions
 export async function getTransactions() {
-  try {
-    console.log('Getting all transactions via Firebase client SDK');
-    const transactions = await FirebaseRealtimeClient.getTransactions();
-    console.log(`Retrieved ${transactions.length} transactions via Firebase client`);
-    return transactions;
-  } catch (error) {
-    console.error('Error getting transactions:', error);
-    throw error;
-  }
-}
-
-// Get transactions by entity ID (uses Firebase client SDK for real-time data)
-export async function getTransactionsByEntity(entityId: string, entityType?: string) {
-  try {
-    console.log(`Getting transactions for entity ${entityId} via Firebase client SDK`);
-    const entityTransactions = await FirebaseRealtimeClient.getTransactionsByEntity(entityId);
-    const filteredTransactions = entityType 
-      ? entityTransactions.filter(transaction => transaction.entityType === entityType)
-      : entityTransactions;
-    console.log(`Retrieved ${filteredTransactions.length} transactions for entity ${entityId} via Firebase client`);
-    return filteredTransactions;
-  } catch (error) {
-    console.error(`Error getting transactions for entity ${entityId}:`, error);
-    throw error;
-  }
+  const response = await apiRequest('GET', '/api/transactions');
+  return response.json();
 }
 
 // Get a transaction by ID
 export async function getTransactionById(id: string) {
-  try {
-    console.log(`Getting transaction via API with ID: ${id}`);
-    const transaction = await apiRequest(`/transactions/${id}`);
-    return transaction;
-  } catch (error) {
-    console.error(`Error getting transaction:`, error);
-    throw error;
-  }
+  const response = await apiRequest('GET', `/api/transactions/${id}`);
+  return response.json();
 }
 
-// Update an existing transaction
-export async function updateTransaction(id: string, transactionData: any) {
-  try {
-    console.log(`Updating transaction via API with ID: ${id}`, transactionData);
-    const result = await apiRequest(`/transactions/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(transactionData),
-    });
-    console.log(`Transaction with ID ${id} updated successfully`);
-    return result;
-  } catch (error) {
-    console.error(`Error updating transaction:`, error);
-    throw error;
-  }
-}
-
-// Delete a transaction
-export async function deleteTransaction(id: string) {
-  try {
-    console.log(`Deleting transaction via API with ID: ${id}`);
-    await apiRequest(`/transactions/${id}`, {
-      method: 'DELETE',
-    });
-    console.log(`Transaction with ID ${id} deleted successfully`);
-    return true;
-  } catch (error) {
-    console.error(`Error deleting transaction:`, error);
-    throw error;
-  }
+// Get transactions by entity ID
+export async function getTransactionsByEntity(entityId: string) {
+  const transactions = await getTransactions();
+  return transactions.filter((transaction: any) => transaction.entityId === entityId);
 }

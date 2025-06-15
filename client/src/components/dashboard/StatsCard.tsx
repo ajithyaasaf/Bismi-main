@@ -42,10 +42,8 @@ export default function StatsCard({
       </div>
       <div className="bg-gray-50 px-4 py-4 sm:px-6">
         <div className="text-sm">
-          <Link href={linkHref}>
-            <a className={`font-medium hover:underline ${iconColor}`}>
-              {linkText} <span aria-hidden="true">&rarr;</span>
-            </a>
+          <Link href={linkHref} className={`font-medium hover:underline ${iconColor}`}>
+            {linkText} <span aria-hidden="true">&rarr;</span>
           </Link>
         </div>
       </div>

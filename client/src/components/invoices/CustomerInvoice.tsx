@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, addDays, parseISO } from 'date-fns';
 import { Download, Eye, Printer, Mail, Settings, FileText, AlertTriangle } from 'lucide-react';
 import InvoiceTemplate from './InvoiceTemplate';
-import { generatePDFInvoice, InvoiceData } from './ReactPDFInvoice';
+import { generateCustomerInvoicePDF } from './ReactPDFInvoice';
 
 interface CustomerInvoiceProps {
   isOpen: boolean;

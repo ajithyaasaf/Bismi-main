@@ -13,8 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, addDays, parseISO } from 'date-fns';
 import { Download, Eye, Printer, Mail, Settings, FileText, AlertTriangle } from 'lucide-react';
 import InvoiceTemplate from './InvoiceTemplate';
-// PDF generation temporarily disabled - will be re-implemented
-// import { generatePDFInvoice, InvoiceData } from './ReactPDFInvoice';
+import { generatePDFInvoice, InvoiceData } from './ReactPDFInvoice';
 
 interface CustomerInvoiceProps {
   isOpen: boolean;
@@ -109,14 +108,24 @@ export function CustomerInvoice({
     try {
       setGenerationProgress(30);
 
-      // PDF generation temporarily disabled
-      // TODO: Re-implement PDF generation with proper React PDF setup
-      toast({
-        title: "PDF Generation",
-        description: "PDF generation feature is being updated. Please use the preview feature for now.",
-        variant: "default"
-      });
+      // Prepare data for PDF generation
+      const invoiceData: InvoiceData = {
+        customer,
+        orders: relevantOrders,
+        currentDate,
+        invoiceNumber,
+        dueDate: settings.dueDate,
+        showPaid: settings.showPaid,
+        overdueThresholdDays: settings.overdueThresholdDays,
+        payments: transactions,
+        businessInfo: settings.businessInfo,
+        paymentInfo: settings.paymentInfo
+      };
 
+      setGenerationProgress(60);
+
+      // Generate PDF using React PDF
+      await generatePDFInvoice(invoiceData);
       setGenerationProgress(100);
 
       toast({

@@ -124,12 +124,6 @@ The application includes specialized build scripts and configuration files for s
 
 ## Changelog
 
-- June 14, 2025. **Firebase Integration Completed**
-  - Fixed Firebase environment variables configuration
-  - Added Firebase service account key authentication
-  - Enhanced serverless function error handling for Vercel deployment
-  - Updated API routes with proper CORS headers and Firebase initialization
-  - All data operations now working with Firestore database
 - June 13, 2025. Initial setup
 
 ## User Preferences

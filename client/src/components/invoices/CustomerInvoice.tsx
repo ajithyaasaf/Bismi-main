@@ -111,7 +111,7 @@ export function CustomerInvoice({
       // Prepare data for PDF generation
       const invoiceData: InvoiceData = {
         customer,
-        orders: relevantOrders,
+        orders,
         currentDate,
         invoiceNumber,
         dueDate: settings.dueDate,
@@ -137,7 +137,7 @@ export function CustomerInvoice({
       console.error('PDF generation failed:', error);
       toast({
         title: "PDF Generation Failed",
-        description: "PDF generation is temporarily unavailable.",
+        description: error instanceof Error ? error.message : "An unknown error occurred while generating the PDF.",
         variant: "destructive"
       });
     } finally {

@@ -14,20 +14,12 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// Get API base URL from environment variable or default to local development
-const getApiBaseUrl = () => {
-  return import.meta.env.VITE_API_URL || 'http://localhost:5000';
-};
-
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  // Ensure URL is absolute for production deployment
-  const apiUrl = url.startsWith('http') ? url : `${getApiBaseUrl()}${url}`;
-  
-  const res = await fetch(apiUrl, {
+  const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
@@ -44,10 +36,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = queryKey[0] as string;
-    const apiUrl = url.startsWith('http') ? url : `${getApiBaseUrl()}${url}`;
-    
-    const res = await fetch(apiUrl, {
+    const res = await fetch(queryKey[0] as string, {
       credentials: "include",
     });
 

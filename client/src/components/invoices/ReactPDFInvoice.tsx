@@ -2,7 +2,7 @@ import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer
 import { Customer, Order, Transaction } from '@shared/schema';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
-export interface InvoiceData {
+interface InvoiceData {
   customer: Customer;
   orders: Order[];
   currentDate: string;
@@ -48,188 +48,146 @@ const styles = StyleSheet.create({
   businessName: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#2c3e50',
-    marginBottom: 5,
+    color: '#1e40af',
+    marginBottom: 8,
   },
   businessDetails: {
-    fontSize: 10,
-    color: '#555',
+    fontSize: 9,
+    color: '#666666',
     marginBottom: 2,
   },
-  invoiceInfo: {
-    alignItems: 'flex-end',
-  },
   invoiceTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#e74c3c',
-    marginBottom: 10,
+    textAlign: 'right',
   },
-  invoiceNumber: {
-    fontSize: 12,
+  invoiceTitleText: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#1e40af',
     marginBottom: 5,
   },
-  customerSection: {
+  invoiceNumber: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  detailsSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 20,
   },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#2c3e50',
+  billTo: {
+    flex: 1,
   },
-  customerInfo: {
-    backgroundColor: '#f8f9fa',
-    padding: 15,
-    borderRadius: 5,
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
   customerName: {
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: 5,
+    marginBottom: 3,
   },
   customerDetails: {
-    fontSize: 10,
-    marginBottom: 3,
-    color: '#555',
+    fontSize: 9,
+    color: '#666666',
+    marginBottom: 2,
   },
-  dateInfo: {
+  invoiceMeta: {
+    width: 200,
+  },
+  metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    padding: 10,
-    backgroundColor: '#f8f9fa',
-  },
-  dateSection: {
-    flex: 1,
-  },
-  dateLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
     marginBottom: 3,
   },
-  dateValue: {
-    fontSize: 10,
+  metaLabel: {
+    fontSize: 9,
+    color: '#666666',
+    width: 80,
   },
-  balanceSection: {
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: '#fff3cd',
-    borderRadius: 5,
-  },
-  balanceTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  balanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 5,
-  },
-  balanceLabel: {
-    fontSize: 10,
-  },
-  balanceValue: {
-    fontSize: 10,
+  metaValue: {
+    fontSize: 9,
     fontWeight: 'bold',
   },
   table: {
-    marginTop: 20,
     marginBottom: 20,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#34495e',
-    color: '#ffffff',
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-  },
-  tableHeaderCell: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    color: '#ffffff',
+    backgroundColor: '#f3f4f6',
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#d1d5db',
   },
   tableRow: {
     flexDirection: 'row',
+    padding: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#ecf0f1',
-    paddingVertical: 8,
-    paddingHorizontal: 5,
-  },
-  tableRowPaid: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ecf0f1',
-    paddingVertical: 8,
-    paddingHorizontal: 5,
-    backgroundColor: '#d4edda',
-  },
-  tableRowOverdue: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ecf0f1',
-    paddingVertical: 8,
-    paddingHorizontal: 5,
-    backgroundColor: '#f8d7da',
+    borderBottomColor: '#e5e7eb',
   },
   tableCell: {
+    fontSize: 8,
+  },
+  tableCellHeader: {
     fontSize: 9,
-    paddingHorizontal: 3,
-  },
-  statusPaid: {
-    color: '#155724',
     fontWeight: 'bold',
   },
-  statusPending: {
-    color: '#856404',
-    fontWeight: 'bold',
+  orderIdCell: {
+    width: '15%',
   },
-  statusOverdue: {
-    color: '#721c24',
-    fontWeight: 'bold',
+  dateCell: {
+    width: '15%',
   },
-  summary: {
-    marginTop: 20,
+  itemsCell: {
+    width: '40%',
+  },
+  amountCell: {
+    width: '15%',
+    textAlign: 'right',
+  },
+  statusCell: {
+    width: '15%',
+    textAlign: 'center',
+  },
+  totalsSection: {
     alignItems: 'flex-end',
+    marginBottom: 20,
   },
-  summaryRow: {
+  totalsTable: {
+    width: 200,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  totalsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: 200,
-    marginBottom: 5,
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
-  summaryLabel: {
-    fontSize: 12,
-  },
-  summaryValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  totalRow: {
+  totalsRowFinal: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: 200,
-    borderTopWidth: 2,
-    borderTopColor: '#2c3e50',
-    paddingTop: 10,
-    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#f3f4f6',
   },
-  totalLabel: {
-    fontSize: 14,
+  totalsLabel: {
+    fontSize: 9,
     fontWeight: 'bold',
   },
-  totalValue: {
-    fontSize: 14,
+  totalsValue: {
+    fontSize: 9,
+    fontFamily: 'Courier',
+  },
+  totalsValueFinal: {
+    fontSize: 11,
     fontWeight: 'bold',
-    color: '#e74c3c',
+    fontFamily: 'Courier',
   },
   paymentSection: {
-    marginTop: 30,
+    backgroundColor: '#f9fafb',
     padding: 15,
-    backgroundColor: '#e8f5e8',
+    marginBottom: 20,
     borderRadius: 5,
   },
   paymentTitle: {
@@ -237,107 +195,156 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  paymentDetail: {
+  paymentGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  paymentColumn: {
+    flex: 1,
+    marginRight: 20,
+  },
+  paymentSubtitle: {
     fontSize: 10,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  paymentText: {
+    fontSize: 8,
     marginBottom: 3,
   },
-  terms: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#f8f9fa',
+  termText: {
+    fontSize: 7,
+    color: '#666666',
+    marginBottom: 2,
+  },
+  overdueNotice: {
+    backgroundColor: '#fef2f2',
+    border: '1px solid #fecaca',
+    padding: 10,
+    marginBottom: 20,
     borderRadius: 5,
   },
-  termsTitle: {
-    fontSize: 12,
+  overdueTitle: {
+    fontSize: 10,
     fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  termItem: {
-    fontSize: 9,
+    color: '#dc2626',
     marginBottom: 3,
   },
+  overdueText: {
+    fontSize: 8,
+    color: '#dc2626',
+  },
   footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 30,
-    right: 30,
-    textAlign: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#ecf0f1',
-    paddingTop: 15,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 10,
+    textAlign: 'center',
   },
   footerText: {
-    fontSize: 8,
-    color: '#7f8c8d',
+    fontSize: 7,
+    color: '#9ca3af',
+    marginBottom: 2,
+  },
+  statusPaid: {
+    color: '#16a34a',
+    fontWeight: 'bold',
+  },
+  statusOverdue: {
+    color: '#dc2626',
+    fontWeight: 'bold',
+  },
+  statusPending: {
+    color: '#eab308',
+    fontWeight: 'bold',
   },
 });
 
-// React PDF Component
-export const InvoicePDF: React.FC<InvoiceData> = ({
-  customer,
-  orders,
-  currentDate,
-  invoiceNumber,
-  dueDate,
-  showPaid = false,
-  overdueThresholdDays = 30,
-  payments = [],
-  businessInfo = {
-    name: 'Bismi Chicken Shop',
-    address: ['Al Qusais, Dubai', 'United Arab Emirates'],
-    phone: '+971-50-123-4567',
-    gstin: 'GST123456789',
-    email: 'contact@bismichicken.com'
-  },
-  paymentInfo = {
-    upiId: 'bismichicken@upi',
-    phone: '+971-50-123-4567',
-    accountName: 'Bismi Chicken Shop',
-    terms: [
-      'Payment is due within 30 days of invoice date',
-      'Late payments may incur additional charges',
-      'All prices are in AED unless otherwise specified'
-    ]
-  }
-}) => {
-  // Filter orders based on showPaid setting
-  const filteredOrders = showPaid ? orders : orders.filter(order => order.status !== 'paid');
-  
-  // Calculate totals
-  const totalAmount = filteredOrders.reduce((sum, order) => sum + order.total, 0);
-  const taxAmount = totalAmount * 0.05; // 5% tax
-  const grandTotal = totalAmount + taxAmount;
-  
-  // Calculate paid amount from payments
-  const totalPaid = payments
-    .filter(payment => payment.type === 'receipt' && payment.entityId === customer.id)
-    .reduce((sum, payment) => sum + payment.amount, 0);
-  
-  const adjustedTotalPaid = Math.min(totalPaid, grandTotal);
-  const totalPending = grandTotal - adjustedTotalPaid;
-  
-  // Identify overdue orders
-  const currentDateObj = parseISO(currentDate);
-  const overdueOrders = filteredOrders.filter(order => {
-    if (order.status === 'paid') return false;
-    if (!order.createdAt) return false;
-    const orderDate = new Date(order.createdAt);
-    const daysDiff = differenceInDays(currentDateObj, orderDate);
-    return daysDiff > overdueThresholdDays;
+// PDF Document Component
+const InvoicePDFDocument = ({ data }: { data: InvoiceData }) => {
+  const {
+    customer,
+    orders,
+    currentDate,
+    invoiceNumber,
+    dueDate,
+    showPaid = false,
+    overdueThresholdDays = 15,
+    payments = [],
+    businessInfo = {
+      name: "Bismi Broiler's",
+      address: ["Near Busstand, Hayarnisha Hospital", "Mudukulathur"],
+      phone: "+91 8681087082",
+      gstin: "33AADCB1234F1Z5",
+      email: "bismi.broilers@gmail.com"
+    },
+    paymentInfo = {
+      upiId: "9514499968@ybl",
+      phone: "+91 9514499968",
+      accountName: "Bismi Broiler's",
+      terms: [
+        "Payment is due within 15 days of invoice date",
+        "Late payments may be subject to 2% monthly interest charges",
+        "For queries regarding this invoice, please contact our accounts department"
+      ]
+    }
+  } = data;
+
+  // Filter orders based on customer and payment status
+  const filteredOrders = orders.filter(order => {
+    if (order.customerId !== customer.id) return false;
+    return showPaid ? true : order.status !== 'paid';
   });
 
-  const formatOrderItems = (order: Order) => {
+  // Calculate totals
+  const totalPending = typeof customer.pendingAmount === 'number' ? customer.pendingAmount : 
+    filteredOrders.reduce((sum, order) => {
+      if (order.status === 'paid') return sum;
+      return sum + (typeof order.total === 'number' ? order.total : 0);
+    }, 0);
+
+  const totalPaid = filteredOrders.reduce((sum, order) => {
+    if (order.status !== 'paid') return sum;
+    return sum + (typeof order.total === 'number' ? order.total : 0);
+  }, 0);
+
+  const ordersGrandTotal = filteredOrders.reduce((sum, order) => {
+    return sum + (typeof order.total === 'number' ? order.total : 0);
+  }, 0);
+
+  const paidThroughRecordedPayments = Math.max(0, ordersGrandTotal - totalPending - totalPaid);
+  const adjustedTotalPaid = totalPaid + paidThroughRecordedPayments;
+  const grandTotal = totalPending + adjustedTotalPaid;
+  const taxAmount = grandTotal * 0.05;
+
+  // Check for overdue orders
+  const overdueOrders = filteredOrders.filter(order => {
+    if (order.status === 'paid') return false;
+    
+    let orderDate: Date;
+    if (typeof order.date === 'string') {
+      orderDate = parseISO(order.date);
+    } else if (order.date instanceof Date) {
+      orderDate = order.date;
+    } else {
+      orderDate = new Date();
+    }
+    
+    const currentDateObj = parseISO(currentDate);
+    return differenceInDays(currentDateObj, orderDate) >= overdueThresholdDays;
+  });
+
+  // Format order items for display
+  const formatOrderItems = (items: any[]) => {
+    if (!items || !Array.isArray(items) || items.length === 0) return "No items";
+    
     try {
-      if (!order.items || !Array.isArray(order.items)) {
-        return "Items information unavailable";
-      }
-      
-      return order.items.map((item: any) => {
+      return items.map(item => {
         const quantity = typeof item.quantity === 'number' ? 
-          item.quantity.toFixed(1) : 
+          item.quantity.toFixed(2) : 
           (item.quantity || '0');
           
-        const itemType = item.type || 'Unknown Item';
+        const itemType = item.type || (typeof item.itemId === 'string' && item.itemId.length > 0 ? 'item' : 'product');
+        
         const rate = typeof item.rate === 'number' ? 
           item.rate.toFixed(2) : 
           (item.rate || '0');
@@ -373,12 +380,6 @@ export const InvoicePDF: React.FC<InvoiceData> = ({
     return isOverdue ? 'OVERDUE' : 'PENDING';
   };
 
-  const getRowStyle = (order: Order) => {
-    if (order.status === 'paid') return styles.tableRowPaid;
-    const isOverdue = overdueOrders.some(o => o.id === order.id);
-    return isOverdue ? styles.tableRowOverdue : styles.tableRow;
-  };
-
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -390,140 +391,158 @@ export const InvoicePDF: React.FC<InvoiceData> = ({
               <Text key={index} style={styles.businessDetails}>{line}</Text>
             ))}
             <Text style={styles.businessDetails}>Phone: {businessInfo.phone}</Text>
-            <Text style={styles.businessDetails}>Email: {businessInfo.email}</Text>
             <Text style={styles.businessDetails}>GSTIN: {businessInfo.gstin}</Text>
+            <Text style={styles.businessDetails}>Email: {businessInfo.email}</Text>
           </View>
-          <View style={styles.invoiceInfo}>
-            <Text style={styles.invoiceTitle}>INVOICE</Text>
+          <View style={styles.invoiceTitle}>
+            <Text style={styles.invoiceTitleText}>INVOICE</Text>
             <Text style={styles.invoiceNumber}>#{invoiceNumber}</Text>
           </View>
         </View>
 
-        {/* Date Information */}
-        <View style={styles.dateInfo}>
-          <View style={styles.dateSection}>
-            <Text style={styles.dateLabel}>Invoice Date:</Text>
-            <Text style={styles.dateValue}>{currentDate}</Text>
-          </View>
-          <View style={styles.dateSection}>
-            <Text style={styles.dateLabel}>Due Date:</Text>
-            <Text style={styles.dateValue}>{dueDate}</Text>
-          </View>
-        </View>
-
-        {/* Customer Section */}
-        <View style={styles.customerSection}>
-          <Text style={styles.sectionTitle}>Bill To:</Text>
-          <View style={styles.customerInfo}>
+        {/* Invoice Details Section */}
+        <View style={styles.detailsSection}>
+          <View style={styles.billTo}>
+            <Text style={styles.sectionTitle}>BILL TO:</Text>
             <Text style={styles.customerName}>{customer.name}</Text>
-            <Text style={styles.customerDetails}>Type: {customer.type}</Text>
+            <Text style={styles.customerDetails}>
+              Type: {customer.type === 'hotel' ? 'Hotel/Restaurant' : 'Retail Customer'}
+            </Text>
             {customer.contact && (
               <Text style={styles.customerDetails}>Contact: {customer.contact}</Text>
             )}
           </View>
-        </View>
-
-        {/* Balance Summary */}
-        <View style={styles.balanceSection}>
-          <Text style={styles.balanceTitle}>Account Summary</Text>
-          <View style={styles.balanceRow}>
-            <Text style={styles.balanceLabel}>Current Pending Amount:</Text>
-            <Text style={styles.balanceValue}>{formatCurrency(totalPending || 0)}</Text>
+          <View style={styles.invoiceMeta}>
+            <Text style={styles.sectionTitle}>INVOICE DETAILS:</Text>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Invoice Date:</Text>
+              <Text style={styles.metaValue}>{format(parseISO(currentDate), 'dd/MM/yyyy')}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Due Date:</Text>
+              <Text style={styles.metaValue}>{format(parseISO(dueDate), 'dd/MM/yyyy')}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Customer ID:</Text>
+              <Text style={styles.metaValue}>{customer.id.substring(0, 8).toUpperCase()}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Payment Status:</Text>
+              <Text style={[styles.metaValue, totalPending > 0 ? styles.statusOverdue : styles.statusPaid]}>
+                {totalPending > 0 ? 'PENDING' : 'PAID'}
+              </Text>
+            </View>
           </View>
         </View>
 
         {/* Orders Table */}
         <View style={styles.table}>
-          <Text style={styles.sectionTitle}>
-            Order Details {!showPaid && '(Pending Orders Only)'}
-          </Text>
+          <Text style={styles.sectionTitle}>Order Summary</Text>
           
+          {/* Table Header */}
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Order ID</Text>
-            <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Date</Text>
-            <Text style={[styles.tableHeaderCell, { width: '40%' }]}>Items</Text>
-            <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Amount</Text>
-            <Text style={[styles.tableHeaderCell, { width: '15%' }]}>Status</Text>
+            <Text style={[styles.tableCellHeader, styles.orderIdCell]}>Order ID</Text>
+            <Text style={[styles.tableCellHeader, styles.dateCell]}>Date</Text>
+            <Text style={[styles.tableCellHeader, styles.itemsCell]}>Items</Text>
+            <Text style={[styles.tableCellHeader, styles.amountCell]}>Amount</Text>
+            <Text style={[styles.tableCellHeader, styles.statusCell]}>Status</Text>
           </View>
-          
-          {filteredOrders.map((order, index) => (
-            <View key={order.id} style={getRowStyle(order)}>
-              <Text style={[styles.tableCell, { width: '15%' }]}>
-                {getOrderIdentifier(order, index)}
-              </Text>
-              <Text style={[styles.tableCell, { width: '15%' }]}>
-                {order.createdAt ? format(order.createdAt, 'dd/MM/yyyy') : 'N/A'}
-              </Text>
-              <Text style={[styles.tableCell, { width: '40%' }]}>
-                {formatOrderItems(order)}
-              </Text>
-              <Text style={[styles.tableCell, { width: '15%', textAlign: 'right' }]}>
-                {formatCurrency(order.total)}
-              </Text>
-              <Text style={[styles.tableCell, getStatusStyle(order), { width: '15%', textAlign: 'center' }]}>
-                {getStatusText(order)}
+
+          {/* Table Rows */}
+          {filteredOrders.length === 0 ? (
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCell, { width: '100%', textAlign: 'center' }]}>
+                No orders found for this customer
               </Text>
             </View>
-          ))}
+          ) : (
+            filteredOrders.map((order, index) => {
+              const orderWithTimestamp = order as any;
+              const timestamp = orderWithTimestamp.createdAt || order.date;
+              const orderDate = typeof timestamp === 'string' ? parseISO(timestamp) : 
+                               timestamp instanceof Date ? timestamp : new Date();
+              
+              return (
+                <View key={order.id} style={styles.tableRow}>
+                  <Text style={[styles.tableCell, styles.orderIdCell]}>
+                    {getOrderIdentifier(order, index)}
+                  </Text>
+                  <Text style={[styles.tableCell, styles.dateCell]}>
+                    {format(orderDate, 'dd/MM/yyyy')}
+                  </Text>
+                  <Text style={[styles.tableCell, styles.itemsCell]}>
+                    {formatOrderItems(Array.isArray(order.items) ? order.items : [])}
+                  </Text>
+                  <Text style={[styles.tableCell, styles.amountCell]}>
+                    {formatCurrency(typeof order.total === 'number' ? order.total : 0)}
+                  </Text>
+                  <Text style={[styles.tableCell, styles.statusCell, getStatusStyle(order)]}>
+                    {getStatusText(order)}
+                  </Text>
+                </View>
+              );
+            })
+          )}
         </View>
 
-        {/* Summary Section */}
-        <View style={styles.summary}>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal:</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(totalAmount)}</Text>
-          </View>
-          
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Tax (5%):</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(taxAmount)}</Text>
-          </View>
-
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Amount Paid:</Text>
-            <Text style={styles.summaryValue}>{formatCurrency(adjustedTotalPaid)}</Text>
-          </View>
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total Due:</Text>
-            <Text style={styles.totalValue}>{formatCurrency(totalPending)}</Text>
+        {/* Totals Section */}
+        <View style={styles.totalsSection}>
+          <View style={styles.totalsTable}>
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Subtotal:</Text>
+              <Text style={styles.totalsValue}>{formatCurrency(grandTotal - taxAmount)}</Text>
+            </View>
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Tax (5%):</Text>
+              <Text style={styles.totalsValue}>{formatCurrency(taxAmount)}</Text>
+            </View>
+            <View style={styles.totalsRow}>
+              <Text style={styles.totalsLabel}>Paid Amount:</Text>
+              <Text style={[styles.totalsValue, styles.statusPaid]}>
+                -{formatCurrency(adjustedTotalPaid)}
+              </Text>
+            </View>
+            <View style={styles.totalsRowFinal}>
+              <Text style={styles.totalsLabel}>Total Due:</Text>
+              <Text style={styles.totalsValueFinal}>{formatCurrency(totalPending)}</Text>
+            </View>
           </View>
         </View>
 
         {/* Payment Information */}
-        {paymentInfo && (
-          <View style={styles.paymentSection}>
-            <Text style={styles.paymentTitle}>Payment Information</Text>
-            <Text style={styles.paymentDetail}>UPI ID: {paymentInfo.upiId}</Text>
-            <Text style={styles.paymentDetail}>Phone: {paymentInfo.phone}</Text>
-            <Text style={styles.paymentDetail}>Account Name: {paymentInfo.accountName}</Text>
+        <View style={styles.paymentSection}>
+          <Text style={styles.paymentTitle}>Payment Information</Text>
+          <View style={styles.paymentGrid}>
+            <View style={styles.paymentColumn}>
+              <Text style={styles.paymentSubtitle}>Payment Methods:</Text>
+              <Text style={styles.paymentText}>UPI ID: {paymentInfo.upiId}</Text>
+              <Text style={styles.paymentText}>Phone: {paymentInfo.phone}</Text>
+              <Text style={styles.paymentText}>Account Name: {paymentInfo.accountName}</Text>
+            </View>
+            <View style={styles.paymentColumn}>
+              <Text style={styles.paymentSubtitle}>Terms & Conditions:</Text>
+              {paymentInfo.terms.map((term, index) => (
+                <Text key={index} style={styles.termText}>• {term}</Text>
+              ))}
+            </View>
           </View>
-        )}
+        </View>
 
-        {/* Terms and Conditions */}
-        {paymentInfo?.terms && (
-          <View style={styles.terms}>
-            <Text style={styles.termsTitle}>Terms & Conditions</Text>
-            {paymentInfo.terms.map((term, index) => (
-              <Text key={index} style={styles.termItem}>• {term}</Text>
-            ))}
-          </View>
-        )}
-
-        {/* Overdue Warning */}
+        {/* Overdue Notice */}
         {overdueOrders.length > 0 && (
-          <View style={[styles.terms, { backgroundColor: '#fff3cd' }]}>
-            <Text style={styles.termsTitle}>⚠️ Overdue Notice</Text>
-            <Text style={styles.termItem}>
-              {overdueOrders.length} order(s) are overdue. Please settle these amounts immediately.
+          <View style={styles.overdueNotice}>
+            <Text style={styles.overdueTitle}>⚠️ Overdue Notice</Text>
+            <Text style={styles.overdueText}>
+              You have {overdueOrders.length} overdue order(s). Please settle your account immediately.
             </Text>
           </View>
         )}
 
         {/* Footer */}
         <View style={styles.footer}>
+          <Text style={styles.footerText}>This is a computer-generated invoice. No signature required.</Text>
           <Text style={styles.footerText}>
-            Invoice #{invoiceNumber} | Generated on {currentDate}
+            Generated on {format(new Date(), 'dd/MM/yyyy HH:mm')} | Invoice #{invoiceNumber}
           </Text>
           <Text style={styles.footerText}>
             For any queries, please contact {businessInfo.email} or {businessInfo.phone}
@@ -537,19 +556,22 @@ export const InvoicePDF: React.FC<InvoiceData> = ({
 // Function to generate and download PDF
 export const generatePDFInvoice = async (data: InvoiceData): Promise<void> => {
   try {
-    const blob = await pdf(<InvoicePDF {...data} />).toBlob();
+    const blob = await pdf(<InvoicePDFDocument data={data} />).toBlob();
+    
+    // Create download link
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `invoice-${data.invoiceNumber}-${data.customer.name.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`;
+    link.download = `invoice-${data.customer.name.replace(/\s+/g, '-')}-${data.invoiceNumber}.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error generating PDF:', error);
-    throw error;
+    throw new Error('Failed to generate PDF');
   }
 };
 
-export default InvoicePDF;
+export default InvoicePDFDocument;
+export type { InvoiceData };

@@ -3,7 +3,7 @@
 
 import { Customer, Order, Transaction } from '@shared/schema';
 
-interface InvoiceData {
+export interface InvoiceData {
   customer: Customer;
   orders: Order[];
   currentDate: string;

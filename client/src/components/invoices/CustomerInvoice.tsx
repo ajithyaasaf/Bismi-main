@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, addDays, parseISO } from 'date-fns';
 import { Download, Eye, Printer, Mail, Settings, FileText, AlertTriangle } from 'lucide-react';
 import InvoiceTemplate from './InvoiceTemplate';
-import { generateCustomerInvoicePDF } from './ReactPDFInvoice';
+import { generateCustomerInvoicePDF, InvoiceData } from './ReactPDFInvoice';
 
 interface CustomerInvoiceProps {
   isOpen: boolean;
@@ -125,7 +125,7 @@ export function CustomerInvoice({
       setGenerationProgress(60);
 
       // Generate PDF using React PDF
-      await generatePDFInvoice(invoiceData);
+      await generateCustomerInvoicePDF(invoiceData);
       setGenerationProgress(100);
 
       toast({

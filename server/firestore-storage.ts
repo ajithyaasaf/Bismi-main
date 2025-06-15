@@ -29,20 +29,108 @@ export class FirestoreStorage implements IStorage {
         
         if (serviceAccountKey) {
           try {
-            // Parse the service account key
-            const serviceAccount = typeof serviceAccountKey === 'string' 
-              ? JSON.parse(serviceAccountKey) 
-              : serviceAccountKey;
+            // Clean and parse the service account key
+            let cleanedKey = serviceAccountKey;
             
-            console.log('Initializing Firebase Admin with service account for project:', serviceAccount.project_id);
-            
-            admin.initializeApp({
-              credential: admin.credential.cert(serviceAccount),
-              projectId: serviceAccount.project_id,
-            });
+            // Handle different formats of the service account key
+            if (typeof serviceAccountKey === 'string') {
+              // Remove any extra quotes or escaping
+              cleanedKey = serviceAccountKey.trim();
+              
+              // Check if the key is too short or incomplete
+              if (cleanedKey.length < 50) {
+                console.error('Firebase service account key appears to be incomplete or truncated');
+                console.error('Key length:', cleanedKey.length);
+                console.error('Key content:', cleanedKey);
+                throw new Error('Firebase service account key is incomplete. Please ensure you copied the entire JSON content from your Firebase service account key file.');
+              }
+              
+              // If it starts and ends with quotes, remove them
+              if (cleanedKey.startsWith('"') && cleanedKey.endsWith('"')) {
+                cleanedKey = cleanedKey.slice(1, -1);
+              }
+              
+              // Handle escaped characters properly
+              // First handle double-escaped newlines
+              cleanedKey = cleanedKey.replace(/\\\\n/g, '\\n');
+              // Then handle single-escaped newlines
+              cleanedKey = cleanedKey.replace(/\\n/g, '\n');
+              
+              // Handle escaped quotes
+              cleanedKey = cleanedKey.replace(/\\"/g, '"');
+              
+              // Handle other escaped characters that might cause issues
+              cleanedKey = cleanedKey.replace(/\\t/g, '\t');
+              cleanedKey = cleanedKey.replace(/\\r/g, '\r');
+              
+              // Validate basic JSON structure
+              if (!cleanedKey.startsWith('{') || !cleanedKey.endsWith('}')) {
+                throw new Error('Firebase service account key must be a complete JSON object starting with { and ending with }');
+              }
+              
+              // Try to parse as JSON with better error handling
+              try {
+                // Additional cleaning for common JSON issues
+                // Remove any BOM or hidden characters
+                cleanedKey = cleanedKey.replace(/^\uFEFF/, '');
+                
+                // Fix common JSON formatting issues
+                // Ensure proper formatting of the private key field
+                cleanedKey = cleanedKey.replace(/"private_key":\s*"([^"]*(?:\\.[^"]*)*)"/g, (match, key) => {
+                  // Properly escape the private key content
+                  const escapedKey = key
+                    .replace(/\n/g, '\\n')
+                    .replace(/\r/g, '\\r')
+                    .replace(/\t/g, '\\t');
+                  return `"private_key":"${escapedKey}"`;
+                });
+                
+                const serviceAccount = JSON.parse(cleanedKey);
+                
+                if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+                  throw new Error('Missing required fields in service account key (project_id, private_key, client_email). Please ensure you downloaded the complete service account key from Firebase Console.');
+                }
+                
+                console.log('Initializing Firebase Admin with service account for project:', serviceAccount.project_id);
+                
+                admin.initializeApp({
+                  credential: admin.credential.cert(serviceAccount),
+                  projectId: serviceAccount.project_id,
+                });
+              } catch (jsonError) {
+                console.error('JSON parse error:', jsonError);
+                console.error('Error at position:', (jsonError as any).message.match(/position (\d+)/)?.[1] || 'unknown');
+                
+                // Try alternative parsing method for Base64 encoded keys
+                try {
+                  // Check if it might be base64 encoded
+                  if (!cleanedKey.includes('"type"') && cleanedKey.length > 100) {
+                    const decoded = Buffer.from(cleanedKey, 'base64').toString('utf-8');
+                    const serviceAccount = JSON.parse(decoded);
+                    
+                    admin.initializeApp({
+                      credential: admin.credential.cert(serviceAccount),
+                      projectId: serviceAccount.project_id,
+                    });
+                    console.log('Successfully parsed base64 encoded service account key');
+                    return;
+                  }
+                } catch {
+                  // Base64 parsing failed, continue with original error
+                }
+                
+                throw new Error('Invalid JSON format in Firebase service account key. Please ensure you copied the complete, valid JSON from your Firebase service account key file.');
+              }
+            } else {
+              // Already an object
+              admin.initializeApp({
+                credential: admin.credential.cert(serviceAccountKey),
+                projectId: serviceAccountKey.project_id,
+              });
+            }
           } catch (parseError) {
-            console.error('Failed to parse service account key:', parseError);
-            throw new Error('Invalid Firebase service account key format');
+            console.error('Failed to initialize Firebase with service account key:', parseError);
+            throw new Error(`Firebase initialization failed: ${parseError.message}`);
           }
         } else {
           // Fallback to individual environment variables

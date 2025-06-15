@@ -1,5 +1,4 @@
-// Temporarily disabled due to build issues
-// import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
 import { Customer, Order, Transaction } from '@shared/schema';
 import { format, differenceInDays, parseISO } from 'date-fns';
 

@@ -1,5 +1,5 @@
 import { IStorage } from './storage';
-import { firestoreStorage } from './firestore-storage';
+import { memoryStorage } from './memory-storage';
 
 class StorageManager {
   private static instance: StorageManager;
@@ -20,10 +20,29 @@ class StorageManager {
       return this.currentStorage;
     }
 
-    // Use Firestore storage only
-    this.currentStorage = firestoreStorage;
-    this.storageType = 'Firestore';
-    console.log('Storage initialized: Firestore');
+    // Check if Firebase credentials are available
+    const hasFirebaseCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || 
+      (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY);
+
+    if (hasFirebaseCredentials) {
+      try {
+        const { firestoreStorage } = await import('./firestore-storage');
+        this.currentStorage = firestoreStorage;
+        this.storageType = 'Firestore';
+        console.log('Storage initialized: Firestore');
+      } catch (error) {
+        console.warn('Failed to initialize Firestore, falling back to memory storage:', error);
+        this.currentStorage = memoryStorage;
+        this.storageType = 'Memory';
+        console.log('Storage initialized: Memory (fallback)');
+      }
+    } else {
+      // Use memory storage as default when Firebase credentials are not available
+      this.currentStorage = memoryStorage;
+      this.storageType = 'Memory';
+      console.log('Storage initialized: Memory (no Firebase credentials)');
+    }
+
     return this.currentStorage;
   }
 

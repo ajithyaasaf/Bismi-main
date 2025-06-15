@@ -124,6 +124,8 @@ The application includes specialized build scripts and configuration files for s
 
 ## Changelog
 
+- June 15, 2025. Fixed Vercel deployment API routing issues by creating separate endpoint files for each route (orders.ts, transactions.ts, suppliers.ts, customers.ts, inventory.ts, health.ts) and updated vercel.json configuration. This resolves the HTML response error on production deployments.
+- June 15, 2025. Restored Firebase connectivity and added comprehensive error handling with loading states
 - June 13, 2025. Initial setup
 
 ## User Preferences

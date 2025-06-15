@@ -1,6 +1,4 @@
-// Vercel serverless function for all API routes
-import { VercelRequest, VercelResponse } from '@vercel/node';
-import express from 'express';
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { storageManager } from '../server/storage-manager';
 import { BalanceValidator } from '../server/balance-validator';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,808 +10,538 @@ import {
   insertTransactionSchema 
 } from '../shared/schema';
 
-// Initialize storage
+// Initialize storage with error handling
 let storage: any;
 async function getStorage() {
-  if (!storage) {
-    storage = await storageManager.initialize();
+  try {
+    if (!storage) {
+      storage = await storageManager.initialize();
+      console.log('Storage initialized successfully in api/index.ts');
+    }
+    return storage;
+  } catch (error) {
+    console.error('Failed to initialize storage:', error);
+    throw new Error(`Storage initialization failed: ${error.message}`);
   }
-  return storage;
 }
 
-const app = express();
-app.use(express.json());
-
-// API routes
-const apiRouter = express.Router();
-
-// Supplier routes
-apiRouter.get("/suppliers", async (req, res) => {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
+    const path = req.url?.split('?')[0] || '';
+    const method = req.method?.toUpperCase();
     const storage = await getStorage();
-    const suppliers = await storage.getAllSuppliers();
-    res.json(suppliers);
-  } catch (error) {
-    console.error("Failed to fetch suppliers:", error);
-    res.status(500).json({ message: "Failed to fetch suppliers" });
-  }
-});
 
-apiRouter.get("/suppliers/:id", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const supplier = await storage.getSupplier(req.params.id);
-    if (!supplier) {
-      return res.status(404).json({ message: "Supplier not found" });
-    }
-    res.json(supplier);
-  } catch (error) {
-    console.error("Failed to fetch supplier:", error);
-    res.status(500).json({ message: "Failed to fetch supplier" });
-  }
-});
-
-apiRouter.post("/suppliers", async (req, res) => {
-  try {
-    const result = insertSupplierSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid supplier data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const supplier = await storage.createSupplier(result.data);
-    res.status(201).json(supplier);
-  } catch (error) {
-    console.error("Failed to create supplier:", error);
-    res.status(500).json({ message: "Failed to create supplier" });
-  }
-});
-
-apiRouter.put("/suppliers/:id", async (req, res) => {
-  try {
-    const result = insertSupplierSchema.partial().safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid supplier data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const supplier = await storage.updateSupplier(req.params.id, result.data);
-    if (!supplier) {
-      return res.status(404).json({ message: "Supplier not found" });
-    }
-    res.json(supplier);
-  } catch (error) {
-    console.error("Failed to update supplier:", error);
-    res.status(500).json({ message: "Failed to update supplier" });
-  }
-});
-
-apiRouter.delete("/suppliers/:id", async (req, res) => {
-  try {
-    const supplierId = req.params.id;
-    console.log(`API: Processing deletion request for supplier ID: ${supplierId}`);
-    
-    const storage = await getStorage();
-    
-    // First check if supplier exists
-    const existingSupplier = await storage.getSupplier(supplierId);
-    if (!existingSupplier) {
-      console.log(`API: Supplier ${supplierId} not found, returning 404`);
-      return res.status(404).json({ 
-        message: "Supplier not found",
-        code: "SUPPLIER_NOT_FOUND",
-        supplierId: supplierId
-      });
-    }
-    
-    // Proceed with deletion
-    const success = await storage.deleteSupplier(supplierId);
-    if (!success) {
-      console.log(`API: Deletion failed for supplier ${supplierId}`);
-      return res.status(500).json({ 
-        message: "Failed to delete supplier from database",
-        code: "DELETION_FAILED",
-        supplierId: supplierId
-      });
-    }
-    
-    console.log(`API: Supplier ${supplierId} deleted successfully`);
-    res.status(204).send();
-    
-  } catch (error) {
-    console.error("API: Error during supplier deletion:", error);
-    res.status(500).json({ 
-      message: "Internal server error during deletion",
-      code: "INTERNAL_ERROR",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-// Supplier payment route
-apiRouter.post("/suppliers/:id/payment", async (req, res) => {
-  try {
-    const { amount, description } = req.body;
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ message: "Invalid payment amount" });
+    // Supplier routes
+    if (path === '/api/suppliers' && method === 'GET') {
+      const suppliers = await storage.getAllSuppliers();
+      return res.status(200).json(suppliers);
     }
 
-    const storage = await getStorage();
-    const supplier = await storage.getSupplier(req.params.id);
-    if (!supplier) {
-      return res.status(404).json({ message: "Supplier not found" });
+    if (path.startsWith('/api/suppliers/') && method === 'GET') {
+      const id = path.split('/')[3];
+      const supplier = await storage.getSupplier(id);
+      if (!supplier) {
+        return res.status(404).json({ message: 'Supplier not found' });
+      }
+      return res.status(200).json(supplier);
     }
 
-    // Enterprise-level transaction data preparation
-    const transactionData = {
-      type: "payment",
-      amount: parseFloat(amount),
-      entityId: req.params.id,
-      entityType: "supplier",
-      description: description || `Payment to supplier: ${supplier.name}`,
-      date: new Date()
-    };
-
-    // Create transaction record
-    const transaction = await storage.createTransaction(transactionData);
-
-    // Update supplier debt
-    const newDebt = (supplier.debt || 0) - parseFloat(amount);
-    await storage.updateSupplier(req.params.id, { debt: Math.max(0, newDebt) });
-
-    res.status(201).json(transaction);
-  } catch (error) {
-    console.error("Failed to process supplier payment:", error);
-    res.status(500).json({ message: "Failed to process payment" });
-  }
-});
-
-// Inventory routes
-apiRouter.get("/inventory", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const inventory = await storage.getAllInventory();
-    res.json(inventory);
-  } catch (error) {
-    console.error("Failed to fetch inventory:", error);
-    res.status(500).json({ message: "Failed to fetch inventory" });
-  }
-});
-
-apiRouter.get("/inventory/:id", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const item = await storage.getInventoryItem(req.params.id);
-    if (!item) {
-      return res.status(404).json({ message: "Inventory item not found" });
-    }
-    res.json(item);
-  } catch (error) {
-    console.error("Failed to fetch inventory item:", error);
-    res.status(500).json({ message: "Failed to fetch inventory item" });
-  }
-});
-
-apiRouter.post("/inventory", async (req, res) => {
-  try {
-    const result = insertInventorySchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid inventory data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const item = await storage.createInventoryItem(result.data);
-    res.status(201).json(item);
-  } catch (error) {
-    console.error("Failed to create inventory item:", error);
-    res.status(500).json({ message: "Failed to create inventory item" });
-  }
-});
-
-apiRouter.put("/inventory/:id", async (req, res) => {
-  try {
-    const result = insertInventorySchema.partial().safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid inventory data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const item = await storage.updateInventoryItem(req.params.id, result.data);
-    if (!item) {
-      return res.status(404).json({ message: "Inventory item not found" });
-    }
-    res.json(item);
-  } catch (error) {
-    console.error("Failed to update inventory item:", error);
-    res.status(500).json({ message: "Failed to update inventory item" });
-  }
-});
-
-apiRouter.delete("/inventory/:id", async (req, res) => {
-  try {
-    const itemId = req.params.id;
-    console.log(`API: Processing deletion request for inventory item ID: ${itemId}`);
-    
-    const storage = await getStorage();
-    
-    // First check if item exists
-    const existingItem = await storage.getInventoryItem(itemId);
-    if (!existingItem) {
-      console.log(`API: Inventory item ${itemId} not found, returning 404`);
-      return res.status(404).json({ 
-        message: "Inventory item not found",
-        code: "ITEM_NOT_FOUND",
-        itemId: itemId
-      });
-    }
-    
-    // Proceed with deletion
-    const success = await storage.deleteInventoryItem(itemId);
-    if (!success) {
-      console.log(`API: Deletion failed for inventory item ${itemId}`);
-      return res.status(500).json({ 
-        message: "Failed to delete inventory item from database",
-        code: "DELETION_FAILED",
-        itemId: itemId
-      });
-    }
-    
-    console.log(`API: Inventory item ${itemId} deleted successfully`);
-    res.status(204).send();
-    
-  } catch (error) {
-    console.error("API: Error during inventory item deletion:", error);
-    res.status(500).json({ 
-      message: "Internal server error during deletion",
-      code: "INTERNAL_ERROR",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-// Customer routes
-apiRouter.get("/customers", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const customers = await storage.getAllCustomers();
-    res.json(customers);
-  } catch (error) {
-    console.error("Failed to fetch customers:", error);
-    res.status(500).json({ message: "Failed to fetch customers" });
-  }
-});
-
-apiRouter.get("/customers/:id", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const customer = await storage.getCustomer(req.params.id);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-    res.json(customer);
-  } catch (error) {
-    console.error("Failed to fetch customer:", error);
-    res.status(500).json({ message: "Failed to fetch customer" });
-  }
-});
-
-apiRouter.post("/customers", async (req, res) => {
-  try {
-    const result = insertCustomerSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid customer data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const customer = await storage.createCustomer(result.data);
-    res.status(201).json(customer);
-  } catch (error) {
-    console.error("Failed to create customer:", error);
-    res.status(500).json({ message: "Failed to create customer" });
-  }
-});
-
-apiRouter.put("/customers/:id", async (req, res) => {
-  try {
-    const result = insertCustomerSchema.partial().safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid customer data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const customer = await storage.updateCustomer(req.params.id, result.data);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
-    }
-    res.json(customer);
-  } catch (error) {
-    console.error("Failed to update customer:", error);
-    res.status(500).json({ message: "Failed to update customer" });
-  }
-});
-
-apiRouter.delete("/customers/:id", async (req, res) => {
-  try {
-    const customerId = req.params.id;
-    console.log(`API: Processing deletion request for customer ID: ${customerId}`);
-    
-    const storage = await getStorage();
-    
-    // First check if customer exists
-    const existingCustomer = await storage.getCustomer(customerId);
-    if (!existingCustomer) {
-      console.log(`API: Customer ${customerId} not found, returning 404`);
-      return res.status(404).json({ 
-        message: "Customer not found",
-        code: "CUSTOMER_NOT_FOUND",
-        customerId: customerId
-      });
-    }
-    
-    // Proceed with deletion
-    const success = await storage.deleteCustomer(customerId);
-    if (!success) {
-      console.log(`API: Deletion failed for customer ${customerId}`);
-      return res.status(500).json({ 
-        message: "Failed to delete customer from database",
-        code: "DELETION_FAILED",
-        customerId: customerId
-      });
-    }
-    
-    console.log(`API: Customer ${customerId} deleted successfully`);
-    res.status(204).send();
-    
-  } catch (error) {
-    console.error("API: Error during customer deletion:", error);
-    res.status(500).json({ 
-      message: "Internal server error during deletion",
-      code: "INTERNAL_ERROR",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-// Customer payment route
-apiRouter.post("/customers/:id/payment", async (req, res) => {
-  try {
-    const { amount, description } = req.body;
-    if (!amount || amount <= 0) {
-      return res.status(400).json({ message: "Invalid payment amount" });
+    if (path === '/api/suppliers' && method === 'POST') {
+      const result = insertSupplierSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid supplier data', errors: result.error.errors });
+      }
+      const supplier = await storage.createSupplier(result.data);
+      return res.status(201).json(supplier);
     }
 
-    const storage = await getStorage();
-    const customer = await storage.getCustomer(req.params.id);
-    if (!customer) {
-      return res.status(404).json({ message: "Customer not found" });
+    if (path.startsWith('/api/suppliers/') && method === 'PUT') {
+      const id = path.split('/')[3];
+      const result = insertSupplierSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid supplier data', errors: result.error.errors });
+      }
+      const supplier = await storage.updateSupplier(id, result.data);
+      if (!supplier) {
+        return res.status(404).json({ message: 'Supplier not found' });
+      }
+      return res.status(200).json(supplier);
     }
 
-    // Enterprise-level transaction data preparation
-    const transactionData = {
-      type: "receipt",
-      amount: parseFloat(amount),
-      entityId: req.params.id,
-      entityType: "customer",
-      description: description || `Payment from customer: ${customer.name}`,
-      date: new Date()
-    };
-
-    // Create transaction record
-    const transaction = await storage.createTransaction(transactionData);
-
-    // Update customer pending amount
-    const newPending = (customer.pendingAmount || 0) - parseFloat(amount);
-    await storage.updateCustomer(req.params.id, { pendingAmount: Math.max(0, newPending) });
-
-    res.status(201).json(transaction);
-  } catch (error) {
-    console.error("Failed to process customer payment:", error);
-    res.status(500).json({ message: "Failed to process payment" });
-  }
-});
-
-// Order routes
-apiRouter.get("/orders", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const orders = await storage.getAllOrders();
-    res.json(orders);
-  } catch (error) {
-    console.error("Failed to fetch orders:", error);
-    res.status(500).json({ message: "Failed to fetch orders" });
-  }
-});
-
-apiRouter.get("/orders/:id", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const order = await storage.getOrder(req.params.id);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
+    if (path.startsWith('/api/suppliers/') && method === 'DELETE') {
+      const id = path.split('/')[3];
+      console.log(`API: Processing deletion request for supplier ID: ${id}`);
+      const existingSupplier = await storage.getSupplier(id);
+      if (!existingSupplier) {
+        console.log(`API: Supplier ${id} not found, returning 404`);
+        return res.status(404).json({ 
+          message: 'Supplier not found',
+          code: 'SUPPLIER_NOT_FOUND',
+          supplierId: id
+        });
+      }
+      const success = await storage.deleteSupplier(id);
+      if (!success) {
+        console.log(`API: Deletion failed for supplier ${id}`);
+        return res.status(500).json({ 
+          message: 'Failed to delete supplier from database',
+          code: 'DELETION_FAILED',
+          supplierId: id
+        });
+      }
+      console.log(`API: Supplier ${id} deleted successfully`);
+      return res.status(204).end();
     }
-    res.json(order);
-  } catch (error) {
-    console.error("Failed to fetch order:", error);
-    res.status(500).json({ message: "Failed to fetch order" });
-  }
-});
 
-apiRouter.post("/orders", async (req, res) => {
-  try {
-    console.log('=== ORDER CREATION DEBUG START ===');
-    console.log('Full request body:', JSON.stringify(req.body, null, 2));
-    
-    // Enterprise-level request preprocessing for date handling
-    console.log('Raw request body date:', req.body.date);
-    
-    const now = new Date();
-    const processedBody = {
-      ...req.body,
-      date: req.body.date ? new Date(req.body.date) : now,
-      // Enterprise audit trail: createdAt always reflects the actual creation time
-      createdAt: now
-    };
-    
-    console.log('Processed body:', JSON.stringify({
-      ...processedBody,
-      date: processedBody.date.toISOString(),
-      createdAt: processedBody.createdAt.toISOString()
-    }, null, 2));
-    
-    const result = insertOrderSchema.safeParse(processedBody);
-    if (!result.success) {
-      console.error("Order validation failed:", result.error.errors);
-      console.log('=== ORDER CREATION DEBUG END (VALIDATION FAILED) ===');
-      return res.status(400).json({ 
-        message: "Invalid order data", 
-        errors: result.error.errors,
-        receivedData: {
-          customerId: req.body.customerId,
-          items: req.body.items,
-          date: req.body.date,
-          total: req.body.total,
-          status: req.body.status,
-          type: req.body.type
-        }
-      });
+    if (path.startsWith('/api/suppliers/') && path.endsWith('/payment') && method === 'POST') {
+      const id = path.split('/')[3];
+      const { amount, description } = req.body;
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: 'Invalid payment amount' });
+      }
+      const supplier = await storage.getSupplier(id);
+      if (!supplier) {
+        return res.status(404).json({ message: 'Supplier not found' });
+      }
+      const transactionData = {
+        type: 'payment',
+        amount: parseFloat(amount),
+        entityId: id,
+        entityType: 'supplier',
+        description: description || `Payment to supplier: ${supplier.name}`,
+        date: new Date()
+      };
+      const transaction = await storage.createTransaction(transactionData);
+      const newDebt = (supplier.debt || 0) - parseFloat(amount);
+      await storage.updateSupplier(id, { debt: Math.max(0, newDebt) });
+      return res.status(201).json(transaction);
     }
-    
-    console.log('Validation successful, validated data:', JSON.stringify(result.data, null, 2));
-    
-    const storage = await getStorage();
-    console.log('Storage obtained:', storage.constructor.name);
-    
-    // Create the order with enterprise timestamp handling
-    const orderWithTimestamps = {
-      ...result.data,
-      createdAt: now
-    };
-    
-    console.log('About to create order with data:', JSON.stringify(orderWithTimestamps, null, 2));
-    const order = await storage.createOrder(orderWithTimestamps as any);
-    console.log('Order created successfully:', JSON.stringify(order, null, 2));
-    
-    // Update inventory based on order items (Enterprise mode - allows negative stock)
-    if (result.data.items && Array.isArray(result.data.items)) {
-      console.log('Processing inventory updates...');
-      const inventoryItems = await storage.getAllInventory();
-      console.log('Current inventory items:', inventoryItems.length);
+
+    // Inventory routes
+    if (path === '/api/inventory' && method === 'GET') {
+      const inventory = await storage.getAllInventory();
+      return res.status(200).json(inventory);
+    }
+
+    if (path.startsWith('/api/inventory/') && method === 'GET') {
+      const id = path.split('/')[3];
+      const item = await storage.getInventoryItem(id);
+      if (!item) {
+        return res.status(404).json({ message: 'Inventory item not found' });
+      }
+      return res.status(200).json(item);
+    }
+
+    if (path === '/api/inventory' && method === 'POST') {
+      const result = insertInventorySchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid inventory data', errors: result.error.errors });
+      }
+      const item = await storage.createInventoryItem(result.data);
+      return res.status(201).json(item);
+    }
+
+    if (path.startsWith('/api/inventory/') && method === 'PUT') {
+      const id = path.split('/')[3];
+      const result = insertInventorySchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid inventory data', errors: result.error.errors });
+      }
+      const item = await storage.updateInventoryItem(id, result.data);
+      if (!item) {
+        return res.status(404).json({ message: 'Inventory item not found' });
+      }
+      return res.status(200).json(item);
+    }
+
+    if (path.startsWith('/api/inventory/') && method === 'DELETE') {
+      const id = path.split('/')[3];
+      console.log(`API: Processing deletion request for inventory item ID: ${id}`);
+      const existingItem = await storage.getInventoryItem(id);
+      if (!existingItem) {
+        console.log(`API: Inventory item ${id} not found, returning 404`);
+        return res.status(404).json({ 
+          message: 'Inventory item not found',
+          code: 'ITEM_NOT_FOUND',
+          itemId: id
+        });
+      }
+      const success = await storage.deleteInventoryItem(id);
+      if (!success) {
+        console.log(`API: Deletion failed for inventory item ${id}`);
+        return res.status(500).json({ 
+          message: 'Failed to delete inventory item from database',
+          code: 'DELETION_FAILED',
+          itemId: id
+        });
+      }
+      console.log(`API: Inventory item ${id} deleted successfully`);
+      return res.status(204).end();
+    }
+
+    // Customer routes
+    if (path === '/api/customers' && method === 'GET') {
+      const customers = await storage.getAllCustomers();
+      return res.status(200).json(customers);
+    }
+
+    if (path.startsWith('/api/customers/') && method === 'GET') {
+      const id = path.split('/')[3];
+      const customer = await storage.getCustomer(id);
+      if (!customer) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      return res.status(200).json(customer);
+    }
+
+    if (path === '/api/customers' && method === 'POST') {
+      const result = insertCustomerSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid customer data', errors: result.error.errors });
+      }
+      const customer = await storage.createCustomer(result.data);
+      return res.status(201).json(customer);
+    }
+
+    if (path.startsWith('/api/customers/') && method === 'PUT') {
+      const id = path.split('/')[3];
+      const result = insertCustomerSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid customer data', errors: result.error.errors });
+      }
+      const customer = await storage.updateCustomer(id, result.data);
+      if (!customer) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      return res.status(200).json(customer);
+    }
+
+    if (path.startsWith('/api/customers/') && method === 'DELETE') {
+      const id = path.split('/')[3];
+      console.log(`API: Processing deletion request for customer ID: ${id}`);
+      const existingCustomer = await storage.getCustomer(id);
+      if (!existingCustomer) {
+        console.log(`API: Customer ${id} not found, returning 404`);
+        return res.status(404).json({ 
+          message: 'Customer not found',
+          code: 'CUSTOMER_NOT_FOUND',
+          customerId: id
+        });
+      }
+      const success = await storage.deleteCustomer(id);
+      if (!success) {
+        console.log(`API: Deletion failed for customer ${id}`);
+        return res.status(500).json({ 
+          message: 'Failed to delete customer from database',
+          code: 'DELETION_FAILED',
+          customerId: id
+        });
+      }
+      console.log(`API: Customer ${id} deleted successfully`);
+      return res.status(204).end();
+    }
+
+    if (path.startsWith('/api/customers/') && path.endsWith('/payment') && method === 'POST') {
+      const id = path.split('/')[3];
+      const { amount, description } = req.body;
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: 'Invalid payment amount' });
+      }
+      const customer = await storage.getCustomer(id);
+      if (!customer) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      const transactionData = {
+        type: 'receipt',
+        amount: parseFloat(amount),
+        entityId: id,
+        entityType: 'customer',
+        description: description || `Payment from customer: ${customer.name}`,
+        date: new Date()
+      };
+      const transaction = await storage.createTransaction(transactionData);
+      const newPending = (customer.pendingAmount || 0) - parseFloat(amount);
+      await storage.updateCustomer(id, { pendingAmount: Math.max(0, newPending) });
+      return res.status(201).json(transaction);
+    }
+
+    // Order routes
+    if (path === '/api/orders' && method === 'GET') {
+      const orders = await storage.getAllOrders();
+      return res.status(200).json(orders);
+    }
+
+    if (path.startsWith('/api/orders/') && method === 'GET') {
+      const id = path.split('/')[3];
+      const order = await storage.getOrder(id);
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      return res.status(200).json(order);
+    }
+
+    if (path === '/api/orders' && method === 'POST') {
+      console.log('=== ORDER CREATION DEBUG START ===');
+      console.log('Full request body:', JSON.stringify(req.body, null, 2));
+      console.log('Raw request body date:', req.body.date);
       
-      for (const item of result.data.items) {
-        if (item.type && typeof item.quantity === 'number') {
-          const inventoryItem = inventoryItems.find(inv => inv.type === item.type);
-          if (inventoryItem) {
-            const newQuantity = inventoryItem.quantity - item.quantity;
-            console.log(`Updating inventory ${item.type}: ${inventoryItem.quantity} - ${item.quantity} = ${newQuantity}`);
-            await storage.updateInventoryItem(inventoryItem.id, {
-              quantity: newQuantity // Allow negative quantities for enterprise operations
-            });
-          } else {
-            console.log(`No inventory item found for type: ${item.type}`);
+      const now = new Date();
+      const processedBody = {
+        ...req.body,
+        date: req.body.date ? new Date(req.body.date) : now,
+        createdAt: now
+      };
+      
+      console.log('Processed body:', JSON.stringify({
+        ...processedBody,
+        date: processedBody.date.toISOString(),
+        createdAt: processedBody.createdAt.toISOString()
+      }, null, 2));
+      
+      const result = insertOrderSchema.safeParse(processedBody);
+      if (!result.success) {
+        console.error('Order validation failed:', result.error.errors);
+        console.log('=== ORDER CREATION DEBUG END (VALIDATION FAILED) ===');
+        return res.status(400).json({ 
+          message: 'Invalid order data', 
+          errors: result.error.errors,
+          receivedData: {
+            customerId: req.body.customerId,
+            items: req.body.items,
+            date: req.body.date,
+            total: req.body.total,
+            status: req.body.status,
+            type: req.body.type
+          }
+        });
+      }
+      
+      console.log('Validation successful, validated data:', JSON.stringify(result.data, null, 2));
+      console.log('Storage obtained:', storage.constructor.name);
+      
+      const orderWithTimestamps = {
+        ...result.data,
+        createdAt: now
+      };
+      
+      console.log('About to create order with data:', JSON.stringify(orderWithTimestamps, null, 2));
+      const order = await storage.createOrder(orderWithTimestamps as any);
+      console.log('Order created successfully:', JSON.stringify(order, null, 2));
+      
+      if (result.data.items && Array.isArray(result.data.items)) {
+        console.log('Processing inventory updates...');
+        const inventoryItems = await storage.getAllInventory();
+        console.log('Current inventory items:', inventoryItems.length);
+        
+        for (const item of result.data.items) {
+          if (item.type && typeof item.quantity === 'number') {
+            const inventoryItem = inventoryItems.find(inv => inv.type === item.type);
+            if (inventoryItem) {
+              const newQuantity = inventoryItem.quantity - item.quantity;
+              console.log(`Updating inventory ${item.type}: ${inventoryItem.quantity} - ${item.quantity} = ${newQuantity}`);
+              await storage.updateInventoryItem(inventoryItem.id, {
+                quantity: newQuantity
+              });
+            } else {
+              console.log(`No inventory item found for type: ${item.type}`);
+            }
           }
         }
       }
+      
+      if (result.data.status === 'pending' && result.data.customerId && result.data.total) {
+        console.log('Processing customer pending amount update...');
+        const customer = await storage.getCustomer(result.data.customerId);
+        if (customer) {
+          const newPending = (customer.pendingAmount || 0) + result.data.total;
+          console.log(`Updating customer pending: ${customer.pendingAmount || 0} + ${result.data.total} = ${newPending}`);
+          await storage.updateCustomer(result.data.customerId, {
+            pendingAmount: newPending
+          });
+        }
+      }
+      
+      console.log('=== ORDER CREATION DEBUG END (SUCCESS) ===');
+      return res.status(201).json(order);
     }
-    
-    // If payment is pending, update customer pending amount
-    if (result.data.status === 'pending' && result.data.customerId && result.data.total) {
-      console.log('Processing customer pending amount update...');
-      const customer = await storage.getCustomer(result.data.customerId);
-      if (customer) {
-        const newPending = (customer.pendingAmount || 0) + result.data.total;
-        console.log(`Updating customer pending: ${customer.pendingAmount || 0} + ${result.data.total} = ${newPending}`);
-        await storage.updateCustomer(result.data.customerId, {
-          pendingAmount: newPending
+
+    if (path.startsWith('/api/orders/') && method === 'PUT') {
+      const id = path.split('/')[3];
+      const result = insertOrderSchema.partial().safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid order data', errors: result.error.errors });
+      }
+      const order = await storage.updateOrder(id, result.data);
+      if (!order) {
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      return res.status(200).json(order);
+    }
+
+    if (path.startsWith('/api/orders/') && method === 'DELETE') {
+      const id = path.split('/')[3];
+      console.log(`API: Processing deletion request for order ID: ${id}`);
+      const existingOrder = await storage.getOrder(id);
+      if (!existingOrder) {
+        console.log(`API: Order ${id} not found, returning 404`);
+        return res.status(404).json({ 
+          message: 'Order not found',
+          code: 'ORDER_NOT_FOUND',
+          orderId: id
         });
       }
-    }
-    
-    console.log('=== ORDER CREATION DEBUG END (SUCCESS) ===');
-    res.status(201).json(order);
-  } catch (error) {
-    console.error("=== ORDER CREATION ERROR ===");
-    console.error("Error details:", error);
-    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-    console.error("=== ORDER CREATION ERROR END ===");
-    res.status(500).json({ 
-      message: "Failed to create order",
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-apiRouter.put("/orders/:id", async (req, res) => {
-  try {
-    const result = insertOrderSchema.partial().safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid order data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const order = await storage.updateOrder(req.params.id, result.data);
-    if (!order) {
-      return res.status(404).json({ message: "Order not found" });
-    }
-    res.json(order);
-  } catch (error) {
-    console.error("Failed to update order:", error);
-    res.status(500).json({ message: "Failed to update order" });
-  }
-});
-
-apiRouter.delete("/orders/:id", async (req, res) => {
-  try {
-    const orderId = req.params.id;
-    console.log(`API: Processing deletion request for order ID: ${orderId}`);
-    
-    const storage = await getStorage();
-    
-    // First check if order exists
-    const existingOrder = await storage.getOrder(orderId);
-    if (!existingOrder) {
-      console.log(`API: Order ${orderId} not found, returning 404`);
-      return res.status(404).json({ 
-        message: "Order not found",
-        code: "ORDER_NOT_FOUND",
-        orderId: orderId
-      });
-    }
-    
-    // Proceed with deletion
-    const success = await storage.deleteOrder(orderId);
-    if (!success) {
-      console.log(`API: Deletion failed for order ${orderId}`);
-      return res.status(500).json({ 
-        message: "Failed to delete order from database",
-        code: "DELETION_FAILED",
-        orderId: orderId
-      });
-    }
-    
-    console.log(`API: Order ${orderId} deleted successfully`);
-    res.status(204).send();
-    
-  } catch (error) {
-    console.error("API: Error during order deletion:", error);
-    res.status(500).json({ 
-      message: "Internal server error during deletion",
-      code: "INTERNAL_ERROR",
-      error: error instanceof Error ? error.message : "Unknown error"
-    });
-  }
-});
-
-// Transaction routes
-apiRouter.get("/transactions", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const transactions = await storage.getAllTransactions();
-    res.json(transactions);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch transactions" });
-  }
-});
-
-apiRouter.get("/transactions/:id", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const transaction = await storage.getTransaction(req.params.id);
-    if (!transaction) {
-      return res.status(404).json({ message: "Transaction not found" });
-    }
-    res.json(transaction);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch transaction" });
-  }
-});
-
-apiRouter.post("/transactions", async (req, res) => {
-  try {
-    const result = insertTransactionSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ message: "Invalid transaction data", errors: result.error.errors });
-    }
-    
-    const storage = await getStorage();
-    const transaction = await storage.createTransaction(result.data);
-    res.status(201).json(transaction);
-  } catch (error) {
-    console.error("Failed to create transaction:", error);
-    res.status(500).json({ message: "Failed to create transaction" });
-  }
-});
-
-// Add stock route - handles inventory updates, supplier debt, and transaction creation
-apiRouter.post("/add-stock", async (req, res) => {
-  try {
-    const { type, quantity, rate, supplierId } = req.body;
-    
-    // Validate input
-    if (!type || !quantity || !rate || !supplierId) {
-      return res.status(400).json({ message: "Missing required fields: type, quantity, rate, supplierId" });
-    }
-    
-    const qtyNum = parseFloat(quantity);
-    const rateNum = parseFloat(rate);
-    
-    if (isNaN(qtyNum) || isNaN(rateNum) || rateNum <= 0) {
-      return res.status(400).json({ message: "Invalid quantity or rate values" });
-    }
-
-    const storage = await getStorage();
-    
-    // 1. Find or create inventory item
-    const inventoryItems = await storage.getAllInventory();
-    const existingItem = inventoryItems.find(item => item.type === type);
-    
-    let inventoryResult;
-    if (existingItem) {
-      // Update existing inventory
-      const newQuantity = existingItem.quantity + qtyNum;
-      inventoryResult = await storage.updateInventoryItem(existingItem.id, {
-        quantity: newQuantity,
-        rate: rateNum
-      });
-    } else {
-      // Create new inventory item
-      inventoryResult = await storage.createInventoryItem({
-        type,
-        quantity: qtyNum,
-        rate: rateNum
-      });
-    }
-    
-    // 2. Update supplier debt
-    const supplier = await storage.getSupplier(supplierId);
-    if (!supplier) {
-      return res.status(404).json({ message: "Supplier not found" });
-    }
-    
-    const totalAmount = qtyNum * rateNum;
-    const newDebt = (supplier.debt || 0) + totalAmount;
-    
-    await storage.updateSupplier(supplierId, { debt: newDebt });
-    
-    // 3. Create transaction record
-    const transaction = await storage.createTransaction({
-      type: "expense",
-      amount: totalAmount,
-      entityId: supplierId,
-      entityType: "supplier",
-      description: `Stock purchase: ${qtyNum} kg of ${type} at ₹${rateNum}/kg`,
-      date: new Date()
-    });
-
-    res.status(201).json({
-      inventory: inventoryResult,
-      transaction,
-      supplier: { ...supplier, debt: newDebt }
-    });
-  } catch (error) {
-    console.error("Failed to add stock:", error);
-    res.status(500).json({ message: "Failed to add stock" });
-  }
-});
-
-// Balance validation
-apiRouter.get("/validate-balances", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const validator = new BalanceValidator(storage);
-    const report = await validator.validateAllBalances();
-    res.json(report);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to validate balances", error });
-  }
-});
-
-apiRouter.post("/fix-balances", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const validator = new BalanceValidator(storage);
-    await validator.fixDiscrepancies();
-    res.json({ message: "Balance discrepancies fixed successfully" });
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fix balances", error });
-  }
-});
-
-// Reports route
-apiRouter.get("/reports", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    const [orders, suppliers, customers, inventory, transactions] = await Promise.all([
-      storage.getAllOrders(),
-      storage.getAllSuppliers(),
-      storage.getAllCustomers(),
-      storage.getAllInventory(),
-      storage.getAllTransactions()
-    ]);
-
-    // Calculate metrics
-    const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-    const totalSupplierDebt = suppliers.reduce((sum, supplier) => sum + (supplier.debt || 0), 0);
-    const totalCustomerPending = customers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
-    const lowStockItems = inventory.filter(item => item.quantity < 10);
-
-    const report = {
-      summary: {
-        totalRevenue,
-        totalSupplierDebt,
-        totalCustomerPending,
-        lowStockCount: lowStockItems.length,
-        totalOrders: orders.length,
-        totalSuppliers: suppliers.length,
-        totalCustomers: customers.length,
-        totalInventoryItems: inventory.length
-      },
-      lowStockItems,
-      recentTransactions: transactions
-        .filter(t => t.date !== null && t.date !== undefined)
-        .sort((a, b) => {
-          const dateA = new Date(a.date!).getTime();
-          const dateB = new Date(b.date!).getTime();
-          return dateB - dateA;
-        })
-        .slice(0, 10)
-    };
-
-    res.json(report);
-  } catch (error) {
-    console.error("Failed to generate reports:", error);
-    res.status(500).json({ message: "Failed to generate reports" });
-  }
-});
-
-// Health check endpoint
-apiRouter.get("/health", async (req, res) => {
-  try {
-    const storage = await getStorage();
-    res.json({
-      status: "healthy",
-      storage: "firestore",
-      storageType: storageManager.getStorageType(),
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "unhealthy",
-      error: (error as Error).message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-app.use('/api', apiRouter);
-
-// Export the serverless function
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  return new Promise((resolve, reject) => {
-    app(req as any, res as any, (result: any) => {
-      if (result instanceof Error) {
-        return reject(result);
+      const success = await storage.deleteOrder(id);
+      if (!success) {
+        console.log(`API: Deletion failed for order ${id}`);
+        return res.status(500).json({ 
+          message: 'Failed to delete order from database',
+          code: 'DELETION_FAILED',
+          orderId: id
+        });
       }
-      return resolve(result);
+      console.log(`API: Order ${id} deleted successfully`);
+      return res.status(204).end();
+    }
+
+    // Transaction routes
+    if (path === '/api/transactions' && method === 'GET') {
+      const transactions = await storage.getAllTransactions();
+      return res.status(200).json(transactions);
+    }
+
+    if (path.startsWith('/api/transactions/') && method === 'GET') {
+      const id = path.split('/')[3];
+      const transaction = await storage.getTransaction(id);
+      if (!transaction) {
+        return res.status(404).json({ message: 'Transaction not found' });
+      }
+      return res.status(200).json(transaction);
+    }
+
+    if (path === '/api/transactions' && method === 'POST') {
+      const result = insertTransactionSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ message: 'Invalid transaction data', errors: result.error.errors });
+      }
+      const transaction = await storage.createTransaction(result.data);
+      return res.status(201).json(transaction);
+    }
+
+    // Add stock route
+    if (path === '/api/add-stock' && method === 'POST') {
+      const { type, quantity, rate, supplierId } = req.body;
+      if (!type || !quantity || !rate || !supplierId) {
+        return res.status(400).json({ message: 'Missing required fields: type, quantity, rate, supplierId' });
+      }
+      const qtyNum = parseFloat(quantity);
+      const rateNum = parseFloat(rate);
+      if (isNaN(qtyNum) || isNaN(rateNum) || rateNum <= 0) {
+        return res.status(400).json({ message: 'Invalid quantity or rate values' });
+      }
+      const inventoryItems = await storage.getAllInventory();
+      const existingItem = inventoryItems.find(item => item.type === type);
+      let inventoryResult;
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + qtyNum;
+        inventoryResult = await storage.updateInventoryItem(existingItem.id, {
+          quantity: newQuantity,
+          rate: rateNum
+        });
+      } else {
+        inventoryResult = await storage.createInventoryItem({
+          type,
+          quantity: qtyNum,
+          rate: rateNum
+        });
+      }
+      const supplier = await storage.getSupplier(supplierId);
+      if (!supplier) {
+        return res.status(404).json({ message: 'Supplier not found' });
+      }
+      const totalAmount = qtyNum * rateNum;
+      const newDebt = (supplier.debt || 0) + totalAmount;
+      await storage.updateSupplier(supplierId, { debt: newDebt });
+      const transaction = await storage.createTransaction({
+        type: 'expense',
+        amount: totalAmount,
+        entityId: supplierId,
+        entityType: 'supplier',
+        description: `Stock purchase: ${qtyNum} kg of ${type} at ₹${rateNum}/kg`,
+        date: new Date()
+      });
+      return res.status(201).json({
+        inventory: inventoryResult,
+        transaction,
+        supplier: { ...supplier, debt: newDebt }
+      });
+    }
+
+    // Balance validation routes
+    if (path === '/api/validate-balances' && method === 'GET') {
+      const validator = new BalanceValidator(storage);
+      const report = await validator.validateAllBalances();
+      return res.status(200).json(report);
+    }
+
+    if (path === '/api/fix-balances' && method === 'POST') {
+      const validator = new BalanceValidator(storage);
+      await validator.fixDiscrepancies();
+      return res.status(200).json({ message: 'Balance discrepancies fixed successfully' });
+    }
+
+    // Reports route
+    if (path === '/api/reports' && method === 'GET') {
+      const [orders, suppliers, customers, inventory, transactions] = await Promise.all([
+        storage.getAllOrders(),
+        storage.getAllSuppliers(),
+        storage.getAllCustomers(),
+        storage.getAllInventory(),
+        storage.getAllTransactions()
+      ]);
+      const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
+      const totalSupplierDebt = suppliers.reduce((sum, supplier) => sum + (supplier.debt || 0), 0);
+      const totalCustomerPending = customers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
+      const lowStockItems = inventory.filter(item => item.quantity < 10);
+      const report = {
+        summary: {
+          totalRevenue,
+          totalSupplierDebt,
+          totalCustomerPending,
+          lowStockCount: lowStockItems.length,
+          totalOrders: orders.length,
+          totalSuppliers: suppliers.length,
+          totalCustomers: customers.length,
+          totalInventoryItems: inventory.length
+        },
+        lowStockItems,
+        recentTransactions: transactions
+          .filter(t => t.date !== null && t.date !== undefined)
+          .sort((a, b) => {
+            const dateA = new Date(a.date!).getTime();
+            const dateB = new Date(b.date!).getTime();
+            return dateB - dateA;
+          })
+          .slice(0, 10)
+      };
+      return res.status(200).json(report);
+    }
+
+    // Health check endpoint
+    if (path === '/api/health' && method === 'GET') {
+      return res.status(200).json({
+        status: 'healthy',
+        storage: 'firestore',
+        storageType: storageManager.getStorageType(),
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    return res.status(404).json({ message: 'Route not found' });
+  } catch (error) {
+    console.error('Error in serverless function:', error);
+    return res.status(500).json({
+      message: 'Internal Server Error',
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
-  });
+  }
 }

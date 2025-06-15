@@ -1,6 +1,5 @@
 import { IStorage } from './storage';
 import { firestoreStorage } from './firestore-storage';
-import { memoryStorage } from './memory-storage';
 
 class StorageManager {
   private static instance: StorageManager;
@@ -21,22 +20,11 @@ class StorageManager {
       return this.currentStorage;
     }
 
-    try {
-      // Try to use Firestore storage first
-      this.currentStorage = firestoreStorage;
-      this.storageType = 'Firestore';
-      console.log('Storage initialized: Firestore');
-      return this.currentStorage;
-
-    } catch (error) {
-      console.warn('Firestore storage initialization failed, falling back to memory storage:', error.message);
-      
-      // Fallback to memory storage
-      this.currentStorage = memoryStorage;
-      this.storageType = 'Memory';
-      console.log('Storage initialized: Memory (fallback)');
-      return this.currentStorage;
-    }
+    // Use Firestore storage only
+    this.currentStorage = firestoreStorage;
+    this.storageType = 'Firestore';
+    console.log('Storage initialized: Firestore');
+    return this.currentStorage;
   }
 
   getStorage(): IStorage {

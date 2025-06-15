@@ -1,5 +1,4 @@
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import admin from 'firebase-admin';
 import { IStorage } from './storage';
 import {
   User,
@@ -21,12 +20,12 @@ export class FirestoreStorage implements IStorage {
 
   constructor() {
     try {
-      if (getApps().length === 0) {
+      if (admin.apps.length === 0) {
         if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
           try {
             const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-            initializeApp({
-              credential: cert(serviceAccount),
+            admin.initializeApp({
+              credential: admin.credential.cert(serviceAccount),
               projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
             });
           } catch (error) {
@@ -37,8 +36,8 @@ export class FirestoreStorage implements IStorage {
           if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
             throw new Error('Missing Firebase credentials. Please provide FIREBASE_SERVICE_ACCOUNT_KEY or individual credentials (FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY).');
           }
-          initializeApp({
-            credential: cert({
+          admin.initializeApp({
+            credential: admin.credential.cert({
               projectId: process.env.FIREBASE_PROJECT_ID,
               clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
               privateKey: privateKey,
@@ -48,7 +47,7 @@ export class FirestoreStorage implements IStorage {
         }
       }
 
-      this.db = getFirestore();
+      this.db = admin.firestore();
       console.log('Firestore initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Firebase Admin SDK:', error);

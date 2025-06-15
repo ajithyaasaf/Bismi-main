@@ -10,25 +10,80 @@ import {
   insertTransactionSchema 
 } from '../shared/schema';
 
-// Initialize storage with error handling
+// Serverless-optimized storage initialization
 let storage: any;
+let storagePromise: Promise<any> | null = null;
+
 async function getStorage() {
-  try {
-    if (!storage) {
-      storage = await storageManager.initialize();
-      console.log('Storage initialized successfully in api/index.ts');
-    }
+  // Use singleton pattern with promise caching for serverless
+  if (storage) {
     return storage;
+  }
+  
+  if (storagePromise) {
+    return storagePromise;
+  }
+  
+  storagePromise = initializeStorage();
+  storage = await storagePromise;
+  storagePromise = null;
+  
+  return storage;
+}
+
+async function initializeStorage() {
+  try {
+    console.log('[Vercel API] Initializing storage...');
+    const instance = await storageManager.initialize();
+    console.log('[Vercel API] Storage initialized successfully:', instance.constructor.name);
+    return instance;
   } catch (error) {
-    console.error('Failed to initialize storage:', error);
+    console.error('[Vercel API] Storage initialization failed:', error);
+    // Reset state on failure
+    storage = null;
+    storagePromise = null;
     throw new Error(`Storage initialization failed: ${error.message}`);
   }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Set CORS headers for all responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   try {
     const path = req.url?.split('?')[0] || '';
     const method = req.method?.toUpperCase();
+    
+    console.log(`[Vercel API] ${method} ${path}`);
+    
+    // Health check endpoint
+    if (path === '/api/health' && method === 'GET') {
+      try {
+        const storage = await getStorage();
+        return res.status(200).json({
+          status: 'healthy',
+          storage: 'firestore',
+          storageType: storageManager.getStorageType(),
+          timestamp: new Date().toISOString(),
+          environment: 'vercel'
+        });
+      } catch (error) {
+        return res.status(500).json({
+          status: 'unhealthy',
+          error: error.message,
+          timestamp: new Date().toISOString(),
+          environment: 'vercel'
+        });
+      }
+    }
+
     const storage = await getStorage();
 
     // Supplier routes
@@ -538,10 +593,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(404).json({ message: 'Route not found' });
   } catch (error) {
-    console.error('Error in serverless function:', error);
+    console.error('[Vercel API] Serverless function error:', {
+      path: req.url,
+      method: req.method,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
+    
     return res.status(500).json({
       message: 'Internal Server Error',
       error: error instanceof Error ? error.message : 'Unknown error',
+      path: req.url,
+      method: req.method,
+      timestamp: new Date().toISOString()
     });
   }
 }

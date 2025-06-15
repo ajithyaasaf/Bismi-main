@@ -17,16 +17,21 @@ class StorageManager {
 
   async initialize(): Promise<IStorage> {
     if (this.currentStorage) {
+      console.log('[StorageManager] Returning existing storage instance');
       return this.currentStorage;
     }
 
     try {
+      console.log('[StorageManager] Creating new Firestore storage instance');
       this.currentStorage = createFirestoreStorage();
       this.storageType = 'Firestore';
-      console.log('Storage initialized: Firestore');
+      console.log('[StorageManager] Storage initialized: Firestore');
       return this.currentStorage;
     } catch (error) {
-      console.error('Failed to initialize Firestore storage:', error);
+      console.error('[StorageManager] Failed to initialize Firestore storage:', error);
+      // Reset state on failure for serverless retry capability
+      this.currentStorage = null;
+      this.storageType = 'unknown';
       throw new Error(`Storage initialization failed: ${error.message}`);
     }
   }

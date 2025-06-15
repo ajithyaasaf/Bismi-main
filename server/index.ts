@@ -59,6 +59,7 @@ app.use((req, res, next) => {
   // Check if we're running in Vercel (serverless) or locally
   if (process.env.VERCEL) {
     console.log('Running in Vercel serverless environment');
+    // In serverless, don't start a server - just export the app
   } else {
     // ALWAYS serve the app on port 5000
     // this serves both the API and the client.
@@ -74,5 +75,5 @@ app.use((req, res, next) => {
   }
 })();
 
-// Export for Vercel serverless
+// Export the initialized app for Vercel serverless
 export default app;

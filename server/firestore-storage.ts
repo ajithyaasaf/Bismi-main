@@ -23,13 +23,47 @@ export class FirestoreStorage implements IStorage {
       if (admin.apps.length === 0) {
         if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
           try {
-            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+            let serviceAccountString = process.env.FIREBASE_SERVICE_ACCOUNT_KEY.trim();
+            let serviceAccount: any;
+            
+            // Try multiple parsing strategies
+            if (serviceAccountString.startsWith('{') && serviceAccountString.endsWith('}')) {
+              // Direct JSON format
+              serviceAccount = JSON.parse(serviceAccountString);
+            } else {
+              // Try base64 decoding
+              try {
+                const decoded = Buffer.from(serviceAccountString, 'base64').toString('utf-8');
+                if (decoded.startsWith('{') && decoded.endsWith('}')) {
+                  serviceAccount = JSON.parse(decoded);
+                } else {
+                  throw new Error('Decoded content is not valid JSON');
+                }
+              } catch (decodeError) {
+                // If all else fails, try treating it as escaped JSON
+                try {
+                  const unescaped = serviceAccountString.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+                  serviceAccount = JSON.parse(unescaped);
+                } catch (unescapeError) {
+                  throw new Error(`Unable to parse service account key. Expected JSON format starting with { and ending with }. Got: ${serviceAccountString.substring(0, 50)}...`);
+                }
+              }
+            }
+            
+            // Validate required fields
+            if (!serviceAccount.type || !serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+              throw new Error('Service account JSON is missing required fields (type, project_id, private_key, client_email)');
+            }
+            
             admin.initializeApp({
               credential: admin.credential.cert(serviceAccount),
               projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
             });
           } catch (error) {
-            throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT_KEY format: ${error.message}`);
+            console.error('Firebase service account parsing error:', error);
+            console.error('Service account key format check - starts with {:', process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim().startsWith('{'));
+            console.error('Service account key format check - ends with }:', process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim().endsWith('}'));
+            throw new Error(`Invalid FIREBASE_SERVICE_ACCOUNT_KEY format: ${error instanceof Error ? error.message : 'Unknown error'}`);
           }
         } else {
           const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');

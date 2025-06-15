@@ -1,53 +1,16 @@
-import { db } from './firebase-config';
-import { collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { apiRequest } from './queryClient';
 import * as OrderService from './order-service';
 
-// Firebase Client SDK for real-time data access
-const CUSTOMERS_COLLECTION = 'customers';
-
-// Get all customers from Firestore
+// Get all customers from API
 export async function getCustomers() {
-  try {
-    const customersRef = collection(db, CUSTOMERS_COLLECTION);
-    const snapshot = await getDocs(customersRef);
-    
-    const customers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
-    }));
-    
-    console.log('Loaded customers directly from Firestore:', customers);
-    return customers;
-  } catch (error) {
-    console.error('Error loading customers from Firestore:', error);
-    // Fallback to API
-    const response = await apiRequest('GET', '/api/customers');
-    return response.json();
-  }
+  const response = await apiRequest('GET', '/api/customers');
+  return response.json();
 }
 
-// Get a customer by ID from Firestore
+// Get a customer by ID from API
 export async function getCustomerById(id: string) {
-  try {
-    const customerRef = doc(db, CUSTOMERS_COLLECTION, id);
-    const snapshot = await getDoc(customerRef);
-    
-    if (snapshot.exists()) {
-      return {
-        id: snapshot.id,
-        ...snapshot.data(),
-        createdAt: snapshot.data().createdAt?.toDate?.() || new Date(snapshot.data().createdAt),
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error('Error loading customer by ID from Firestore:', error);
-    // Fallback to API
-    const response = await apiRequest('GET', `/api/customers/${id}`);
-    return response.json();
-  }
+  const response = await apiRequest('GET', `/api/customers/${id}`);
+  return response.json();
 }
 
 // Add a new customer (uses API for enterprise validation)

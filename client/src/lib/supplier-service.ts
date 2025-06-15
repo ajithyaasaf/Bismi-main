@@ -1,52 +1,15 @@
-import { db } from './firebase-config';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
 import { apiRequest } from './queryClient';
 
-// Firebase Client SDK for real-time data access
-const SUPPLIERS_COLLECTION = 'suppliers';
-
-// Get all suppliers from Firestore
+// Get all suppliers from API
 export async function getSuppliers() {
-  try {
-    const suppliersRef = collection(db, SUPPLIERS_COLLECTION);
-    const snapshot = await getDocs(suppliersRef);
-    
-    const suppliers = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
-    }));
-    
-    console.log('Loaded suppliers directly from Firestore:', suppliers);
-    return suppliers;
-  } catch (error) {
-    console.error('Error loading suppliers from Firestore:', error);
-    // Fallback to API
-    const response = await apiRequest('GET', '/api/suppliers');
-    return response.json();
-  }
+  const response = await apiRequest('GET', '/api/suppliers');
+  return response.json();
 }
 
-// Get a supplier by ID from Firestore
+// Get a supplier by ID from API
 export async function getSupplierById(id: string) {
-  try {
-    const supplierRef = doc(db, SUPPLIERS_COLLECTION, id);
-    const snapshot = await getDoc(supplierRef);
-    
-    if (snapshot.exists()) {
-      return {
-        id: snapshot.id,
-        ...snapshot.data(),
-        createdAt: snapshot.data().createdAt?.toDate?.() || new Date(snapshot.data().createdAt),
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error('Error loading supplier by ID from Firestore:', error);
-    // Fallback to API
-    const response = await apiRequest('GET', `/api/suppliers/${id}`);
-    return response.json();
-  }
+  const response = await apiRequest('GET', `/api/suppliers/${id}`);
+  return response.json();
 }
 
 // Add a new supplier (uses API for enterprise validation)

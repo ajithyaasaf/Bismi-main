@@ -2,6 +2,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { storageManager } from "./storage-manager";
+import { BalanceValidator } from "./balance-validator";
 import { v4 as uuidv4 } from 'uuid';
 import { 
   insertSupplierSchema, 
@@ -340,6 +341,167 @@ apiRouter.post("/transactions", async (req: Request, res: Response) => {
     res.status(201).json(transaction);
   } catch (error) {
     res.status(400).json({ message: "Invalid transaction data", error });
+  }
+});
+
+// Health check endpoint
+apiRouter.get("/health", async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    res.json({
+      status: "healthy",
+      storage: "firestore",
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "unhealthy",
+      error: (error as Error).message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Add stock endpoint
+apiRouter.post("/add-stock", async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const { type, quantity, rate, supplierId, description } = req.body;
+    
+    if (!type || quantity === undefined || rate === undefined) {
+      return res.status(400).json({ message: "Type, quantity, and rate are required" });
+    }
+
+    // Find existing inventory item by type
+    const allInventory = await storage.getAllInventory();
+    let inventoryItem = allInventory.find((item: any) => item.type === type);
+    
+    if (inventoryItem) {
+      // Update existing item
+      const newQuantity = (inventoryItem.quantity || 0) + quantity;
+      inventoryItem = await storage.updateInventoryItem(inventoryItem.id, {
+        quantity: newQuantity,
+        rate,
+        updatedAt: new Date()
+      });
+    } else {
+      // Create new inventory item
+      inventoryItem = await storage.createInventoryItem({
+        type,
+        quantity,
+        rate
+      });
+    }
+
+    // Record transaction if supplier is provided
+    if (supplierId) {
+      await storage.createTransaction({
+        type: 'expense',
+        amount: quantity * rate,
+        entityId: supplierId,
+        entityType: 'supplier',
+        description: description || `Stock purchase: ${quantity} kg of ${type} at ₹${rate}/kg`,
+        date: new Date()
+      });
+    }
+
+    res.status(201).json(inventoryItem);
+  } catch (error) {
+    res.status(400).json({ message: "Failed to add stock", error });
+  }
+});
+
+// Customer payment endpoint
+apiRouter.post("/customers/:id/payment", async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const { amount, description } = req.body;
+    const customerId = req.params.id;
+    
+    const customer = await storage.getCustomer(customerId);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+    
+    const transaction = await storage.createTransaction({
+      type: 'receipt',
+      amount,
+      entityId: customerId,
+      entityType: 'customer',
+      description,
+      date: new Date()
+    });
+    
+    const updatedCustomer = await storage.getCustomer(customerId);
+    res.status(201).json({ 
+      transaction, 
+      customer: updatedCustomer 
+    });
+  } catch (error) {
+    res.status(400).json({ message: "Invalid payment data", error });
+  }
+});
+
+// Balance validation endpoints
+apiRouter.get("/validate-balances", async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const validator = new BalanceValidator(storage);
+    const report = await validator.validateAllBalances();
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to validate balances", error });
+  }
+});
+
+apiRouter.post("/fix-balances", async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const validator = new BalanceValidator(storage);
+    await validator.fixDiscrepancies();
+    res.json({ message: "Balance discrepancies fixed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fix balances", error });
+  }
+});
+
+// Reports endpoint
+apiRouter.get("/reports", async (req: Request, res: Response) => {
+  try {
+    const storage = await getStorage();
+    const { startDate, endDate, type } = req.query;
+    
+    const customers = await storage.getAllCustomers();
+    const suppliers = await storage.getAllSuppliers();
+    const orders = await storage.getAllOrders();
+    const transactions = await storage.getAllTransactions();
+    const inventory = await storage.getAllInventory();
+    
+    // Calculate totals
+    const totalPendingCustomers = customers.reduce((sum: number, c: any) => sum + (c.pendingAmount || 0), 0);
+    const totalDebtSuppliers = suppliers.reduce((sum: number, s: any) => sum + (s.debt || 0), 0);
+    const totalInventoryValue = inventory.reduce((sum: number, i: any) => sum + ((i.quantity || 0) * (i.rate || 0)), 0);
+    
+    const report = {
+      summary: {
+        totalCustomers: customers.length,
+        totalSuppliers: suppliers.length,
+        totalOrders: orders.length,
+        totalTransactions: transactions.length,
+        totalPendingAmount: totalPendingCustomers,
+        totalDebt: totalDebtSuppliers,
+        totalInventoryValue
+      },
+      customers,
+      suppliers,
+      orders,
+      transactions,
+      inventory
+    };
+    
+    res.json(report);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to generate report", error });
   }
 });
 

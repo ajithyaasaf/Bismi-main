@@ -440,17 +440,105 @@ apiRouter.get("/orders/:id", async (req, res) => {
 
 apiRouter.post("/orders", async (req, res) => {
   try {
-    const result = insertOrderSchema.safeParse(req.body);
+    console.log('=== ORDER CREATION DEBUG START ===');
+    console.log('Full request body:', JSON.stringify(req.body, null, 2));
+    
+    // Enterprise-level request preprocessing for date handling
+    console.log('Raw request body date:', req.body.date);
+    
+    const now = new Date();
+    const processedBody = {
+      ...req.body,
+      date: req.body.date ? new Date(req.body.date) : now,
+      // Enterprise audit trail: createdAt always reflects the actual creation time
+      createdAt: now
+    };
+    
+    console.log('Processed body:', JSON.stringify({
+      ...processedBody,
+      date: processedBody.date.toISOString(),
+      createdAt: processedBody.createdAt.toISOString()
+    }, null, 2));
+    
+    const result = insertOrderSchema.safeParse(processedBody);
     if (!result.success) {
-      return res.status(400).json({ message: "Invalid order data", errors: result.error.errors });
+      console.error("Order validation failed:", result.error.errors);
+      console.log('=== ORDER CREATION DEBUG END (VALIDATION FAILED) ===');
+      return res.status(400).json({ 
+        message: "Invalid order data", 
+        errors: result.error.errors,
+        receivedData: {
+          customerId: req.body.customerId,
+          items: req.body.items,
+          date: req.body.date,
+          total: req.body.total,
+          status: req.body.status,
+          type: req.body.type
+        }
+      });
     }
     
+    console.log('Validation successful, validated data:', JSON.stringify(result.data, null, 2));
+    
     const storage = await getStorage();
-    const order = await storage.createOrder(result.data);
+    console.log('Storage obtained:', storage.constructor.name);
+    
+    // Create the order with enterprise timestamp handling
+    const orderWithTimestamps = {
+      ...result.data,
+      createdAt: now
+    };
+    
+    console.log('About to create order with data:', JSON.stringify(orderWithTimestamps, null, 2));
+    const order = await storage.createOrder(orderWithTimestamps as any);
+    console.log('Order created successfully:', JSON.stringify(order, null, 2));
+    
+    // Update inventory based on order items (Enterprise mode - allows negative stock)
+    if (result.data.items && Array.isArray(result.data.items)) {
+      console.log('Processing inventory updates...');
+      const inventoryItems = await storage.getAllInventory();
+      console.log('Current inventory items:', inventoryItems.length);
+      
+      for (const item of result.data.items) {
+        if (item.type && typeof item.quantity === 'number') {
+          const inventoryItem = inventoryItems.find(inv => inv.type === item.type);
+          if (inventoryItem) {
+            const newQuantity = inventoryItem.quantity - item.quantity;
+            console.log(`Updating inventory ${item.type}: ${inventoryItem.quantity} - ${item.quantity} = ${newQuantity}`);
+            await storage.updateInventoryItem(inventoryItem.id, {
+              quantity: newQuantity // Allow negative quantities for enterprise operations
+            });
+          } else {
+            console.log(`No inventory item found for type: ${item.type}`);
+          }
+        }
+      }
+    }
+    
+    // If payment is pending, update customer pending amount
+    if (result.data.status === 'pending' && result.data.customerId && result.data.total) {
+      console.log('Processing customer pending amount update...');
+      const customer = await storage.getCustomer(result.data.customerId);
+      if (customer) {
+        const newPending = (customer.pendingAmount || 0) + result.data.total;
+        console.log(`Updating customer pending: ${customer.pendingAmount || 0} + ${result.data.total} = ${newPending}`);
+        await storage.updateCustomer(result.data.customerId, {
+          pendingAmount: newPending
+        });
+      }
+    }
+    
+    console.log('=== ORDER CREATION DEBUG END (SUCCESS) ===');
     res.status(201).json(order);
   } catch (error) {
-    console.error("Failed to create order:", error);
-    res.status(500).json({ message: "Failed to create order" });
+    console.error("=== ORDER CREATION ERROR ===");
+    console.error("Error details:", error);
+    console.error("Error stack:", error instanceof Error ? error.stack : 'No stack trace');
+    console.error("=== ORDER CREATION ERROR END ===");
+    res.status(500).json({ 
+      message: "Failed to create order",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -541,12 +629,17 @@ apiRouter.get("/transactions/:id", async (req, res) => {
 
 apiRouter.post("/transactions", async (req, res) => {
   try {
+    const result = insertTransactionSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ message: "Invalid transaction data", errors: result.error.errors });
+    }
+    
     const storage = await getStorage();
-    const data = insertTransactionSchema.parse(req.body);
-    const transaction = await storage.createTransaction(data);
+    const transaction = await storage.createTransaction(result.data);
     res.status(201).json(transaction);
   } catch (error) {
-    res.status(400).json({ message: "Invalid transaction data", error });
+    console.error("Failed to create transaction:", error);
+    res.status(500).json({ message: "Failed to create transaction" });
   }
 });
 
@@ -692,13 +785,14 @@ apiRouter.get("/reports", async (req, res) => {
   }
 });
 
-// Health check
+// Health check endpoint
 apiRouter.get("/health", async (req, res) => {
   try {
     const storage = await getStorage();
     res.json({
       status: "healthy",
       storage: "firestore",
+      storageType: storageManager.getStorageType(),
       timestamp: new Date().toISOString()
     });
   } catch (error) {

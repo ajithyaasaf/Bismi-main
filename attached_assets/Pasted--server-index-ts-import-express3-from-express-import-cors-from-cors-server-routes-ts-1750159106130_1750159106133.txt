@@ -1,0 +1,1234 @@
+// server/index.ts
+import express3 from "express";
+import cors from "cors";
+
+// server/routes.ts
+import express from "express";
+import { createServer } from "http";
+
+// server/firestore-storage.ts
+import admin from "firebase-admin";
+var FirestoreStorage = class {
+  db;
+  constructor() {
+    this.initializeFirebase();
+    this.db = admin.firestore();
+  }
+  initializeFirebase() {
+    try {
+      if (admin.apps.length === 0) {
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (!serviceAccountKey) {
+          throw new Error("FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set");
+        }
+        let serviceAccount;
+        try {
+          serviceAccount = JSON.parse(serviceAccountKey);
+        } catch (parseError) {
+          throw new Error("Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY");
+        }
+        admin.initializeApp({
+          credential: admin.credential.cert(serviceAccount)
+        });
+        console.log("Firebase Admin SDK initialized with project:", serviceAccount.project_id);
+      }
+    } catch (error) {
+      console.error("Failed to initialize Firebase Admin SDK:", error);
+      throw new Error(`Firebase Admin SDK initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  convertTimestamp(timestamp) {
+    if (timestamp && typeof timestamp.toDate === "function") {
+      return timestamp.toDate();
+    }
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+    if (typeof timestamp === "string") {
+      return new Date(timestamp);
+    }
+    return /* @__PURE__ */ new Date();
+  }
+  // User operations
+  async getUser(id) {
+    try {
+      const doc = await this.db.collection("users").doc(id.toString()).get();
+      if (!doc.exists) return void 0;
+      const data = doc.data();
+      return {
+        id: parseInt(doc.id),
+        username: data?.username || "",
+        password: data?.password || "",
+        createdAt: this.convertTimestamp(data?.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting user:", error);
+      throw new Error(`Failed to get user: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getUserByUsername(username) {
+    try {
+      const snapshot = await this.db.collection("users").where("username", "==", username).get();
+      if (snapshot.empty) return void 0;
+      const doc = snapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: parseInt(doc.id),
+        username: data.username,
+        password: data.password,
+        createdAt: this.convertTimestamp(data.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting user by username:", error);
+      throw new Error(`Failed to get user by username: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async createUser(user) {
+    try {
+      const userId = Date.now().toString();
+      await this.db.collection("users").doc(userId).set({
+        username: user.username,
+        password: user.password,
+        createdAt: /* @__PURE__ */ new Date()
+      });
+      return {
+        id: parseInt(userId),
+        username: user.username,
+        password: user.password,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+    } catch (error) {
+      console.error("Error creating user:", error);
+      throw new Error(`Failed to create user: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  // Supplier operations
+  async getAllSuppliers() {
+    try {
+      const snapshot = await this.db.collection("suppliers").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || "",
+          contact: data.contact || "",
+          pendingAmount: data.pendingAmount || 0,
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting suppliers:", error);
+      throw new Error(`Failed to get suppliers: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getSupplier(id) {
+    try {
+      const doc = await this.db.collection("suppliers").doc(id).get();
+      if (!doc.exists) return void 0;
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data?.name || "",
+        contact: data?.contact || "",
+        pendingAmount: data?.pendingAmount || 0,
+        createdAt: this.convertTimestamp(data?.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting supplier:", error);
+      throw new Error(`Failed to get supplier: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async createSupplier(supplier) {
+    try {
+      const docRef = await this.db.collection("suppliers").add({
+        name: supplier.name,
+        contact: supplier.contact,
+        pendingAmount: supplier.pendingAmount || 0,
+        createdAt: /* @__PURE__ */ new Date()
+      });
+      return {
+        id: docRef.id,
+        name: supplier.name,
+        contact: supplier.contact,
+        pendingAmount: supplier.pendingAmount || 0,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+    } catch (error) {
+      console.error("Error creating supplier:", error);
+      throw new Error(`Failed to create supplier: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async updateSupplier(id, supplier) {
+    try {
+      await this.db.collection("suppliers").doc(id).update(supplier);
+      return this.getSupplier(id);
+    } catch (error) {
+      console.error("Error updating supplier:", error);
+      throw new Error(`Failed to update supplier: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async deleteSupplier(id) {
+    try {
+      await this.db.collection("suppliers").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting supplier:", error);
+      return false;
+    }
+  }
+  // Inventory operations
+  async getAllInventory() {
+    try {
+      const snapshot = await this.db.collection("inventory").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || "",
+          type: data.type || "",
+          quantity: data.quantity || 0,
+          unit: data.unit || "",
+          price: data.price || 0,
+          supplierId: data.supplierId || "",
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting inventory:", error);
+      throw new Error(`Failed to get inventory: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getInventoryItem(id) {
+    try {
+      const doc = await this.db.collection("inventory").doc(id).get();
+      if (!doc.exists) return void 0;
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data?.name || "",
+        type: data?.type || "",
+        quantity: data?.quantity || 0,
+        unit: data?.unit || "",
+        price: data?.price || 0,
+        supplierId: data?.supplierId || "",
+        createdAt: this.convertTimestamp(data?.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting inventory item:", error);
+      throw new Error(`Failed to get inventory item: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async createInventoryItem(item) {
+    try {
+      const docRef = await this.db.collection("inventory").add({
+        name: item.name,
+        type: item.type,
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+        supplierId: item.supplierId,
+        createdAt: /* @__PURE__ */ new Date()
+      });
+      return {
+        id: docRef.id,
+        name: item.name,
+        type: item.type,
+        quantity: item.quantity,
+        unit: item.unit,
+        price: item.price,
+        supplierId: item.supplierId,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+    } catch (error) {
+      console.error("Error creating inventory item:", error);
+      throw new Error(`Failed to create inventory item: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async updateInventoryItem(id, item) {
+    try {
+      await this.db.collection("inventory").doc(id).update(item);
+      return this.getInventoryItem(id);
+    } catch (error) {
+      console.error("Error updating inventory item:", error);
+      throw new Error(`Failed to update inventory item: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async deleteInventoryItem(id) {
+    try {
+      await this.db.collection("inventory").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting inventory item:", error);
+      return false;
+    }
+  }
+  // Customer operations
+  async getAllCustomers() {
+    try {
+      const snapshot = await this.db.collection("customers").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          name: data.name || "",
+          contact: data.contact || "",
+          customerType: data.customerType || "regular",
+          pendingAmount: data.pendingAmount || 0,
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting customers:", error);
+      throw new Error(`Failed to get customers: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getCustomer(id) {
+    try {
+      const doc = await this.db.collection("customers").doc(id).get();
+      if (!doc.exists) return void 0;
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data?.name || "",
+        contact: data?.contact || "",
+        customerType: data?.customerType || "regular",
+        pendingAmount: data?.pendingAmount || 0,
+        createdAt: this.convertTimestamp(data?.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting customer:", error);
+      throw new Error(`Failed to get customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async createCustomer(customer) {
+    try {
+      const docRef = await this.db.collection("customers").add({
+        name: customer.name,
+        contact: customer.contact,
+        customerType: customer.customerType,
+        pendingAmount: customer.pendingAmount || 0,
+        createdAt: /* @__PURE__ */ new Date()
+      });
+      return {
+        id: docRef.id,
+        name: customer.name,
+        contact: customer.contact,
+        customerType: customer.customerType,
+        pendingAmount: customer.pendingAmount || 0,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+    } catch (error) {
+      console.error("Error creating customer:", error);
+      throw new Error(`Failed to create customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async updateCustomer(id, customer) {
+    try {
+      await this.db.collection("customers").doc(id).update(customer);
+      return this.getCustomer(id);
+    } catch (error) {
+      console.error("Error updating customer:", error);
+      throw new Error(`Failed to update customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async deleteCustomer(id) {
+    try {
+      await this.db.collection("customers").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting customer:", error);
+      return false;
+    }
+  }
+  // Order operations
+  async getAllOrders() {
+    try {
+      const snapshot = await this.db.collection("orders").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          customerId: data.customerId || "",
+          items: data.items || [],
+          totalAmount: data.totalAmount || 0,
+          paymentStatus: data.paymentStatus || "pending",
+          orderStatus: data.orderStatus || "pending",
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting orders:", error);
+      throw new Error(`Failed to get orders: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getOrdersByCustomer(customerId) {
+    try {
+      const snapshot = await this.db.collection("orders").where("customerId", "==", customerId).get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          customerId: data.customerId || "",
+          items: data.items || [],
+          totalAmount: data.totalAmount || 0,
+          paymentStatus: data.paymentStatus || "pending",
+          orderStatus: data.orderStatus || "pending",
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting orders by customer:", error);
+      throw new Error(`Failed to get orders by customer: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getOrder(id) {
+    try {
+      const doc = await this.db.collection("orders").doc(id).get();
+      if (!doc.exists) return void 0;
+      const data = doc.data();
+      return {
+        id: doc.id,
+        customerId: data?.customerId || "",
+        items: data?.items || [],
+        totalAmount: data?.totalAmount || 0,
+        paymentStatus: data?.paymentStatus || "pending",
+        orderStatus: data?.orderStatus || "pending",
+        createdAt: this.convertTimestamp(data?.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting order:", error);
+      throw new Error(`Failed to get order: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async createOrder(order) {
+    try {
+      const docRef = await this.db.collection("orders").add({
+        customerId: order.customerId,
+        items: order.items,
+        totalAmount: order.totalAmount,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+        createdAt: order.createdAt || /* @__PURE__ */ new Date()
+      });
+      return {
+        id: docRef.id,
+        customerId: order.customerId,
+        items: order.items,
+        totalAmount: order.totalAmount,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+        createdAt: order.createdAt || /* @__PURE__ */ new Date()
+      };
+    } catch (error) {
+      console.error("Error creating order:", error);
+      throw new Error(`Failed to create order: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async updateOrder(id, order) {
+    try {
+      await this.db.collection("orders").doc(id).update(order);
+      return this.getOrder(id);
+    } catch (error) {
+      console.error("Error updating order:", error);
+      throw new Error(`Failed to update order: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async deleteOrder(id) {
+    try {
+      await this.db.collection("orders").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      return false;
+    }
+  }
+  // Transaction operations
+  async getAllTransactions() {
+    try {
+      const snapshot = await this.db.collection("transactions").get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          entityId: data.entityId || "",
+          entityType: data.entityType || "",
+          type: data.type || "",
+          amount: data.amount || 0,
+          description: data.description || "",
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting transactions:", error);
+      throw new Error(`Failed to get transactions: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getTransactionsByEntity(entityId) {
+    try {
+      const snapshot = await this.db.collection("transactions").where("entityId", "==", entityId).get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          entityId: data.entityId || "",
+          entityType: data.entityType || "",
+          type: data.type || "",
+          amount: data.amount || 0,
+          description: data.description || "",
+          createdAt: this.convertTimestamp(data.createdAt)
+        };
+      });
+    } catch (error) {
+      console.error("Error getting transactions by entity:", error);
+      throw new Error(`Failed to get transactions by entity: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async getTransaction(id) {
+    try {
+      const doc = await this.db.collection("transactions").doc(id).get();
+      if (!doc.exists) return void 0;
+      const data = doc.data();
+      return {
+        id: doc.id,
+        entityId: data?.entityId || "",
+        entityType: data?.entityType || "",
+        type: data?.type || "",
+        amount: data?.amount || 0,
+        description: data?.description || "",
+        createdAt: this.convertTimestamp(data?.createdAt)
+      };
+    } catch (error) {
+      console.error("Error getting transaction:", error);
+      throw new Error(`Failed to get transaction: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async createTransaction(transaction) {
+    try {
+      const docRef = await this.db.collection("transactions").add({
+        entityId: transaction.entityId,
+        entityType: transaction.entityType,
+        type: transaction.type,
+        amount: transaction.amount,
+        description: transaction.description,
+        createdAt: /* @__PURE__ */ new Date()
+      });
+      return {
+        id: docRef.id,
+        entityId: transaction.entityId,
+        entityType: transaction.entityType,
+        type: transaction.type,
+        amount: transaction.amount,
+        description: transaction.description,
+        createdAt: /* @__PURE__ */ new Date()
+      };
+    } catch (error) {
+      console.error("Error creating transaction:", error);
+      throw new Error(`Failed to create transaction: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async updateTransaction(id, transaction) {
+    try {
+      await this.db.collection("transactions").doc(id).update(transaction);
+      return this.getTransaction(id);
+    } catch (error) {
+      console.error("Error updating transaction:", error);
+      throw new Error(`Failed to update transaction: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  async deleteTransaction(id) {
+    try {
+      await this.db.collection("transactions").doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error("Error deleting transaction:", error);
+      return false;
+    }
+  }
+};
+var createFirestoreStorage = () => new FirestoreStorage();
+
+// server/storage-manager.ts
+var StorageManager = class _StorageManager {
+  static instance;
+  currentStorage = null;
+  storageType = "unknown";
+  constructor() {
+  }
+  static getInstance() {
+    if (!_StorageManager.instance) {
+      _StorageManager.instance = new _StorageManager();
+    }
+    return _StorageManager.instance;
+  }
+  async initialize() {
+    if (this.currentStorage) {
+      console.log("[StorageManager] Returning existing storage instance");
+      return this.currentStorage;
+    }
+    try {
+      console.log("[StorageManager] Creating new Firestore storage instance");
+      this.currentStorage = createFirestoreStorage();
+      this.storageType = "Firestore";
+      console.log("[StorageManager] Storage initialized: Firestore");
+      return this.currentStorage;
+    } catch (error) {
+      console.error("[StorageManager] Failed to initialize Firestore storage:", error);
+      this.currentStorage = null;
+      this.storageType = "unknown";
+      throw new Error(`Storage initialization failed: ${error.message}`);
+    }
+  }
+  getStorage() {
+    if (!this.currentStorage) {
+      throw new Error("Storage not initialized. Call initialize() first.");
+    }
+    return this.currentStorage;
+  }
+  getStorageType() {
+    return this.storageType;
+  }
+  isUsingFirestoreStorage() {
+    return this.storageType === "Firestore";
+  }
+};
+var storageManager = StorageManager.getInstance();
+
+// server/routes.ts
+import { z } from "zod";
+var insertSupplierSchema = z.object({
+  name: z.string().min(1),
+  contact: z.string().min(1),
+  pendingAmount: z.number().optional().default(0)
+});
+var insertInventorySchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  quantity: z.number().min(0),
+  unit: z.string().min(1),
+  price: z.number().min(0),
+  supplierId: z.string().min(1)
+});
+var insertCustomerSchema = z.object({
+  name: z.string().min(1),
+  contact: z.string().min(1),
+  customerType: z.string().min(1),
+  pendingAmount: z.number().optional().default(0)
+});
+var insertOrderSchema = z.object({
+  customerId: z.string().min(1),
+  items: z.array(z.object({
+    type: z.string().min(1),
+    quantity: z.number().min(1)
+  })),
+  totalAmount: z.number().min(0),
+  paymentStatus: z.string().min(1),
+  orderStatus: z.string().min(1)
+});
+var insertTransactionSchema = z.object({
+  entityId: z.string().min(1),
+  entityType: z.string().min(1),
+  type: z.string().min(1),
+  amount: z.number(),
+  description: z.string().min(1)
+});
+async function getStorage() {
+  return await storageManager.initialize();
+}
+async function registerRoutes(app2) {
+  app2.use("/api", (req, res, next) => {
+    res.setHeader("Content-Type", "application/json");
+    next();
+  });
+  const apiRouter = express.Router();
+  app2.use("/api", apiRouter);
+  apiRouter.get("/health", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      res.json({
+        status: "healthy",
+        storage: storageManager.getStorageType(),
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: "unhealthy",
+        error: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  apiRouter.get("/suppliers", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const suppliers = await storage.getAllSuppliers();
+      res.json(suppliers);
+    } catch (error) {
+      console.error("Failed to get suppliers:", error);
+      res.status(500).json({ message: "Failed to get suppliers" });
+    }
+  });
+  apiRouter.get("/suppliers/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const supplier = await storage.getSupplier(req.params.id);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json(supplier);
+    } catch (error) {
+      console.error("Failed to get supplier:", error);
+      res.status(500).json({ message: "Failed to get supplier" });
+    }
+  });
+  apiRouter.post("/suppliers", async (req, res) => {
+    try {
+      const validatedData = insertSupplierSchema.parse(req.body);
+      const storage = await getStorage();
+      const supplier = await storage.createSupplier(validatedData);
+      res.status(201).json(supplier);
+    } catch (error) {
+      console.error("Failed to create supplier:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create supplier" });
+    }
+  });
+  apiRouter.put("/suppliers/:id", async (req, res) => {
+    try {
+      const validatedData = insertSupplierSchema.partial().parse(req.body);
+      const storage = await getStorage();
+      const supplier = await storage.updateSupplier(req.params.id, validatedData);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json(supplier);
+    } catch (error) {
+      console.error("Failed to update supplier:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update supplier" });
+    }
+  });
+  apiRouter.delete("/suppliers/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const success = await storage.deleteSupplier(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      res.json({ message: "Supplier deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete supplier:", error);
+      res.status(500).json({ message: "Failed to delete supplier" });
+    }
+  });
+  apiRouter.post("/suppliers/:id/payment", async (req, res) => {
+    try {
+      const { amount, description } = req.body;
+      if (!amount || isNaN(parseFloat(amount))) {
+        return res.status(400).json({ message: "Valid amount is required" });
+      }
+      const storage = await getStorage();
+      const supplier = await storage.getSupplier(req.params.id);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      const transactionData = {
+        type: "payment",
+        amount: parseFloat(amount),
+        entityId: req.params.id,
+        entityType: "supplier",
+        description: description || `Payment to supplier: ${supplier.name}`
+      };
+      const transaction = await storage.createTransaction(transactionData);
+      const newAmount = (supplier.pendingAmount || 0) - parseFloat(amount);
+      await storage.updateSupplier(req.params.id, { pendingAmount: Math.max(0, newAmount) });
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Failed to process supplier payment:", error);
+      res.status(500).json({ message: "Failed to process payment" });
+    }
+  });
+  apiRouter.get("/inventory", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const inventory = await storage.getAllInventory();
+      res.json(inventory);
+    } catch (error) {
+      console.error("Failed to get inventory:", error);
+      res.status(500).json({ message: "Failed to get inventory" });
+    }
+  });
+  apiRouter.get("/inventory/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const item = await storage.getInventoryItem(req.params.id);
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Failed to get inventory item:", error);
+      res.status(500).json({ message: "Failed to get inventory item" });
+    }
+  });
+  apiRouter.post("/inventory", async (req, res) => {
+    try {
+      const validatedData = insertInventorySchema.parse(req.body);
+      const storage = await getStorage();
+      const item = await storage.createInventoryItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error("Failed to create inventory item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create inventory item" });
+    }
+  });
+  apiRouter.put("/inventory/:id", async (req, res) => {
+    try {
+      const validatedData = insertInventorySchema.partial().parse(req.body);
+      const storage = await getStorage();
+      const item = await storage.updateInventoryItem(req.params.id, validatedData);
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      console.error("Failed to update inventory item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update inventory item" });
+    }
+  });
+  apiRouter.delete("/inventory/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const success = await storage.deleteInventoryItem(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      res.json({ message: "Inventory item deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete inventory item:", error);
+      res.status(500).json({ message: "Failed to delete inventory item" });
+    }
+  });
+  apiRouter.post("/add-stock", async (req, res) => {
+    try {
+      const { itemId, quantity } = req.body;
+      if (!itemId || !quantity || quantity <= 0) {
+        return res.status(400).json({ message: "Valid item ID and quantity are required" });
+      }
+      const storage = await getStorage();
+      const item = await storage.getInventoryItem(itemId);
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      const updatedItem = await storage.updateInventoryItem(itemId, {
+        quantity: item.quantity + parseInt(quantity)
+      });
+      res.json(updatedItem);
+    } catch (error) {
+      console.error("Failed to add stock:", error);
+      res.status(500).json({ message: "Failed to add stock" });
+    }
+  });
+  apiRouter.get("/customers", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const customers = await storage.getAllCustomers();
+      res.json(customers);
+    } catch (error) {
+      console.error("Failed to get customers:", error);
+      res.status(500).json({ message: "Failed to get customers" });
+    }
+  });
+  apiRouter.get("/customers/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Failed to get customer:", error);
+      res.status(500).json({ message: "Failed to get customer" });
+    }
+  });
+  apiRouter.post("/customers", async (req, res) => {
+    try {
+      const validatedData = insertCustomerSchema.parse(req.body);
+      const storage = await getStorage();
+      const customer = await storage.createCustomer(validatedData);
+      res.status(201).json(customer);
+    } catch (error) {
+      console.error("Failed to create customer:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create customer" });
+    }
+  });
+  apiRouter.put("/customers/:id", async (req, res) => {
+    try {
+      const validatedData = insertCustomerSchema.partial().parse(req.body);
+      const storage = await getStorage();
+      const customer = await storage.updateCustomer(req.params.id, validatedData);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json(customer);
+    } catch (error) {
+      console.error("Failed to update customer:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update customer" });
+    }
+  });
+  apiRouter.delete("/customers/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const success = await storage.deleteCustomer(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      res.json({ message: "Customer deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete customer:", error);
+      res.status(500).json({ message: "Failed to delete customer" });
+    }
+  });
+  apiRouter.post("/customers/:id/payment", async (req, res) => {
+    try {
+      const { amount, description } = req.body;
+      if (!amount || isNaN(parseFloat(amount))) {
+        return res.status(400).json({ message: "Valid amount is required" });
+      }
+      const storage = await getStorage();
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const transactionData = {
+        type: "payment",
+        amount: parseFloat(amount),
+        entityId: req.params.id,
+        entityType: "customer",
+        description: description || `Payment from customer: ${customer.name}`
+      };
+      const transaction = await storage.createTransaction(transactionData);
+      const newAmount = (customer.pendingAmount || 0) - parseFloat(amount);
+      await storage.updateCustomer(req.params.id, { pendingAmount: Math.max(0, newAmount) });
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Failed to process customer payment:", error);
+      res.status(500).json({ message: "Failed to process payment" });
+    }
+  });
+  apiRouter.get("/orders", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const orders = await storage.getAllOrders();
+      res.json(orders);
+    } catch (error) {
+      console.error("Failed to get orders:", error);
+      res.status(500).json({ message: "Failed to get orders" });
+    }
+  });
+  apiRouter.get("/orders/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Failed to get order:", error);
+      res.status(500).json({ message: "Failed to get order" });
+    }
+  });
+  apiRouter.post("/orders", async (req, res) => {
+    try {
+      const validatedData = insertOrderSchema.parse(req.body);
+      const storage = await getStorage();
+      const order = await storage.createOrder(validatedData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error("Failed to create order:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create order" });
+    }
+  });
+  apiRouter.put("/orders/:id", async (req, res) => {
+    try {
+      const validatedData = insertOrderSchema.partial().parse(req.body);
+      const storage = await getStorage();
+      const order = await storage.updateOrder(req.params.id, validatedData);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      console.error("Failed to update order:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update order" });
+    }
+  });
+  apiRouter.delete("/orders/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const success = await storage.deleteOrder(req.params.id);
+      if (!success) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json({ message: "Order deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete order:", error);
+      res.status(500).json({ message: "Failed to delete order" });
+    }
+  });
+  apiRouter.get("/transactions", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const transactions = await storage.getAllTransactions();
+      res.json(transactions);
+    } catch (error) {
+      console.error("Failed to get transactions:", error);
+      res.status(500).json({ message: "Failed to get transactions" });
+    }
+  });
+  apiRouter.get("/transactions/:id", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const transaction = await storage.getTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      console.error("Failed to get transaction:", error);
+      res.status(500).json({ message: "Failed to get transaction" });
+    }
+  });
+  apiRouter.post("/transactions", async (req, res) => {
+    try {
+      const validatedData = insertTransactionSchema.parse(req.body);
+      const storage = await getStorage();
+      const transaction = await storage.createTransaction(validatedData);
+      res.status(201).json(transaction);
+    } catch (error) {
+      console.error("Failed to create transaction:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create transaction" });
+    }
+  });
+  apiRouter.get("/reports", async (req, res) => {
+    try {
+      const storage = await getStorage();
+      const [suppliers, customers, orders, transactions] = await Promise.all([
+        storage.getAllSuppliers(),
+        storage.getAllCustomers(),
+        storage.getAllOrders(),
+        storage.getAllTransactions()
+      ]);
+      const report = {
+        summary: {
+          totalSuppliers: suppliers.length,
+          totalCustomers: customers.length,
+          totalOrders: orders.length,
+          totalTransactions: transactions.length,
+          totalRevenue: orders.reduce((sum, order) => sum + order.totalAmount, 0),
+          totalSupplierDebt: suppliers.reduce((sum, supplier) => sum + supplier.pendingAmount, 0),
+          totalCustomerDebt: customers.reduce((sum, customer) => sum + customer.pendingAmount, 0)
+        },
+        suppliers,
+        customers,
+        orders,
+        transactions
+      };
+      res.json(report);
+    } catch (error) {
+      console.error("Failed to generate reports:", error);
+      res.status(500).json({ message: "Failed to generate reports" });
+    }
+  });
+  const httpServer = createServer(app2);
+  return httpServer;
+}
+
+// server/vite.ts
+import express2 from "express";
+import fs from "fs";
+import path2 from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
+import path from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+var vite_config_default = defineConfig({
+  plugins: [
+    react(),
+    runtimeErrorOverlay(),
+    themePlugin(),
+    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
+      await import("@replit/vite-plugin-cartographer").then(
+        (m) => m.cartographer()
+      )
+    ] : []
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+      "@assets": path.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  root: path.resolve(import.meta.dirname, "client"),
+  build: {
+    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true
+  }
+});
+
+// server/vite.ts
+import { nanoid } from "nanoid";
+var viteLogger = createLogger();
+function log(message, source = "express") {
+  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+async function setupVite(app2, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      }
+    },
+    server: serverOptions,
+    appType: "custom"
+  });
+  app2.use(vite.middlewares);
+  app2.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path2.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html"
+      );
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app2) {
+  const distPath = path2.resolve(import.meta.dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app2.use(express2.static(distPath));
+  app2.use("*", (_req, res) => {
+    res.sendFile(path2.resolve(distPath, "index.html"));
+  });
+}
+
+// server/index.ts
+var app = express3();
+var corsOptions = {
+  origin: process.env.NODE_ENV === "production" ? ["https://bismi-main.onrender.com", /\.onrender\.com$/] : ["http://localhost:5000", "http://127.0.0.1:5000"],
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "Accept"],
+  optionsSuccessStatus: 200
+};
+app.use(cors(corsOptions));
+app.use(express3.json({ limit: "50mb" }));
+app.use(express3.urlencoded({ extended: false, limit: "50mb" }));
+if (process.env.NODE_ENV === "development") {
+  log("Frontend configured to connect directly to Render backend: https://bismi-main.onrender.com");
+}
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path3 = req.path;
+  let capturedJsonResponse = void 0;
+  const originalResJson = res.json;
+  res.json = function(bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path3.startsWith("/api")) {
+      let logLine = `${req.method} ${path3} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "\u2026";
+      }
+      log(logLine);
+    }
+  });
+  next();
+});
+(async () => {
+  const server = await registerRoutes(app);
+  app.use((err, _req, res, _next) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    throw err;
+  });
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+  const port = 5e3;
+  if (server) {
+    server.listen(port, "0.0.0.0", () => {
+      log(`serving on port ${port}`);
+    });
+  }
+})();

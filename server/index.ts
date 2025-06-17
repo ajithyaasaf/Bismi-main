@@ -12,9 +12,12 @@ const corsOptions = {
         'https://bismi-main.onrender.com', 
         'https://bismi-main.vercel.app',
         /\.onrender\.com$/, 
-        /\.vercel\.app$/
+        /\.vercel\.app$/,
+        /\.replit\.dev$/,
+        // Allow any Vercel preview deployments
+        /^https:\/\/.*\.vercel\.app$/
       ]
-    : ['http://localhost:5000', 'http://127.0.0.1:5000'],
+    : ['http://localhost:5000', 'http://127.0.0.1:5000', /\.replit\.dev$/],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -22,6 +25,12 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Debug CORS issues
+app.use((req, res, next) => {
+  console.log(`Request from origin: ${req.get('Origin')} to ${req.method} ${req.path}`);
+  next();
+});
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 

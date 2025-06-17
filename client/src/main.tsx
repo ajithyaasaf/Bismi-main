@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import "./lib/api-only";
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {

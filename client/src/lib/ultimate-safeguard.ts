@@ -68,11 +68,11 @@ if (typeof window !== 'undefined') {
       try {
         const response = await originalFetch.call(this, input, init);
         
-        // Check if response is HTML when JSON expected (Vercel routing issue)
+        // Check if response is HTML when JSON expected (routing issue)
         const contentType = response.headers.get('content-type') || '';
         if (url.includes('/api/') && contentType.includes('text/html')) {
           console.error('API returned HTML instead of JSON:', url);
-          throw new Error(`API endpoint ${url} returned HTML - check Vercel routing`);
+          throw new Error(`API endpoint ${url} returned HTML - check API routing`);
         }
         
         return response;
@@ -93,8 +93,7 @@ if (typeof window !== 'undefined') {
         const trimmed = text.trim();
         if (trimmed.startsWith('<!DOCTYPE') || 
             trimmed.startsWith('<html') ||
-            trimmed.includes('<title>Error</title>') ||
-            trimmed.includes('Vercel') && trimmed.includes('<body>')) {
+            trimmed.includes('<title>Error</title>')) {
           
           console.error('🚫 BLOCKED: Attempted to parse HTML as JSON');
           console.error('Response preview:', trimmed.substring(0, 200));

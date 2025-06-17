@@ -129,6 +129,7 @@ This is a full-stack web application for managing a chicken shop business. The s
 
 ## Changelog
 - June 17, 2025. Initial setup
+- June 17, 2025. Fixed Vercel deployment configuration - simplified vercel.json to resolve MIME type errors and module loading issues
 
 ## User Preferences
 

@@ -1,0 +1,27 @@
+SIMPLE VERCEL DEPLOYMENT FIX
+
+Your Error: "Failed to load module script: Expected a JavaScript module but got HTML"
+This happens because Vercel is serving HTML instead of your JavaScript files.
+
+SOLUTION (3 steps):
+
+1. In your Vercel dashboard, set these build settings:
+   - Build Command: vite build
+   - Output Directory: dist/public
+   - Install Command: npm install
+
+2. Add this environment variable in Vercel:
+   - VITE_API_BASE_URL = https://bismi-main.onrender.com
+
+3. Your vercel.json is now simplified to just:
+   {
+     "buildCommand": "vite build",
+     "outputDirectory": "dist/public"
+   }
+
+That's it! This tells Vercel to:
+- Only build your frontend (not the backend)
+- Put the built files in the right place
+- Connect your frontend to your existing backend on Render
+
+Your backend on Render stays untouched and working.

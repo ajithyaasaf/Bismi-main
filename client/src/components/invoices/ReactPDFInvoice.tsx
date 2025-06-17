@@ -1,5 +1,4 @@
-// Temporarily disabled React PDF component due to import issues
-// Will be re-enabled once the build system is properly configured
+// React PDF component for invoice generation
 
 import { Customer, Order, Transaction } from '@shared/types';
 
@@ -27,14 +26,14 @@ export interface InvoiceData {
   };
 }
 
-// Placeholder component until React PDF is properly configured
+// PDF component for invoice generation
 export const InvoicePDFDocument = ({ data }: { data: InvoiceData }) => {
-  return null; // Temporarily disabled
+  return null; // Component disabled
 };
 
-// Placeholder function until React PDF is properly configured
+// PDF generation function
 export const generateCustomerInvoicePDF = async (data: InvoiceData): Promise<Blob | null> => {
-  console.warn('PDF generation temporarily disabled - React PDF configuration needed');
+  console.warn('PDF generation disabled - React PDF configuration needed');
   return null;
 };
 

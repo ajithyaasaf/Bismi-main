@@ -1,4 +1,4 @@
-// API Configuration for deployment
+// API Configuration
 export const API_CONFIG = {
   // Always use Render backend URL since it's working
   BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://bismi-main.onrender.com',

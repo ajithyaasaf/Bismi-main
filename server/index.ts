@@ -5,7 +5,7 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-// Configure CORS for production deployment
+// Configure CORS for production
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://bismi-main.onrender.com', /\.onrender\.com$/]

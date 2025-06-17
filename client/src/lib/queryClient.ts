@@ -6,7 +6,7 @@ async function throwIfResNotOk(res: Response) {
     try {
       const text = await res.text();
       
-      // Enhanced error logging for production debugging
+      // Enhanced error logging for debugging
       console.error("API Error Details:", {
         status: res.status,
         statusText: res.statusText,

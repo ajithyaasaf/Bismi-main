@@ -3,7 +3,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 
 const app = express();
-const PORT = process.env.PORT || 10000;
+const PORT = parseInt(process.env.PORT || '10000', 10);
 
 // Production middleware
 app.use(cors({

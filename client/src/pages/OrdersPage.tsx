@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Order, Customer, Inventory } from "@shared/schema";
+import { Order, Customer, Inventory } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import OrdersList from "@/components/orders/OrdersList";
 import NewOrderModal from "@/components/modals/NewOrderModal";

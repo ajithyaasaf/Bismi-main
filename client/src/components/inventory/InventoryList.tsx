@@ -1,4 +1,4 @@
-import { Inventory } from "@shared/schema";
+import { Inventory } from "@shared/types";
 import { getItemLabel } from "@shared/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

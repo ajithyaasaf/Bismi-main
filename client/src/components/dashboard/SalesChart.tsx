@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { useQuery } from '@tanstack/react-query';
-import { Order } from '@shared/schema';
+import { Order } from '@shared/types';
 
 Chart.register(...registerables);
 

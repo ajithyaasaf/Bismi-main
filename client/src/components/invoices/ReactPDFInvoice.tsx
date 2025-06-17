@@ -1,7 +1,7 @@
 // Temporarily disabled React PDF component due to import issues
 // Will be re-enabled once the build system is properly configured
 
-import { Customer, Order, Transaction } from '@shared/schema';
+import { Customer, Order, Transaction } from '@shared/types';
 
 export interface InvoiceData {
   customer: Customer;

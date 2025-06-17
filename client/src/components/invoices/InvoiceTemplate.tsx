@@ -1,5 +1,5 @@
 import { forwardRef } from 'react';
-import { Customer, Order, Transaction } from '@shared/schema';
+import { Customer, Order, Transaction } from '@shared/types';
 import { format, differenceInDays, parseISO } from 'date-fns';
 
 interface InvoiceTemplateProps {

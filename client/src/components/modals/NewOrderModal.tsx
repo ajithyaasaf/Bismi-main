@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from '@tanstack/react-query';
-import { Customer, Inventory, OrderItem } from '@shared/schema';
+import { Customer, Inventory, OrderItem } from '@shared/types';
 import { ITEM_TYPES, CUSTOMER_TYPES, PAYMENT_STATUS } from '@shared/constants';
 import { format, parseISO } from 'date-fns';
 import { apiRequest } from '@/lib/queryClient';

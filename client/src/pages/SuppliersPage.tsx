@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Supplier } from "@shared/schema";
+import { Supplier } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import SupplierForm from "@/components/suppliers/SupplierForm";
 import SuppliersList from "@/components/suppliers/SuppliersList";

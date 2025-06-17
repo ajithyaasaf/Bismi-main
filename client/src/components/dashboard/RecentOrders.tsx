@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Order, Customer } from "@shared/schema";
+import { Order, Customer } from "@shared/types";
 import { getItemLabel } from "@shared/constants";
 import { format } from "date-fns";
 

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from '@tanstack/react-query';
-import { Supplier } from '@shared/schema';
+import { Supplier } from '@shared/types';
 import { ITEM_TYPES } from '@shared/constants';
 import { apiRequest } from '@/lib/queryClient';
 import * as InventoryService from '@/lib/inventory-service';

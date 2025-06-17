@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Inventory } from "@shared/schema";
+import { Inventory } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import InventoryForm from "@/components/inventory/InventoryForm";
 import InventoryList from "@/components/inventory/InventoryList";

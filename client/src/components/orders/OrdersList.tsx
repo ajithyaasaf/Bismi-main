@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Order, Customer, OrderItem } from "@shared/schema";
+import { Order, Customer, OrderItem } from "@shared/types";
 import { getItemLabel } from "@shared/constants";
 import { Card, CardContent } from "@/components/ui/card";
 import {

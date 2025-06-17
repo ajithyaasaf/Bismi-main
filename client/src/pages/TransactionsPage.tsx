@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Transaction, Supplier, Customer } from "@shared/schema";
+import { Transaction, Supplier, Customer } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import TransactionForm from "@/components/transactions/TransactionForm";
 import TransactionsList from "@/components/transactions/TransactionsList";

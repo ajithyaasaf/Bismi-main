@@ -1,4 +1,4 @@
-import { Supplier, Customer, Inventory, Order } from "@shared/schema";
+import { Supplier, Customer, Inventory, Order } from "@shared/types";
 import StatsCard from "./StatsCard";
 import SalesChart from "./SalesChart";
 import RecentOrders from "./RecentOrders";

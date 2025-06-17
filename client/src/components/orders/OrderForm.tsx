@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Customer, Inventory } from "@shared/schema";
+import { Customer, Inventory } from "@shared/types";
 import { ITEM_TYPES, CUSTOMER_TYPES, PAYMENT_STATUS } from "@shared/constants";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";

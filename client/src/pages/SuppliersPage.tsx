@@ -129,7 +129,7 @@ export default function SuppliersPage() {
           entityType="supplier"
           entityId={supplierForPayment.id}
           entityName={supplierForPayment.name}
-          currentDebt={supplierForPayment.debt || 0}
+          currentDebt={supplierForPayment.pendingAmount || 0}
         />
       )}
     </>

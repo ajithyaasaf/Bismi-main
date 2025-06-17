@@ -9,7 +9,7 @@ import { apiRequest } from '@/lib/queryClient';
 import PaymentModal from '@/components/modals/PaymentModal';
 
 export default function SupplierDebts() {
-  const [selectedSupplier, setSelectedSupplier] = useState<{id: string, name: string, debt?: number} | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<{id: string, name: string, pendingAmount?: number} | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [isPaying, setIsPaying] = useState<string | null>(null);
 
@@ -25,7 +25,7 @@ export default function SupplierDebts() {
     queryKey: ['/api/transactions'],
   });
   
-  const openPaymentModal = (supplier: {id: string, name: string, debt?: number}) => {
+  const openPaymentModal = (supplier: {id: string, name: string, pendingAmount?: number}) => {
     setSelectedSupplier(supplier);
     setPaymentModalOpen(true);
   };
@@ -74,15 +74,15 @@ export default function SupplierDebts() {
       t.entityId === supplier.id && t.entityType === 'supplier'
     );
     
-    const debt = supplierTransactions.reduce((sum, transaction) => {
+    const pendingAmount = supplierTransactions.reduce((sum, transaction) => {
       return transaction.type === 'purchase' ? sum + transaction.amount : sum - transaction.amount;
     }, 0);
     
     return {
       ...supplier,
-      debt: Math.max(0, debt)
+      pendingAmount: Math.max(0, pendingAmount)
     };
-  }).filter(supplier => supplier.debt > 0);
+  }).filter(supplier => supplier.pendingAmount > 0);
 
   if (isLoading) {
     return (
@@ -122,7 +122,7 @@ export default function SupplierDebts() {
                   </div>
                   <div className="flex items-center space-x-3">
                     <Badge variant="destructive">
-                      ₹{supplier.debt?.toLocaleString()}
+                      ₹{supplier.pendingAmount?.toLocaleString()}
                     </Badge>
                     <Button 
                       size="sm" 

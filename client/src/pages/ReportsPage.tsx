@@ -223,7 +223,7 @@ export default function ReportsPage() {
                       {report.suppliers.map((supplier: any) => (
                         <TableRow key={supplier.id}>
                           <TableCell>{supplier.name}</TableCell>
-                          <TableCell className="text-right text-red-600">₹{supplier.debt.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-red-600">₹{supplier.pendingAmount.toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

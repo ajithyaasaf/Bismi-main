@@ -18,7 +18,7 @@ interface SupplierFormProps {
 export default function SupplierForm({ supplier, isOpen, onClose }: SupplierFormProps) {
   const [name, setName] = useState(supplier?.name || "");
   const [contact, setContact] = useState(supplier?.contact || "");
-  const [debt, setDebt] = useState(supplier?.debt.toString() || "0");
+  const [pendingAmount, setPendingAmount] = useState(supplier?.pendingAmount.toString() || "0");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
@@ -37,11 +37,11 @@ export default function SupplierForm({ supplier, isOpen, onClose }: SupplierForm
       return;
     }
     
-    const debtValue = parseFloat(debt);
-    if (isNaN(debtValue) || debtValue < 0) {
+    const pendingAmountValue = parseFloat(pendingAmount);
+    if (isNaN(pendingAmountValue) || pendingAmountValue < 0) {
       toast({
-        title: "Invalid debt value",
-        description: "Debt must be a valid positive number or zero",
+        title: "Invalid pending amount",
+        description: "Pending amount must be a valid positive number or zero",
         variant: "destructive",
       });
       return;
@@ -54,7 +54,7 @@ export default function SupplierForm({ supplier, isOpen, onClose }: SupplierForm
       const supplierData = {
         name,
         contact,
-        debt: debtValue,
+        pendingAmount: pendingAmountValue,
       };
       
       if (isEditing && supplier) {
@@ -81,7 +81,7 @@ export default function SupplierForm({ supplier, isOpen, onClose }: SupplierForm
       // Close modal and reset form
       setName("");
       setContact("");
-      setDebt("0");
+      setPendingAmount("0");
       onClose();
     } catch (error) {
       console.error("Error in supplier form submission:", error);
@@ -137,14 +137,14 @@ export default function SupplierForm({ supplier, isOpen, onClose }: SupplierForm
           
           {/* Debt */}
           <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-            <Label htmlFor="debt" className="text-sm font-medium sm:text-right">
+            <Label htmlFor="pendingAmount" className="text-sm font-medium sm:text-right">
               Debt (₹)
             </Label>
             <Input
-              id="debt"
+              id="pendingAmount"
               type="number"
-              value={debt}
-              onChange={(e) => setDebt(e.target.value)}
+              value={pendingAmount}
+              onChange={(e) => setPendingAmount(e.target.value)}
               className="sm:col-span-3"
               placeholder="0.00"
               min="0"

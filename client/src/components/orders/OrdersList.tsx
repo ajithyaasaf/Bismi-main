@@ -91,7 +91,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
       // Add item details
       message += `\n\n*Items Purchased:*`;
       (specificOrder.items as OrderItem[]).forEach(item => {
-        message += `\n- ${item.quantity.toFixed(2)} kg ${getItemLabel(item.type)} (₹${item.rate.toFixed(2)}/kg)`;
+        message += `\n- ${item.quantity.toFixed(2)} kg ${getItemLabel(item.type)} (₹${item.price.toFixed(2)}/kg)`;
       });
     } else {
       // No specific order, just a general message
@@ -335,8 +335,8 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       <TableRow key={index}>
                         <TableCell className="capitalize">{item.type}</TableCell>
                         <TableCell className="text-right">{item.quantity.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{item.rate.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{(item.quantity * item.rate).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{item.price.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{(item.quantity * item.price).toFixed(2)}</TableCell>
                         <TableCell>{item.details || '-'}</TableCell>
                       </TableRow>
                     ))}

@@ -50,7 +50,7 @@ export default function DashboardPage() {
 
   // Calculate totals
   const totalStock = inventory.reduce((sum, item) => sum + item.quantity, 0);
-  const supplierDebts = suppliers.reduce((sum, supplier) => sum + (supplier.debt || 0), 0);
+  const supplierDebts = suppliers.reduce((sum, supplier) => sum + (supplier.pendingAmount || 0), 0);
   const pendingPayments = customers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
   
   // Get today's orders
@@ -86,10 +86,10 @@ export default function DashboardPage() {
     })
     .slice(0, 5);
   
-  // Suppliers with debt
+  // Suppliers with pendingAmount
   const suppliersWithDebt = suppliers
-    .filter(supplier => (supplier.debt || 0) > 0)
-    .sort((a, b) => (b.debt || 0) - (a.debt || 0));
+    .filter(supplier => (supplier.pendingAmount || 0) > 0)
+    .sort((a, b) => (b.pendingAmount || 0) - (a.pendingAmount || 0));
 
   // Handle modal toggling
   const openAddStockModal = () => setIsAddStockModalOpen(true);

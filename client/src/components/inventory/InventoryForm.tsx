@@ -20,7 +20,7 @@ interface InventoryFormProps {
 export default function InventoryForm({ item, isOpen, onClose }: InventoryFormProps) {
   const [type, setType] = useState(item?.type || "chicken");
   const [quantity, setQuantity] = useState(item?.quantity.toString() || "0");
-  const [rate, setRate] = useState(item?.rate.toString() || "0");
+  const [rate, setRate] = useState(item?.price.toString() || "0");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
@@ -69,7 +69,7 @@ export default function InventoryForm({ item, isOpen, onClose }: InventoryFormPr
       const itemData = {
         type,
         quantity: quantityValue,
-        rate: rateValue,
+        price: rateValue,
       };
       
       if (isEditing && item) {

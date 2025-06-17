@@ -98,14 +98,14 @@ export default function PaymentModal({
             
             <div className="mt-2 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
               {entityType === 'supplier' ? (
-                <p>This amount will be deducted from the {entityType}'s outstanding debt.</p>
+                <p>This amount will be deducted from the {entityType}'s outstanding pendingAmount.</p>
               ) : (
                 <p>This amount will be deducted from the {entityType}'s pending amount.</p>
               )}
               
               {currentAmount > 0 && (
                 <p className="mt-2 font-medium">
-                  Current {entityType === 'supplier' ? 'debt' : 'pending amount'}: ₹{currentAmount.toFixed(2)}
+                  Current {entityType === 'supplier' ? 'pendingAmount' : 'pending amount'}: ₹{currentAmount.toFixed(2)}
                 </p>
               )}
             </div>

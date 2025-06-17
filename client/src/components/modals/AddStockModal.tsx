@@ -97,11 +97,11 @@ export default function AddStockModal({ isOpen, onClose, suppliers }: AddStockMo
       setIsSubmitting(true);
       
       // Add stock via API - single source of truth
-      // The API will handle inventory updates, supplier debt, and transaction creation
+      // The API will handle inventory updates, supplier pendingAmount, and transaction creation
       await apiRequest('POST', '/api/add-stock', {
         type,
         quantity: qtyNum,
-        rate: rateNum,
+        price: rateNum,
         supplierId: supplier
       });
       

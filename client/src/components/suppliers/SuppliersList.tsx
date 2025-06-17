@@ -74,13 +74,13 @@ export default function SuppliersList({
                 
                 <div className="space-y-1">
                   <p className="text-xs text-gray-500">Outstanding Debt</p>
-                  <p className={`font-bold text-base ${supplier.debt > 0 ? 'text-red-600' : ''}`}>
-                    ₹{supplier.debt.toFixed(2)}
+                  <p className={`font-bold text-base ${supplier.pendingAmount > 0 ? 'text-red-600' : ''}`}>
+                    ₹{supplier.pendingAmount.toFixed(2)}
                   </p>
                 </div>
               </div>
               
-              {supplier.debt > 0 && (
+              {supplier.pendingAmount > 0 && (
                 <div className="p-3 bg-gray-50">
                   <Button 
                     variant="outline"
@@ -114,8 +114,8 @@ export default function SuppliersList({
                 <TableRow key={supplier.id}>
                   <TableCell className="font-medium">{supplier.name}</TableCell>
                   <TableCell>{supplier.contact || "-"}</TableCell>
-                  <TableCell className={`text-right ${supplier.debt > 0 ? 'text-red-600 font-medium' : ''}`}>
-                    ₹{supplier.debt.toFixed(2)}
+                  <TableCell className={`text-right ${supplier.pendingAmount > 0 ? 'text-red-600 font-medium' : ''}`}>
+                    ₹{supplier.pendingAmount.toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-center gap-2">
@@ -134,7 +134,7 @@ export default function SuppliersList({
                       >
                         <i className="fas fa-trash"></i>
                       </Button>
-                      {supplier.debt > 0 && (
+                      {supplier.pendingAmount > 0 && (
                         <Button 
                           variant="outline" 
                           size="sm" 

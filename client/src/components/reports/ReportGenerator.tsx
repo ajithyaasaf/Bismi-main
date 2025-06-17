@@ -55,7 +55,7 @@ export default function ReportGenerator({
       
       if (report.suppliers && report.suppliers.length > 0) {
         report.suppliers.forEach((supplier: any) => {
-          csvContent += `${supplier.id},${supplier.name},₹${supplier.debt.toFixed(2)}\n`;
+          csvContent += `${supplier.id},${supplier.name},₹${supplier.pendingAmount.toFixed(2)}\n`;
         });
       }
       

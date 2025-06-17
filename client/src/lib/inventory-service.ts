@@ -30,7 +30,7 @@ export async function deleteInventoryItem(id: string) {
   return response.ok;
 }
 
-// Add stock to inventory (uses API for enterprise validation and supplier debt tracking)
+// Add stock to inventory (uses API for enterprise validation and supplier pendingAmount tracking)
 export async function addStock(stockData: any) {
   const response = await apiRequest('POST', '/api/add-stock', stockData);
   return response.json();

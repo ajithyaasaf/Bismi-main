@@ -83,12 +83,12 @@ export default function InventoryList({ items, onEdit, onDelete }: InventoryList
                 
                 <div className="space-y-1">
                   <p className="text-xs text-gray-500">Rate</p>
-                  <p className="font-medium">₹{item.rate.toFixed(2)}/kg</p>
+                  <p className="font-medium">₹{item.price.toFixed(2)}/kg</p>
                 </div>
                 
                 <div className="space-y-1 col-span-2 pt-2 border-t border-gray-100">
                   <p className="text-xs text-gray-500">Total Value</p>
-                  <p className="font-bold text-lg">₹{(item.quantity * item.rate).toFixed(2)}</p>
+                  <p className="font-bold text-lg">₹{(item.quantity * item.price).toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
@@ -125,10 +125,10 @@ export default function InventoryList({ items, onEdit, onDelete }: InventoryList
                     {item.quantity < 0 ? 'Negative: ' : ''}{item.quantity.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right">
-                    ₹{item.rate.toFixed(2)}
+                    ₹{item.price.toFixed(2)}
                   </TableCell>
                   <TableCell className="text-right">
-                    ₹{(item.quantity * item.rate).toFixed(2)}
+                    ₹{(item.quantity * item.price).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-center gap-2">

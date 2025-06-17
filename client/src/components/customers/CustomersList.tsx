@@ -117,9 +117,9 @@ export default function CustomersList({
               message += `\n\n*Items Purchased:*`;
               latestOrder.items.forEach((item: any) => {
                 const itemDetails = item.details ? ` - ${item.details}` : '';
-                const itemTotal = (item.quantity * item.rate).toFixed(2);
+                const itemTotal = (item.quantity * item.price).toFixed(2);
                 message += `\n• ${item.quantity.toFixed(2)} kg ${item.type}${itemDetails}`;
-                message += `\n  Rate: ₹${item.rate.toFixed(2)}/kg | Total: ₹${itemTotal}`;
+                message += `\n  Rate: ₹${item.price.toFixed(2)}/kg | Total: ₹${itemTotal}`;
               });
             }
           }

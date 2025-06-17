@@ -51,7 +51,7 @@ async function getStorage() {
   return await storageManager.initialize();
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<Server | void> {
   // Add middleware to ensure all API responses are JSON
   app.use('/api', (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');

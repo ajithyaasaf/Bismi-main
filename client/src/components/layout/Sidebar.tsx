@@ -56,27 +56,24 @@ export default function Sidebar({ isOpen, closeSidebar }: SidebarProps) {
                 key={item.path} 
                 href={item.path} 
                 onClick={closeSidebar}
+                className={`
+                  flex items-center px-4 py-3 rounded-lg group transition-all duration-200
+                  ${
+                    isActive(item.path)
+                      ? "text-white bg-orange-600 shadow-md"
+                      : "text-gray-200 hover:bg-gray-700/50 hover:text-white"
+                  }
+                `}
               >
                 <div
                   className={`
-                    flex items-center px-4 py-3 rounded-lg group transition-all duration-200
-                    ${
-                      isActive(item.path)
-                        ? "text-white bg-orange-600 shadow-md"
-                        : "text-gray-200 hover:bg-gray-700/50 hover:text-white"
-                    }
+                    flex items-center justify-center w-10 h-10 rounded-full mr-3
+                    ${isActive(item.path) ? "bg-white/20" : "bg-gray-800"}
                   `}
                 >
-                  <div
-                    className={`
-                      flex items-center justify-center w-10 h-10 rounded-full mr-3
-                      ${isActive(item.path) ? "bg-white/20" : "bg-gray-800"}
-                    `}
-                  >
-                    <i className={`fas ${item.icon}`}></i>
-                  </div>
-                  <span className="font-medium">{item.name}</span>
+                  <i className={`fas ${item.icon}`}></i>
                 </div>
+                <span className="font-medium">{item.name}</span>
               </Link>
             ))}
           </nav>

@@ -35,10 +35,8 @@ export default function RecentOrders({ orders, customers }: RecentOrdersProps) {
       <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-medium leading-6 text-gray-900">Recent Orders</h3>
-          <Link href="/orders">
-            <a className="text-sm font-medium text-blue-600 hover:text-blue-500">
-              View all
-            </a>
+          <Link href="/orders" className="text-sm font-medium text-blue-600 hover:text-blue-500">
+            View all
           </Link>
         </div>
       </div>

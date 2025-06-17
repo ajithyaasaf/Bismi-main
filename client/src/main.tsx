@@ -1,6 +1,5 @@
-// CRITICAL: Load Firebase blocking system FIRST before any other imports
-import "./lib/permanent-firebase-block";
-import "./lib/firebase-override";
+// CRITICAL: Load API enforcement system FIRST before any other imports
+import "./lib/api-enforcement";
 
 import { createRoot } from "react-dom/client";
 import App from "./App";

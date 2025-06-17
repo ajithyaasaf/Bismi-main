@@ -1,6 +1,3 @@
-// CRITICAL: Load ultimate safeguard FIRST before any other imports
-import "./lib/ultimate-safeguard";
-
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";

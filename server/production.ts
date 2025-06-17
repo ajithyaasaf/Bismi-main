@@ -8,9 +8,6 @@ const PORT = parseInt(process.env.PORT || '10000', 10);
 // Production middleware
 app.use(cors({
   origin: [
-    'https://bismi-chicken-shop.vercel.app',
-    'https://bismi-main.vercel.app',
-    /\.vercel\.app$/,
     /\.onrender\.com$/,
     'http://localhost:5173',
     'http://localhost:5000'
@@ -64,10 +61,15 @@ app.use((req, res, next) => {
       });
     });
 
-    server.listen(PORT, '0.0.0.0', () => {
-      console.log(`[Production] Bismi Backend Server running on port ${PORT}`);
-      console.log(`[Production] Health check: http://localhost:${PORT}/api/health`);
-    });
+    if (server) {
+      server.listen(PORT, '0.0.0.0', () => {
+        console.log(`[Production] Bismi Backend Server running on port ${PORT}`);
+        console.log(`[Production] Health check: http://localhost:${PORT}/api/health`);
+      });
+    } else {
+      console.error('[Production] Server creation failed');
+      process.exit(1);
+    }
 
   } catch (error) {
     console.error('[Production] Failed to start server:', error);

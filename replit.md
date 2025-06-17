@@ -25,7 +25,7 @@ This is a full-stack web application for managing a chicken shop business. The s
 
 ### Deployment Strategy
 - **Backend**: Deployed on Render at `https://bismi-main.onrender.com`
-- **Frontend**: Can be deployed to Vercel, Netlify, or other static hosting platforms
+- **Frontend**: Can be deployed to Netlify, Render Static Sites, or other static hosting platforms
 - **Configuration**: Environment-based configuration with production/development splits
 
 ## Key Components
@@ -111,7 +111,6 @@ This is a full-stack web application for managing a chicken shop business. The s
 - Built using `vite build` command
 - Output directory: `dist/public`
 - Can be deployed to multiple platforms:
-  - Vercel (primary recommendation)
   - Netlify
   - Render Static Sites
   - GitHub Pages

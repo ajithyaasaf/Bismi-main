@@ -495,18 +495,25 @@ export class FirestoreStorage implements IStorage {
   async getAllTransactions(): Promise<Transaction[]> {
     try {
       const snapshot = await this.db.collection('transactions').get();
-      return snapshot.docs.map((doc) => {
+      const transactions = snapshot.docs.map((doc) => {
         const data = doc.data();
-        return {
+        
+        // Safely parse each field to prevent data corruption
+        const transaction = {
           id: doc.id,
-          entityId: data.entityId || '',
-          entityType: data.entityType || '',
-          type: data.type || '',
-          amount: data.amount || 0,
-          description: data.description || '',
+          entityId: String(data.entityId || ''),
+          entityType: String(data.entityType || ''),
+          type: String(data.type || ''),
+          amount: Number(data.amount) || 0,
+          description: String(data.description || ''),
           createdAt: this.convertTimestamp(data.createdAt),
         };
+        
+        return transaction;
       });
+      
+      console.log(`Firestore: Successfully retrieved ${transactions.length} transactions`);
+      return transactions;
     } catch (error) {
       console.error('Error getting transactions:', error);
       throw new Error(`Failed to get transactions: ${error instanceof Error ? error.message : 'Unknown error'}`);

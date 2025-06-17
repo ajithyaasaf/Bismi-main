@@ -1,5 +1,5 @@
-// CRITICAL: Load API enforcement system FIRST before any other imports
-import "./lib/api-enforcement";
+// CRITICAL: Load complete Firebase blocker FIRST before any other imports
+import "./lib/complete-firebase-blocker";
 
 import { createRoot } from "react-dom/client";
 import App from "./App";

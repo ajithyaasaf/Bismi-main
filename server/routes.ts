@@ -18,6 +18,12 @@ async function getStorage() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Add middleware to ensure all API responses are JSON
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    next();
+  });
+
   // API routes
   const apiRouter = express.Router();
   app.use("/api", apiRouter);

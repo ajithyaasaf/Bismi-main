@@ -5,6 +5,21 @@ async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     try {
       const text = await res.text();
+      
+      // Enhanced error logging for production debugging
+      console.error("API Error Details:", {
+        status: res.status,
+        statusText: res.statusText,
+        url: res.url,
+        headers: Object.fromEntries(res.headers.entries()),
+        responseText: text.substring(0, 500) // Log first 500 chars
+      });
+      
+      // Check if response is HTML (common when API routing fails)
+      if (text.includes('<!DOCTYPE') || text.includes('<html>')) {
+        throw new Error(`API endpoint returned HTML instead of JSON. Check backend routing. Status: ${res.status}`);
+      }
+      
       throw new Error(`${res.status}: ${text}`);
     } catch (e) {
       console.error("API Error:", e);
@@ -19,11 +34,18 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const url = getApiUrl(endpoint);
+  
+  const headers: Record<string, string> = {
+    "Accept": "application/json",
+    "Content-Type": "application/json",
+  };
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
+    mode: "cors",
   });
 
   await throwIfResNotOk(res);
@@ -41,6 +63,11 @@ export const getQueryFn: <T>(options: {
     
     const res = await fetch(url, {
       credentials: "include",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+      mode: "cors",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

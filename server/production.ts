@@ -8,11 +8,17 @@ const PORT = parseInt(process.env.PORT || '10000', 10);
 // Production middleware
 app.use(cors({
   origin: [
+    'https://bismi-chicken-shop.vercel.app',
     'https://bismi-main.vercel.app',
+    /\.vercel\.app$/,
+    /\.onrender\.com$/,
     'http://localhost:5173',
     'http://localhost:5000'
   ],
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  optionsSuccessStatus: 200
 }));
 
 app.use(express.json({ limit: '10mb' }));

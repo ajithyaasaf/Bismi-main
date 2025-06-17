@@ -1,28 +1,28 @@
-import { apiRequest } from './queryClient';
+import { apiRequest, safeJsonResponse } from './queryClient';
 import * as OrderService from './order-service';
 
 // Get all customers from API
 export async function getCustomers() {
   const response = await apiRequest('GET', '/api/customers');
-  return response.json();
+  return safeJsonResponse(response);
 }
 
 // Get a customer by ID from API
 export async function getCustomerById(id: string) {
   const response = await apiRequest('GET', `/api/customers/${id}`);
-  return response.json();
+  return safeJsonResponse(response);
 }
 
 // Add a new customer (uses API for enterprise validation)
 export async function addCustomer(customerData: any) {
   const response = await apiRequest('POST', '/api/customers', customerData);
-  return response.json();
+  return safeJsonResponse(response);
 }
 
 // Update an existing customer (uses API for enterprise validation)
 export async function updateCustomer(id: string, customerData: any) {
   const response = await apiRequest('PUT', `/api/customers/${id}`, customerData);
-  return response.json();
+  return safeJsonResponse(response);
 }
 
 // Delete a customer (uses API for enterprise validation)

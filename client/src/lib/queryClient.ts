@@ -113,7 +113,7 @@ export const getQueryFn: <T>(options: {
         }
 
         await throwIfResNotOk(res);
-        return await res.json();
+        return await safeJsonResponse(res);
       } catch (error) {
         lastError = error as Error;
         retries--;
@@ -130,6 +130,41 @@ export const getQueryFn: <T>(options: {
 
     throw lastError || new Error('Query failed after all retries');
   };
+
+// Safe JSON response handler that checks content type before parsing
+export async function safeJsonResponse(response: Response): Promise<any> {
+  const contentType = response.headers.get('content-type');
+  
+  // Check if response has JSON content type
+  if (contentType && contentType.includes('application/json')) {
+    try {
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to parse JSON response:', error);
+      throw new Error('Invalid JSON response from server');
+    }
+  }
+  
+  // If not JSON, get text content for better error handling
+  const text = await response.text();
+  
+  // Check if it's an HTML error page
+  if (text.includes('<!DOCTYPE') || text.includes('<html>')) {
+    throw new Error(`Server returned HTML error page instead of JSON. Status: ${response.status}`);
+  }
+  
+  // If it's plain text, try to parse as JSON (some APIs return JSON without proper content-type)
+  if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
+    }
+  }
+  
+  // For other cases, return the text as-is
+  return text;
+}
 
 export const queryClient = new QueryClient({
   defaultOptions: {

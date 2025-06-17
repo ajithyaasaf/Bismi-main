@@ -1,15 +1,15 @@
-import { apiRequest } from './queryClient';
+import { apiRequest, safeJsonResponse } from './queryClient';
 
 // Get all transactions from API
 export async function getTransactions() {
   const response = await apiRequest('GET', '/api/transactions');
-  return response.json();
+  return safeJsonResponse(response);
 }
 
 // Get a transaction by ID from API
 export async function getTransactionById(id: string) {
   const response = await apiRequest('GET', `/api/transactions/${id}`);
-  return response.json();
+  return safeJsonResponse(response);
 }
 
 // Get transactions by entity ID from API
@@ -21,5 +21,5 @@ export async function getTransactionsByEntity(entityId: string) {
 // Add a new transaction (uses API for enterprise validation)
 export async function addTransaction(transactionData: any) {
   const response = await apiRequest('POST', '/api/transactions', transactionData);
-  return response.json();
+  return safeJsonResponse(response);
 }

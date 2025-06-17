@@ -1,9 +1,10 @@
 // API Configuration for deployment
 export const API_CONFIG = {
-  // Use Render backend URL in production, local development server otherwise
-  BASE_URL: import.meta.env.PROD 
-    ? 'https://bismi-main.onrender.com'
-    : '',
+  // Use environment variable first, then fallback to Render URL in production
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || 
+    (import.meta.env.PROD 
+      ? 'https://bismi-main.onrender.com'
+      : ''),
   
   // Environment detection
   IS_PRODUCTION: import.meta.env.PROD,
@@ -15,7 +16,12 @@ export function getApiUrl(endpoint: string): string {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   
   if (API_CONFIG.IS_PRODUCTION) {
-    return `${API_CONFIG.BASE_URL}/api${cleanEndpoint}`;
+    const baseUrl = API_CONFIG.BASE_URL;
+    const fullUrl = `${baseUrl}/api${cleanEndpoint}`;
+    
+    // Enhanced logging for production debugging
+    console.log(`API Request: ${fullUrl}`);
+    return fullUrl;
   } else {
     return `/api${cleanEndpoint}`;
   }

@@ -40,16 +40,42 @@ export async function apiRequest(
     "Content-Type": "application/json",
   };
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-    mode: "cors",
-  });
+  // Add retry logic for Render backend wake-up
+  let retries = 3;
+  let lastError: Error | null = null;
 
-  await throwIfResNotOk(res);
-  return res;
+  while (retries > 0) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+      const res = await fetch(url, {
+        method,
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+        mode: "cors",
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      await throwIfResNotOk(res);
+      return res;
+    } catch (error) {
+      lastError = error as Error;
+      retries--;
+      
+      if (retries > 0 && (error as Error).name === 'AbortError') {
+        console.log(`Backend timeout, retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
+      } else if (retries > 0) {
+        console.log(`Request failed, retrying... (${retries} attempts left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  throw lastError || new Error('Request failed after all retries');
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -61,21 +87,48 @@ export const getQueryFn: <T>(options: {
     const endpoint = queryKey[0] as string;
     const url = endpoint.startsWith('http') ? endpoint : getApiUrl(endpoint.replace('/api', ''));
     
-    const res = await fetch(url, {
-      credentials: "include",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      },
-      mode: "cors",
-    });
+    // Add retry logic for queries too
+    let retries = 3;
+    let lastError: Error | null = null;
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    while (retries > 0) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+        const res = await fetch(url, {
+          credentials: "include",
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+          },
+          mode: "cors",
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+          return null;
+        }
+
+        await throwIfResNotOk(res);
+        return await res.json();
+      } catch (error) {
+        lastError = error as Error;
+        retries--;
+        
+        if (retries > 0 && (error as Error).name === 'AbortError') {
+          console.log(`Query timeout, retrying... (${retries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } else if (retries > 0) {
+          console.log(`Query failed, retrying... (${retries} attempts left)`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
     }
 
-    await throwIfResNotOk(res);
-    return await res.json();
+    throw lastError || new Error('Query failed after all retries');
   };
 
 export const queryClient = new QueryClient({

@@ -1,5 +1,5 @@
-// CRITICAL: Load Vercel deployment fix FIRST before any other imports
-import "./lib/vercel-fix";
+// CRITICAL: Load simple Firebase blocker FIRST before any other imports
+import "./lib/simple-firebase-block";
 
 import { createRoot } from "react-dom/client";
 import App from "./App";

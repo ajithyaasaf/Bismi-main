@@ -1,25 +1,20 @@
 // API Configuration for deployment
-import { VERCEL_API_CONFIG } from './vercel-fix';
-
 export const API_CONFIG = {
-  // Use Vercel-optimized configuration
-  BASE_URL: VERCEL_API_CONFIG.BASE_URL,
+  // Always use Render backend URL since it's working
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://bismi-main.onrender.com',
   
   // Environment detection
-  IS_PRODUCTION: VERCEL_API_CONFIG.IS_PRODUCTION,
-  IS_DEVELOPMENT: !VERCEL_API_CONFIG.IS_PRODUCTION,
-  IS_VERCEL: VERCEL_API_CONFIG.IS_VERCEL,
+  IS_PRODUCTION: import.meta.env.PROD,
+  IS_DEVELOPMENT: import.meta.env.DEV,
 } as const;
 
 // Helper function to construct API URLs
 export function getApiUrl(endpoint: string): string {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const baseUrl = API_CONFIG.BASE_URL;
-  const fullUrl = `${baseUrl}${cleanEndpoint.startsWith('/api') ? cleanEndpoint : `/api${cleanEndpoint}`}`;
+  const fullUrl = `${baseUrl}/api${cleanEndpoint}`;
   
-  // Enhanced logging for debugging (only in development)
-  if (!API_CONFIG.IS_PRODUCTION) {
-    console.log(`API Request: ${fullUrl}`);
-  }
+  // Enhanced logging for debugging
+  console.log(`API Request: ${fullUrl}`);
   return fullUrl;
 }

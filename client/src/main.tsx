@@ -1,7 +1,10 @@
+// CRITICAL: Load Firebase blocking system FIRST before any other imports
+import "./lib/permanent-firebase-block";
+import "./lib/firebase-override";
+
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import "./lib/api-only";
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {

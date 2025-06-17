@@ -2,7 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { createProxyMiddleware } from 'http-proxy-middleware';
 
 const app = express();
 
@@ -26,28 +25,9 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
-// In development, proxy API calls to the working Render backend
+// Development note: Frontend configured to use Render backend directly
 if (process.env.NODE_ENV === 'development') {
-  const apiProxy = createProxyMiddleware({
-    target: 'https://bismi-main.onrender.com',
-    changeOrigin: true,
-    pathRewrite: {
-      '^/api': '/api'
-    },
-    onError: (err, req, res) => {
-      console.log('Proxy error:', err.message);
-      res.status(500).json({ error: 'Proxy error' });
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      console.log('Proxying to Render:', req.method, req.url);
-    }
-  });
-  
-  app.use('/api', apiProxy);
-  log('API calls proxied to Render backend: https://bismi-main.onrender.com');
-} else {
-  // In production, use local routes
-  await registerRoutes(app);
+  log('Frontend configured to connect directly to Render backend: https://bismi-main.onrender.com');
 }
 
 app.use((req, res, next) => {

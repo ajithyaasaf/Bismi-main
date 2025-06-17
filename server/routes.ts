@@ -1,16 +1,50 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager";
-import { BalanceValidator } from "./balance-validator";
 import { v4 as uuidv4 } from 'uuid';
-import { 
-  insertSupplierSchema, 
-  insertInventorySchema, 
-  insertCustomerSchema, 
-  insertOrderSchema, 
-  insertTransactionSchema 
-} from "@shared/schema";
 import { z } from "zod";
+
+// Validation schemas
+const insertSupplierSchema = z.object({
+  name: z.string().min(1),
+  contact: z.string().min(1),
+  pendingAmount: z.number().optional().default(0)
+});
+
+const insertInventorySchema = z.object({
+  name: z.string().min(1),
+  type: z.string().min(1),
+  quantity: z.number().min(0),
+  unit: z.string().min(1),
+  price: z.number().min(0),
+  supplierId: z.string().min(1)
+});
+
+const insertCustomerSchema = z.object({
+  name: z.string().min(1),
+  contact: z.string().min(1),
+  customerType: z.string().min(1),
+  pendingAmount: z.number().optional().default(0)
+});
+
+const insertOrderSchema = z.object({
+  customerId: z.string().min(1),
+  items: z.array(z.object({
+    type: z.string().min(1),
+    quantity: z.number().min(1)
+  })),
+  totalAmount: z.number().min(0),
+  paymentStatus: z.string().min(1),
+  orderStatus: z.string().min(1)
+});
+
+const insertTransactionSchema = z.object({
+  entityId: z.string().min(1),
+  entityType: z.string().min(1),
+  type: z.string().min(1),
+  amount: z.number(),
+  description: z.string().min(1)
+});
 
 // Use enterprise storage with Firestore exclusively
 async function getStorage() {

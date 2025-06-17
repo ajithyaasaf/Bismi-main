@@ -13,7 +13,7 @@ import {
   InsertOrder,
   Transaction,
   InsertTransaction,
-} from '@shared/schema';
+} from '@shared/types';
 
 export class FirestoreStorage implements IStorage {
   private db: any;
@@ -100,7 +100,7 @@ export class FirestoreStorage implements IStorage {
       console.log('Firestore initialized successfully');
     } catch (error) {
       console.error('Failed to initialize Firebase Admin SDK:', error);
-      throw new Error(`Firebase Admin SDK initialization failed: ${error.message}`);
+      throw new Error(`Firebase Admin SDK initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

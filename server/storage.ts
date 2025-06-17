@@ -5,7 +5,7 @@ import {
   Customer, InsertCustomer,
   Order, InsertOrder,
   Transaction, InsertTransaction
-} from "@shared/schema";
+} from "@shared/types";
 
 // Interface with all CRUD operations for our application
 export interface IStorage {

@@ -474,12 +474,29 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   // Transaction routes
   apiRouter.get("/transactions", async (req: Request, res: Response) => {
     try {
+      console.log("Transactions endpoint called");
+      
+      // Set proper JSON headers
+      res.setHeader('Content-Type', 'application/json');
+      
       const storage = await getStorage();
+      console.log("Storage initialized for transactions");
+      
       const transactions = await storage.getAllTransactions();
-      res.json(transactions);
+      console.log(`Retrieved ${transactions.length} transactions`);
+      
+      // Ensure we return valid JSON array
+      const validTransactions = transactions || [];
+      res.json(validTransactions);
+      
     } catch (error) {
       console.error("Failed to get transactions:", error);
-      res.status(500).json({ message: "Failed to get transactions" });
+      res.setHeader('Content-Type', 'application/json');
+      res.status(500).json({ 
+        message: "Failed to get transactions",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
     }
   });
 

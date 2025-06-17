@@ -131,6 +131,7 @@ This is a full-stack web application for managing a chicken shop business. The s
 - June 17, 2025. Initial setup
 - June 17, 2025. Fixed Vercel deployment configuration - simplified vercel.json to resolve MIME type errors and module loading issues
 - June 17, 2025. Fixed CORS policy to allow requests from Vercel domain (bismi-main.vercel.app) to Render backend
+- June 17, 2025. Fixed transactions API endpoint to return proper JSON instead of HTML - added Content-Type headers and improved error handling
 
 ## User Preferences
 

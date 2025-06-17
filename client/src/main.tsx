@@ -1,5 +1,5 @@
-// CRITICAL: Load simple Firebase blocker FIRST before any other imports
-import "./lib/simple-firebase-block";
+// CRITICAL: Load ultimate safeguard FIRST before any other imports
+import "./lib/ultimate-safeguard";
 
 import { createRoot } from "react-dom/client";
 import App from "./App";

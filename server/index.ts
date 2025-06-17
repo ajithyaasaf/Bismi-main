@@ -8,12 +8,7 @@ const app = express();
 // Configure CORS for production deployment
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
-    ? [
-        'https://bismi-chicken-shop.vercel.app',
-        'https://bismi-main.onrender.com',
-        /\.vercel\.app$/,
-        /\.onrender\.com$/
-      ]
+    ? ['https://bismi-main.onrender.com', /\.onrender\.com$/]
     : ['http://localhost:5000', 'http://127.0.0.1:5000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -75,29 +70,18 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    await setupVite(app, server!);
   } else {
     serveStatic(app);
   }
 
-  // Check if we're running in Vercel (serverless) or locally
-  if (process.env.VERCEL) {
-    console.log('Running in Vercel serverless environment');
-    // In serverless, don't start a server - just export the app
-  } else {
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client.
-    // It is the only port that is not firewalled.
-    const port = 5000;
-    server.listen({
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    }, () => {
+  // ALWAYS serve the app on port 5000
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = 5000;
+  if (server) {
+    server.listen(port, "0.0.0.0", () => {
       log(`serving on port ${port}`);
     });
   }
 })();
-
-// Export the initialized app for Vercel serverless
-export default app;

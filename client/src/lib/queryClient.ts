@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getApiUrl } from "./config";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -6,8 +7,6 @@ async function throwIfResNotOk(res: Response) {
       const text = await res.text();
       throw new Error(`${res.status}: ${text}`);
     } catch (e) {
-      // In case we can't parse the response properly (like in Vercel)
-      // Still throw but with a more general error
       console.error("API Error:", e);
       throw new Error(`Request failed with status ${res.status}`);
     }
@@ -16,9 +15,10 @@ async function throwIfResNotOk(res: Response) {
 
 export async function apiRequest(
   method: string,
-  url: string,
+  endpoint: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const url = getApiUrl(endpoint);
   const res = await fetch(url, {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -36,7 +36,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
+    const endpoint = queryKey[0] as string;
+    const url = endpoint.startsWith('http') ? endpoint : getApiUrl(endpoint);
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 

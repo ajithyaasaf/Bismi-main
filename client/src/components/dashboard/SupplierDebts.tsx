@@ -68,21 +68,10 @@ export default function SupplierDebts() {
     }
   };
 
-  // Calculate supplier debts from transactions
-  const supplierDebts = suppliers.map(supplier => {
-    const supplierTransactions = transactions.filter(t => 
-      t.entityId === supplier.id && t.entityType === 'supplier'
-    );
-    
-    const pendingAmount = supplierTransactions.reduce((sum, transaction) => {
-      return transaction.type === 'purchase' ? sum + transaction.amount : sum - transaction.amount;
-    }, 0);
-    
-    return {
-      ...supplier,
-      pendingAmount: Math.max(0, pendingAmount)
-    };
-  }).filter(supplier => supplier.pendingAmount > 0);
+  // Use supplier's actual pending amount field
+  const supplierDebts = suppliers.filter(supplier => 
+    supplier.pendingAmount && supplier.pendingAmount > 0
+  );
 
   if (isLoading) {
     return (
@@ -145,7 +134,7 @@ export default function SupplierDebts() {
         onSubmit={handlePaymentSubmit}
         entityName={selectedSupplier?.name || ''}
         entityType="supplier"
-        isSubmitting={isPaying !== null}
+        currentAmount={selectedSupplier?.pendingAmount || 0}
       />
     </>
   );

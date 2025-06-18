@@ -111,9 +111,10 @@ export default function AddStockModal({ isOpen, onClose, suppliers }: AddStockMo
         description: `Added ${qtyNum} kg of ${type} to inventory`
       });
       
-      // Refresh queries
+      // Refresh queries and dashboard data
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       
       // Close modal and reset form
       resetForm();

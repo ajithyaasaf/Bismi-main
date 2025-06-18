@@ -75,8 +75,9 @@ export default function SupplierForm({ supplier, isOpen, onClose }: SupplierForm
         });
       }
       
-      // Refresh suppliers data
+      // Refresh suppliers data and dashboard
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       
       // Close modal and reset form
       setName("");

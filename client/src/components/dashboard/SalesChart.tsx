@@ -42,14 +42,14 @@ export default function SalesChart() {
       dayEnd.setHours(23, 59, 59, 999);
       
       const dayOrders = orders.filter(order => {
-        // Enterprise timestamp handling - use createdAt first, then date
-        const orderWithTimestamp = order as any;
-        const timestamp = orderWithTimestamp.createdAt || order.date;
+        // Use createdAt timestamp
+        const timestamp = order.createdAt;
+        if (!timestamp) return false;
         const orderDate = new Date(timestamp);
         return orderDate >= dayStart && orderDate <= dayEnd;
       });
       
-      return dayOrders.reduce((sum, order) => sum + order.total, 0);
+      return dayOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     });
     
     // Create new chart

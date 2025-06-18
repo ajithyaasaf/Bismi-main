@@ -78,8 +78,9 @@ export default function CustomerForm({ customer, isOpen, onClose }: CustomerForm
         });
       }
       
-      // Refresh customers data
+      // Refresh customers data and dashboard
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       
       // Close modal and reset form
       setName("");

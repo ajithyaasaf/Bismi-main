@@ -179,22 +179,25 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         // Find inventory item for this type
         const inventoryItem = inventory.find(i => i.type === item.type);
         
-        // Show low stock warning but allow order to proceed (enterprise mode)
-        if (inventoryItem && inventoryItem.quantity < quantity) {
-          toast({
-            title: "Low stock notice",
-            description: `Stock will go below available inventory. Available: ${inventoryItem.quantity}kg, Ordered: ${quantity}kg`,
-            variant: "default" // Changed from destructive to default (informational)
-          });
-        }
-        
-        // If no inventory item exists, we'll create the order anyway but note it
-        if (!inventoryItem) {
-          toast({
-            title: "No inventory record",
-            description: `No inventory found for ${item.type}. Order will proceed but inventory will need manual adjustment.`,
-            variant: "default"
-          });
+        // Enterprise inventory management: Warn about low stock but allow negative inventory
+        if (inventoryItem) {
+          const remainingStock = inventoryItem.quantity - quantity;
+          if (remainingStock < 0) {
+            toast({
+              title: "Negative inventory warning",
+              description: `Stock will be negative after this order. Available: ${inventoryItem.quantity}kg, Ordered: ${quantity}kg, Remaining: ${remainingStock}kg`,
+              variant: "default"
+            });
+          } else if (remainingStock < 5) {
+            toast({
+              title: "Low stock warning",
+              description: `Low stock after order. Remaining: ${remainingStock}kg`,
+              variant: "default"
+            });
+          }
+        } else {
+          // Create inventory placeholder for tracking
+          console.warn(`No inventory record for ${item.type}. Order will proceed with manual tracking required.`);
         }
         
         validItems.push({

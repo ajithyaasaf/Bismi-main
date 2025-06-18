@@ -12,6 +12,7 @@ import TransactionsTable from "@/components/transactions/TransactionsTable";
 import { apiRequest } from "@/lib/queryClient";
 import { TransactionsSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
+import { safeDateFormat } from "@/utils/date-utils";
 
 interface TransactionFilters {
   search: string;
@@ -125,9 +126,7 @@ export default function TransactionsPage() {
           ? suppliers.find((s: Supplier) => s.id === t.entityId)?.name || 'Unknown'
           : customers.find((c: Customer) => c.id === t.entityId)?.name || 'Unknown';
         
-        const dateStr = t.createdAt instanceof Date 
-          ? t.createdAt.toLocaleDateString() 
-          : new Date(t.createdAt).toLocaleDateString();
+        const dateStr = safeDateFormat(t.createdAt);
         return `${dateStr},${t.entityType},${entityName},${t.type},${t.amount},"${t.description}"`;
       })
     ].join('\n');

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
+import { safeDateTimeFormat } from "@/utils/date-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -83,7 +84,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
       message += `\n\n*Order Details:*`;
       // Use proper timestamp for WhatsApp message
       const orderTimestamp = specificOrder.createdAt;
-      message += `\n📅 Date: ${orderTimestamp ? format(new Date(orderTimestamp), 'MMM dd, yyyy') : 'Unknown date'}`;
+      message += `\n📅 Date: ${safeDateTimeFormat(orderTimestamp)}`;
       message += `\n💰 Amount: ₹${(specificOrder.totalAmount || 0).toFixed(2)}`;
       message += `\n📦 Status: ${specificOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
       
@@ -166,11 +167,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       if (!orderTimestamp) {
                         return <span className="text-red-500 text-xs">No timestamp</span>;
                       }
-                      try {
-                        return format(new Date(orderTimestamp), 'MMM dd, yyyy HH:mm');
-                      } catch (error) {
-                        return <span className="text-red-500 text-xs">Invalid date</span>;
-                      }
+                      return safeDateTimeFormat(orderTimestamp);
                     })()}
                   </TableCell>
                   <TableCell className="font-medium flex items-center gap-2">
@@ -297,11 +294,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       if (!orderTimestamp) {
                         return <span className="text-red-500 text-xs">No timestamp</span>;
                       }
-                      try {
-                        return format(new Date(orderTimestamp), 'PPpp');
-                      } catch (error) {
-                        return <span className="text-red-500 text-xs">Invalid date</span>;
-                      }
+                      return safeDateTimeFormat(orderTimestamp);
                     })()}
                   </p>
                 </div>
@@ -333,7 +326,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                     {(selectedOrder.items as OrderItem[]).map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="capitalize">{item.type}</TableCell>
-                        <TableCell className="text-right">{item.quantity.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">{(item.quantity || 0).toFixed(2)}</TableCell>
                         <TableCell className="text-right">₹{(item.rate || 0).toFixed(2)}</TableCell>
                         <TableCell className="text-right">₹{((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</TableCell>
                         <TableCell>{item.details || '-'}</TableCell>

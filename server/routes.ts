@@ -549,7 +549,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
             description: String(transaction.description || ''),
             createdAt: transaction.createdAt instanceof Date 
               ? transaction.createdAt.toISOString()
-              : new Date(transaction.createdAt || Date.now()).toISOString()
+              : (transaction.createdAt ? new Date(transaction.createdAt).toISOString() : new Date().toISOString())
           };
         } catch (serializationError) {
           console.error(`[TRANSACTIONS API] Failed to serialize transaction ${index}:`, serializationError);

@@ -44,16 +44,33 @@ export default function TransactionForm({ isOpen, onClose, suppliers, customers 
     setEntityType(value);
     setEntityId(''); // Reset entity selection when type changes
     
-    // Also reset transaction type based on entity type
+    // Reset transaction type based on entity type with proper defaults
     if (value === 'supplier') {
-      setType('payment');
+      setType('payment'); // Default to payment for suppliers
     } else {
-      setType('receipt');
+      setType('receipt'); // Default to receipt for customers
     }
   };
   
-  // Handle transaction type change
+  // Handle transaction type change with proper validation
   const handleTypeChange = (value: string) => {
+    // Validate transaction type based on entity type
+    if (entityType === 'supplier' && !['payment', 'purchase'].includes(value)) {
+      toast({
+        title: "Invalid transaction type",
+        description: "Suppliers can only have payment or purchase transactions",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (entityType === 'customer' && !['receipt', 'refund'].includes(value)) {
+      toast({
+        title: "Invalid transaction type", 
+        description: "Customers can only have receipt or refund transactions",
+        variant: "destructive",
+      });
+      return;
+    }
     setType(value);
   };
   
@@ -212,9 +229,15 @@ export default function TransactionForm({ isOpen, onClose, suppliers, customers 
                 </SelectTrigger>
                 <SelectContent>
                   {entityType === 'supplier' ? (
-                    <SelectItem value="payment">Payment (To Supplier)</SelectItem>
+                    <>
+                      <SelectItem value="payment">Payment (To Supplier)</SelectItem>
+                      <SelectItem value="purchase">Purchase (From Supplier)</SelectItem>
+                    </>
                   ) : (
-                    <SelectItem value="receipt">Receipt (From Customer)</SelectItem>
+                    <>
+                      <SelectItem value="receipt">Receipt (From Customer)</SelectItem>
+                      <SelectItem value="refund">Refund (To Customer)</SelectItem>
+                    </>
                   )}
                 </SelectContent>
               </Select>

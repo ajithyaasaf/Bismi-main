@@ -437,7 +437,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                       step="0.01"
                       min="0"
                       value={item.price}
-                      onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
+                      onChange={(e) => updateItem(item.id, 'price', e.target.value)}
                       className="h-9 text-sm"
                     />
                   </div>

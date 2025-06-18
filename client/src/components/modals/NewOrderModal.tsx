@@ -53,7 +53,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     customers: customers,
     customerTypes: customers.map(c => ({id: c.id, name: c.name, customerType: c.customerType})),
     hotelsFiltered: hotels.length,
-    hotels: hotels
+    hotels: hotels,
+    items: items
   });
 
   // Alternative filtering attempts
@@ -97,6 +98,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   
   // Update item field
   const updateItem = (id: string, field: string, value: string) => {
+    console.log('UpdateItem called:', { id, field, value });
     setItems(items.map(item => 
       item.id === id ? { ...item, [field]: value } : item
     ));
@@ -436,9 +438,13 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.price}
-                      onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                      value={item.price || ''}
+                      onChange={(e) => {
+                        console.log('Rate field onChange:', e.target.value);
+                        updateItem(item.id, 'price', e.target.value);
+                      }}
                       className="h-9 text-sm"
+                      placeholder="0.00"
                     />
                   </div>
                   

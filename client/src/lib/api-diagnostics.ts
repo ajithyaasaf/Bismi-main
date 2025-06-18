@@ -1,10 +1,12 @@
+import { getApiUrl } from './config';
+
 // API diagnostics to help identify connection issues
 export async function diagnoseApiConnection() {
   const endpoints = [
-    'https://bismi-main.onrender.com/api/transactions',
-    'https://bismi-main.onrender.com/api/health',
-    'https://bismi-main.onrender.com/api/suppliers',
-    'https://bismi-main.onrender.com/api/customers'
+    getApiUrl('/api/transactions'),
+    getApiUrl('/api/health'),
+    getApiUrl('/api/suppliers'),
+    getApiUrl('/api/customers')
   ];
 
   const results = [];
@@ -68,7 +70,7 @@ export async function fetchTransactionsWithDiagnostics() {
   console.log('Starting transaction fetch with diagnostics...');
   
   try {
-    const url = 'https://bismi-main.onrender.com/api/transactions';
+    const url = getApiUrl('/api/transactions');
     console.log(`Fetching from: ${url}`);
     
     const response = await fetch(url, {

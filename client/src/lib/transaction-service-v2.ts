@@ -1,44 +1,10 @@
-import { getApiUrl } from './config';
+import { apiRequest, safeJsonResponse } from './queryClient';
 
 // Completely new transaction service with robust error handling
 export class TransactionServiceV2 {
   private static async makeRequest(method: string, endpoint: string, data?: any) {
-    const url = getApiUrl(endpoint);
-    
-    const options: RequestInit = {
-      method,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    };
-
-    if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-      options.body = JSON.stringify(data);
-    }
-
-    try {
-      const response = await fetch(url, options);
-      
-      // Check if response is ok
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Verify content type
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Non-JSON response received:', text.substring(0, 200));
-        throw new Error('Server returned non-JSON response');
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`TransactionServiceV2 ${method} ${endpoint} failed:`, error);
-      throw error;
-    }
+    const response = await apiRequest(method, endpoint, data);
+    return safeJsonResponse(response);
   }
 
   static async getAllTransactions() {

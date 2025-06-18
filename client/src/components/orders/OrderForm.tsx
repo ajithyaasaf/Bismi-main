@@ -46,7 +46,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
   const itemTypes = ITEM_TYPES;
   
   // Hotels (filtered customers)
-  const hotels = customers.filter(c => c.type === 'hotel');
+  const hotels = customers.filter(c => c.customerType === 'hotel');
   
   // Calculate total order amount
   const calculateTotal = () => {

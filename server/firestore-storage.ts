@@ -315,7 +315,7 @@ export class FirestoreStorage implements IStorage {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          customerType: data.customerType || 'regular',
+          customerType: data.type || data.customerType || 'regular',
           pendingAmount: data.pendingAmount || 0,
           createdAt: this.convertTimestamp(data.createdAt),
         };
@@ -336,7 +336,7 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        customerType: data?.customerType || 'regular',
+        customerType: data?.type || data?.customerType || 'regular',
         pendingAmount: data?.pendingAmount || 0,
         createdAt: this.convertTimestamp(data?.createdAt),
       };
@@ -351,7 +351,7 @@ export class FirestoreStorage implements IStorage {
       const docRef = await this.db.collection('customers').add({
         name: customer.name,
         contact: customer.contact,
-        customerType: customer.customerType,
+        type: customer.customerType, // Store as 'type' to match existing database structure
         pendingAmount: customer.pendingAmount || 0,
         createdAt: new Date(),
       });
@@ -372,7 +372,14 @@ export class FirestoreStorage implements IStorage {
 
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
-      await this.db.collection('customers').doc(id).update(customer);
+      // Map customerType to type field for database consistency
+      const updateData: any = { ...customer };
+      if (updateData.customerType) {
+        updateData.type = updateData.customerType;
+        delete updateData.customerType;
+      }
+      
+      await this.db.collection('customers').doc(id).update(updateData);
       return this.getCustomer(id);
     } catch (error) {
       console.error('Error updating customer:', error);

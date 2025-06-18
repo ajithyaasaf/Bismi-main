@@ -32,9 +32,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     id: string;
     type: string;
     quantity: string;
-    price: string;
+    rate: string;
     details?: string;
-  }[]>([{ id: '1', type: 'chicken', quantity: '', price: '', details: '' }]);
+  }[]>([{ id: '1', type: 'chicken', quantity: '', rate: '', details: '' }]);
   const [paymentStatus, setPaymentStatus] = useState('paid');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -47,11 +47,11 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   // Hotels (filtered customers) - using the correct field name 'type'
   const hotels = customers.filter(c => c.type === 'hotel');
   
-  // Calculate total order amount
+  // Calculate total order amount with null safety
   const calculateTotal = () => {
     return items.reduce((total, item) => {
       const quantity = parseFloat(item.quantity) || 0;
-      const rate = parseFloat(item.price) || 0;
+      const rate = parseFloat(item.rate) || 0;
       return total + (quantity * rate);
     }, 0);
   };
@@ -64,7 +64,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         id: String(items.length + 1), 
         type: 'chicken', 
         quantity: '', 
-        price: '',
+        rate: '',
         details: '' // New field for additional item details
       }
     ]);
@@ -88,10 +88,10 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   // Set default rate based on inventory when item type changes
   const updateItemType = (id: string, type: string) => {
     const inventoryItem = inventory.find(item => item.type === type);
-    const price = inventoryItem ? String(inventoryItem.price) : '';
+    const rate = inventoryItem ? String(inventoryItem.price) : '';
     
     setItems(items.map(item => 
-      item.id === id ? { ...item, type, price } : item
+      item.id === id ? { ...item, type, rate } : item
     ));
   };
   
@@ -102,7 +102,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     setCustomerName('');
     setCustomerPhone('');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
-    setItems([{ id: '1', type: 'chicken', quantity: '', price: '', details: '' }]);
+    setItems([{ id: '1', type: 'chicken', quantity: '', rate: '', details: '' }]);
     setPaymentStatus('paid');
   };
   
@@ -172,7 +172,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       
       for (const item of items) {
         const quantity = parseFloat(item.quantity);
-        const rate = parseFloat(item.price);
+        const rate = parseFloat(item.rate);
         
         if (isNaN(quantity) || quantity === 0) {
           toast({
@@ -418,10 +418,10 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                       type="number"
                       step="0.01"
                       min="0"
-                      value={item.price || ''}
+                      value={item.rate || ''}
                       onChange={(e) => {
                         console.log('Rate field onChange:', e.target.value);
-                        updateItem(item.id, 'price', e.target.value);
+                        updateItem(item.id, 'rate', e.target.value);
                       }}
                       onFocus={() => console.log('Rate field focused')}
                       onClick={() => console.log('Rate field clicked')}

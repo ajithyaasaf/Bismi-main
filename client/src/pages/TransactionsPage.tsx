@@ -125,7 +125,10 @@ export default function TransactionsPage() {
           ? suppliers.find((s: Supplier) => s.id === t.entityId)?.name || 'Unknown'
           : customers.find((c: Customer) => c.id === t.entityId)?.name || 'Unknown';
         
-        return `${t.createdAt.toLocaleDateString()},${t.entityType},${entityName},${t.type},${t.amount},"${t.description}"`;
+        const dateStr = t.createdAt instanceof Date 
+          ? t.createdAt.toLocaleDateString() 
+          : new Date(t.createdAt).toLocaleDateString();
+        return `${dateStr},${t.entityType},${entityName},${t.type},${t.amount},"${t.description}"`;
       })
     ].join('\n');
 

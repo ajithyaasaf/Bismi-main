@@ -54,10 +54,10 @@ export default function RecentOrders({ orders, customers }: RecentOrdersProps) {
                 </p>
                 <div className="ml-2 flex-shrink-0 flex">
                   <p className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                    ${order.status === 'paid' 
+                    ${order.paymentStatus === 'paid' 
                       ? 'bg-green-100 text-green-800' 
                       : 'bg-yellow-100 text-yellow-800'}`}>
-                    {order.status === 'paid' ? 'Paid' : 'Pending'}
+                    {order.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
                   </p>
                 </div>
               </div>
@@ -72,9 +72,8 @@ export default function RecentOrders({ orders, customers }: RecentOrdersProps) {
                   <i className="fas fa-calendar flex-shrink-0 mr-1.5 text-gray-400"></i>
                   <p>
                     {(() => {
-                      // Enterprise timestamp handling - use createdAt first, then date
-                      const orderWithTimestamp = order as any;
-                      const timestamp = orderWithTimestamp.createdAt || order.date;
+                      // Enterprise timestamp handling - use createdAt
+                      const timestamp = order.createdAt;
                       try {
                         return format(new Date(timestamp), 'PPpp');
                       } catch (error) {

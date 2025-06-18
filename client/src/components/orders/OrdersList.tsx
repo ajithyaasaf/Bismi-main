@@ -82,16 +82,15 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
     if (specificOrder) {
       message += `\n\n*Order Details:*`;
       // Use proper timestamp for WhatsApp message
-      const orderWithTimestamp = specificOrder as any;
-      const orderTimestamp = orderWithTimestamp.createdAt || specificOrder.date;
+      const orderTimestamp = specificOrder.createdAt;
       message += `\n📅 Date: ${orderTimestamp ? format(new Date(orderTimestamp), 'MMM dd, yyyy') : 'Unknown date'}`;
-      message += `\n💰 Amount: ₹${specificOrder.total.toFixed(2)}`;
-      message += `\n📦 Status: ${specificOrder.status === 'paid' ? 'Paid' : 'Pending'}`;
+      message += `\n💰 Amount: ₹${(specificOrder.totalAmount || 0).toFixed(2)}`;
+      message += `\n📦 Status: ${specificOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
       
       // Add item details
       message += `\n\n*Items Purchased:*`;
       (specificOrder.items as OrderItem[]).forEach(item => {
-        message += `\n- ${item.quantity.toFixed(2)} kg ${getItemLabel(item.type)} (₹${item.price.toFixed(2)}/kg)`;
+        message += `\n- ${(item.quantity || 0).toFixed(2)} kg ${getItemLabel(item.type)} (₹${(item.rate || 0).toFixed(2)}/kg)`;
       });
     } else {
       // No specific order, just a general message
@@ -205,14 +204,14 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                     {formatItems(order.items as OrderItem[])}
                   </TableCell>
                   <TableCell className="text-right font-medium">
-                    ₹{order.total.toFixed(2)}
+                    ₹{(order.totalAmount || 0).toFixed(2)}
                   </TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 text-xs rounded-full font-medium 
-                      ${order.status === 'paid' 
+                      ${order.paymentStatus === 'paid' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-yellow-100 text-yellow-800'}`}>
-                      {order.status === 'paid' ? 'Paid' : 'Pending'}
+                      {order.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -335,14 +334,14 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       <TableRow key={index}>
                         <TableCell className="capitalize">{item.type}</TableCell>
                         <TableCell className="text-right">{item.quantity.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{item.price.toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{(item.quantity * item.price).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{(item.rate || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</TableCell>
                         <TableCell>{item.details || '-'}</TableCell>
                       </TableRow>
                     ))}
                     <TableRow>
                       <TableCell colSpan={3} className="text-right font-medium">Total</TableCell>
-                      <TableCell className="text-right font-bold">₹{selectedOrder.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-bold">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>

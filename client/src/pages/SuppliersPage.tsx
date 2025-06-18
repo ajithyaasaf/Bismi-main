@@ -8,6 +8,8 @@ import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import PaymentModal from "@/components/modals/PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { SuppliersSkeleton } from "@/components/skeletons";
+import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
 export default function SuppliersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -24,6 +26,9 @@ export default function SuppliersPage() {
   const { data: suppliers = [], isLoading } = useQuery<Supplier[]>({
     queryKey: ['/api/suppliers'],
   });
+
+  // Use skeleton timer for minimum 1 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 1000);
 
   const openForm = (supplier?: Supplier) => {
     setSelectedSupplier(supplier || null);
@@ -118,6 +123,10 @@ export default function SuppliersPage() {
     }
   };
 
+  if (showSkeleton) {
+    return <SuppliersSkeleton />;
+  }
+
   return (
     <>
       <div className="flex justify-between items-center mb-6">
@@ -129,7 +138,7 @@ export default function SuppliersPage() {
 
       <SuppliersList 
         suppliers={suppliers}
-        isLoading={isLoading}
+        isLoading={false}
         onEdit={openForm}
         onDelete={handleDeleteSupplier}
         onPayment={(supplierId, supplierName) => {

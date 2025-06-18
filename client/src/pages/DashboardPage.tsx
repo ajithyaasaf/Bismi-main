@@ -4,6 +4,8 @@ import { Supplier, Customer, Inventory, Order, Transaction } from "@shared/types
 import Dashboard from "@/components/dashboard/Dashboard";
 import AddStockModal from "@/components/modals/AddStockModal";
 import NewOrderModal from "@/components/modals/NewOrderModal";
+import { DashboardSkeleton } from "@/components/skeletons";
+import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
 export default function DashboardPage() {
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
@@ -34,6 +36,9 @@ export default function DashboardPage() {
   // Check if any data is loading
   const isLoading = suppliersLoading || inventoryLoading || customersLoading || ordersLoading || transactionsLoading;
   
+  // Use skeleton timer for minimum 1 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 1000);
+  
   // Check for errors
   const hasErrors = suppliersError || inventoryError || customersError || ordersError || transactionsError;
   
@@ -58,9 +63,9 @@ export default function DashboardPage() {
   today.setHours(0, 0, 0, 0);
   
   const todaysOrders = orders.filter(order => {
-    if (!order.date) return false;
+    if (!order.createdAt) return false;
     try {
-      const orderDate = new Date(order.date.toString());
+      const orderDate = new Date(order.createdAt.toString());
       orderDate.setHours(0, 0, 0, 0);
       return orderDate.getTime() === today.getTime();
     } catch {
@@ -68,7 +73,7 @@ export default function DashboardPage() {
     }
   });
   
-  const todaysSales = todaysOrders.reduce((sum, order) => sum + order.total, 0);
+  const todaysSales = todaysOrders.reduce((sum, order) => sum + order.totalAmount, 0);
   
   // Enterprise stock monitoring: Show negative stock and low stock items
   const lowStockItems = inventory.filter(item => item.quantity < 5)
@@ -76,10 +81,10 @@ export default function DashboardPage() {
   
   // Recent orders (last 5)
   const recentOrders = [...orders]
-    .filter(order => order.date)
+    .filter(order => order.createdAt)
     .sort((a, b) => {
       try {
-        return new Date(b.date!.toString()).getTime() - new Date(a.date!.toString()).getTime();
+        return new Date(b.createdAt!.toString()).getTime() - new Date(a.createdAt!.toString()).getTime();
       } catch {
         return 0;
       }
@@ -110,15 +115,8 @@ export default function DashboardPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your business data...</p>
-        </div>
-      </div>
-    );
+  if (showSkeleton) {
+    return <DashboardSkeleton />;
   }
 
   if (hasErrors) {

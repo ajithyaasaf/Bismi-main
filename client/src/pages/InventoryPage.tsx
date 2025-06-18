@@ -7,6 +7,8 @@ import InventoryList from "@/components/inventory/InventoryList";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
+import { InventorySkeleton } from "@/components/skeletons";
+import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
 export default function InventoryPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -20,6 +22,9 @@ export default function InventoryPage() {
   const { data: inventory = [], isLoading } = useQuery<Inventory[]>({
     queryKey: ['/api/inventory'],
   });
+
+  // Use skeleton timer for minimum 1 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 1000);
 
   const handleAddClick = () => {
     setSelectedItem(null);
@@ -87,6 +92,10 @@ export default function InventoryPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
   };
 
+  if (showSkeleton) {
+    return <InventorySkeleton />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -101,7 +110,7 @@ export default function InventoryPage() {
 
       <InventoryList 
         items={inventory}
-        isLoading={isLoading}
+        isLoading={false}
         onEdit={handleEditClick}
         onDelete={handleDeleteRequest}
       />

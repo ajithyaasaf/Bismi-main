@@ -11,6 +11,8 @@ import CustomersList from "@/components/customers/CustomersList";
 import PaymentModal from "@/components/modals/PaymentModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { CustomerInvoice } from "@/components/invoices/CustomerInvoice";
+import { CustomersSkeleton } from "@/components/skeletons";
+import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
 export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -30,6 +32,9 @@ export default function CustomersPage() {
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
   });
+
+  // Use skeleton timer for minimum 1 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 1000);
 
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ['/api/orders'],
@@ -110,6 +115,10 @@ export default function CustomersPage() {
     setIsInvoiceModalOpen(false);
     setInvoiceCustomer(null);
   };
+
+  if (showSkeleton) {
+    return <CustomersSkeleton />;
+  }
 
   return (
     <>

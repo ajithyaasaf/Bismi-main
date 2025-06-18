@@ -69,6 +69,23 @@ export interface OrderItem {
   details?: string;
 }
 
+// Standardized API response wrapper
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+  timestamp: string;
+}
+
+// Standardized error response
+export interface ApiError {
+  success: false;
+  message: string;
+  error?: string;
+  code?: string;
+  timestamp: string;
+}
+
 export interface Order {
   id: string;
   customerId: string;

@@ -33,9 +33,9 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
     id: string;
     type: string;
     quantity: string;
-    price: string;
+    rate: string;
     details?: string;
-  }[]>([{ id: '1', type: 'chicken', quantity: '', price: '', details: '' }]);
+  }[]>([{ id: '1', type: 'chicken', quantity: '', rate: '', details: '' }]);
   const [paymentStatus, setPaymentStatus] = useState('paid');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -48,11 +48,11 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
   // Hotels (filtered customers) - using the correct field name 'type'
   const hotels = customers.filter(c => c.type === 'hotel');
   
-  // Calculate total order amount
+  // Calculate total order amount with null safety
   const calculateTotal = () => {
     return items.reduce((total, item) => {
       const quantity = parseFloat(item.quantity) || 0;
-      const rate = parseFloat(item.price) || 0;
+      const rate = parseFloat(item.rate) || 0;
       return total + (quantity * rate);
     }, 0);
   };
@@ -65,7 +65,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         id: String(items.length + 1), 
         type: 'chicken', 
         quantity: '', 
-        price: '',
+        rate: '',
         details: ''
       }
     ]);
@@ -88,10 +88,10 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
   // Set default rate based on inventory when item type changes
   const updateItemType = (id: string, type: string) => {
     const inventoryItem = inventory.find(item => item.type === type);
-    const price = inventoryItem ? String(inventoryItem.price) : '';
+    const rate = inventoryItem ? String(inventoryItem.price) : '';
     
     setItems(items.map(item => 
-      item.id === id ? { ...item, type, price } : item
+      item.id === id ? { ...item, type, rate } : item
     ));
   };
   
@@ -101,7 +101,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
     setCustomerId('');
     setCustomerName('');
     setCustomerPhone('');
-    setItems([{ id: '1', type: itemTypes.length > 0 ? itemTypes[0].value : 'chicken', quantity: '', price: '', details: '' }]);
+    setItems([{ id: '1', type: itemTypes.length > 0 ? itemTypes[0].value : 'chicken', quantity: '', rate: '', details: '' }]);
     setPaymentStatus('paid');
   };
   
@@ -154,7 +154,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       
       for (const item of items) {
         const quantity = parseFloat(item.quantity);
-        const rate = parseFloat(item.price);
+        const rate = parseFloat(item.rate);
         
         if (isNaN(quantity) || quantity === 0) {
           toast({
@@ -373,8 +373,8 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
                     type="number"
                     step="0.01"
                     min="0"
-                    value={item.price}
-                    onChange={(e) => updateItem(item.id, 'price', e.target.value)}
+                    value={item.rate}
+                    onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
                     className="h-8 text-xs"
                   />
                 </div>

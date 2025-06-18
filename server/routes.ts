@@ -262,22 +262,54 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/add-stock", async (req: Request, res: Response) => {
     try {
-      const { itemId, quantity } = req.body;
+      const { type, quantity, price, supplierId } = req.body;
       
-      if (!itemId || !quantity || quantity <= 0) {
-        return res.status(400).json({ message: "Valid item ID and quantity are required" });
+      if (!type || !quantity || quantity <= 0 || !price || price <= 0 || !supplierId) {
+        return res.status(400).json({ message: "Valid item type, quantity, price, and supplier are required" });
       }
 
       const storage = await getStorage();
-      const item = await storage.getInventoryItem(itemId);
       
-      if (!item) {
-        return res.status(404).json({ message: "Inventory item not found" });
+      // Check if supplier exists
+      const supplier = await storage.getSupplier(supplierId);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
       }
-
-      // Update item quantity
-      const updatedItem = await storage.updateInventoryItem(itemId, {
-        quantity: item.quantity + parseInt(quantity)
+      
+      // Find existing inventory item of this type
+      const allInventory = await storage.getAllInventory();
+      const existingItem = allInventory.find(item => item.type === type);
+      
+      let updatedItem;
+      const totalCost = parseFloat(quantity) * parseFloat(price);
+      
+      if (existingItem) {
+        // Update existing inventory item
+        const newQuantity = existingItem.quantity + parseFloat(quantity);
+        updatedItem = await storage.updateInventoryItem(existingItem.id, {
+          quantity: newQuantity,
+          price: parseFloat(price) // Update price to latest
+        });
+      } else {
+        // Create new inventory item
+        updatedItem = await storage.createInventoryItem({
+          type,
+          quantity: parseFloat(quantity),
+          price: parseFloat(price)
+        });
+      }
+      
+      // Update supplier pending amount
+      const newPendingAmount = (supplier.pendingAmount || 0) + totalCost;
+      await storage.updateSupplier(supplierId, { pendingAmount: newPendingAmount });
+      
+      // Create transaction record
+      await storage.createTransaction({
+        entityId: supplierId,
+        entityType: "supplier",
+        type: "purchase",
+        amount: totalCost,
+        description: `Stock purchase: ${quantity}kg ${type} @ ₹${price}/kg`
       });
 
       res.json(updatedItem);

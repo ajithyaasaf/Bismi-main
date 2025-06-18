@@ -1,0 +1,73 @@
+Request failed, retrying... (1 attempts left)
+index-DibBS0pM.js:48 
+            
+            
+           POST https://bismi-main.onrender.com/api/add-stock 400 (Bad Request)
+Qe @ index-DibBS0pM.js:48
+await in Qe
+w @ index-DibBS0pM.js:240
+bk @ index-DibBS0pM.js:37
+Sk @ index-DibBS0pM.js:37
+Nk @ index-DibBS0pM.js:37
+vx @ index-DibBS0pM.js:37
+Hb @ index-DibBS0pM.js:37
+(anonymous) @ index-DibBS0pM.js:37
+wm @ index-DibBS0pM.js:40
+pb @ index-DibBS0pM.js:37
+Xd @ index-DibBS0pM.js:37
+Qp @ index-DibBS0pM.js:37
+zk @ index-DibBS0pM.js:37
+index-DibBS0pM.js:48 API Error Details: {status: 400, statusText: '', url: 'https://bismi-main.onrender.com/api/add-stock', headers: {…}, responseText: '{"message":"Valid item ID and quantity are required"}'}
+N1 @ index-DibBS0pM.js:48
+await in N1
+Qe @ index-DibBS0pM.js:48
+await in Qe
+w @ index-DibBS0pM.js:240
+bk @ index-DibBS0pM.js:37
+Sk @ index-DibBS0pM.js:37
+Nk @ index-DibBS0pM.js:37
+vx @ index-DibBS0pM.js:37
+Hb @ index-DibBS0pM.js:37
+(anonymous) @ index-DibBS0pM.js:37
+wm @ index-DibBS0pM.js:40
+pb @ index-DibBS0pM.js:37
+Xd @ index-DibBS0pM.js:37
+Qp @ index-DibBS0pM.js:37
+zk @ index-DibBS0pM.js:37
+index-DibBS0pM.js:48 API Error: Error: 400: {"message":"Valid item ID and quantity are required"}
+    at N1 (index-DibBS0pM.js:48:43231)
+    at async Qe (index-DibBS0pM.js:48:43695)
+    at async w (index-DibBS0pM.js:240:59690)
+N1 @ index-DibBS0pM.js:48
+await in N1
+Qe @ index-DibBS0pM.js:48
+await in Qe
+w @ index-DibBS0pM.js:240
+bk @ index-DibBS0pM.js:37
+Sk @ index-DibBS0pM.js:37
+Nk @ index-DibBS0pM.js:37
+vx @ index-DibBS0pM.js:37
+Hb @ index-DibBS0pM.js:37
+(anonymous) @ index-DibBS0pM.js:37
+wm @ index-DibBS0pM.js:40
+pb @ index-DibBS0pM.js:37
+Xd @ index-DibBS0pM.js:37
+Qp @ index-DibBS0pM.js:37
+zk @ index-DibBS0pM.js:37
+index-DibBS0pM.js:240 Error: Request failed with status 400
+    at N1 (index-DibBS0pM.js:48:43307)
+    at async Qe (index-DibBS0pM.js:48:43695)
+    at async w (index-DibBS0pM.js:240:59690)
+w @ index-DibBS0pM.js:240
+await in w
+bk @ index-DibBS0pM.js:37
+Sk @ index-DibBS0pM.js:37
+Nk @ index-DibBS0pM.js:37
+vx @ index-DibBS0pM.js:37
+Hb @ index-DibBS0pM.js:37
+(anonymous) @ index-DibBS0pM.js:37
+wm @ index-DibBS0pM.js:40
+pb @ index-DibBS0pM.js:37
+Xd @ index-DibBS0pM.js:37
+Qp @ index-DibBS0pM.js:37
+zk @ index-DibBS0pM.js:37

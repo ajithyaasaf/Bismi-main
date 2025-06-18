@@ -326,7 +326,7 @@ export class FirestoreStorage implements IStorage {
           name: data.name || '',
           contact: data.contact || '',
           customerType: data.type || data.customerType || 'random',
-          pendingAmount: data.pendingAmount || 0,
+          pendingAmount: data.pendingAmount || data.debt || 0,
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
@@ -347,7 +347,7 @@ export class FirestoreStorage implements IStorage {
         name: data?.name || '',
         contact: data?.contact || '',
         customerType: data?.type || data?.customerType || 'random',
-        pendingAmount: data?.pendingAmount || 0,
+        pendingAmount: data?.pendingAmount || data?.debt || 0,
         createdAt: this.convertTimestamp(data?.createdAt),
       };
     } catch (error) {
@@ -363,6 +363,7 @@ export class FirestoreStorage implements IStorage {
         contact: customer.contact,
         type: customer.customerType, // Store as 'type' to match existing database structure
         pendingAmount: customer.pendingAmount || 0,
+        debt: customer.pendingAmount || 0, // Also store as debt for consistency
         createdAt: new Date(),
       });
 
@@ -387,6 +388,10 @@ export class FirestoreStorage implements IStorage {
       if (updateData.customerType) {
         updateData.type = updateData.customerType;
         delete updateData.customerType;
+      }
+      // Also handle pendingAmount to debt mapping for existing records
+      if (updateData.pendingAmount !== undefined) {
+        updateData.debt = updateData.pendingAmount;
       }
       
       await this.db.collection('customers').doc(id).update(updateData);
@@ -532,7 +537,7 @@ export class FirestoreStorage implements IStorage {
           type: String(data.type || ''),
           amount: Number(data.amount) || 0,
           description: String(data.description || ''),
-          createdAt: this.convertTimestamp(data.createdAt),
+          createdAt: this.convertTimestamp(data.createdAt || data.date),
         };
         
         return transaction;
@@ -558,7 +563,7 @@ export class FirestoreStorage implements IStorage {
           type: data.type || '',
           amount: data.amount || 0,
           description: data.description || '',
-          createdAt: this.convertTimestamp(data.createdAt),
+          createdAt: this.convertTimestamp(data.createdAt || data.date),
         };
       });
     } catch (error) {
@@ -580,7 +585,7 @@ export class FirestoreStorage implements IStorage {
         type: data?.type || '',
         amount: data?.amount || 0,
         description: data?.description || '',
-        createdAt: this.convertTimestamp(data?.createdAt),
+        createdAt: this.convertTimestamp(data?.createdAt || data?.date),
       };
     } catch (error) {
       console.error('Error getting transaction:', error);
@@ -590,13 +595,15 @@ export class FirestoreStorage implements IStorage {
 
   async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
     try {
+      const now = new Date();
       const docRef = await this.db.collection('transactions').add({
         entityId: transaction.entityId,
         entityType: transaction.entityType,
         type: transaction.type,
         amount: transaction.amount,
         description: transaction.description,
-        createdAt: new Date(),
+        createdAt: now,
+        date: now, // Also store as 'date' field for consistency with existing database
       });
 
       return {
@@ -606,7 +613,7 @@ export class FirestoreStorage implements IStorage {
         type: transaction.type,
         amount: transaction.amount,
         description: transaction.description,
-        createdAt: new Date(),
+        createdAt: now,
       };
     } catch (error) {
       console.error('Error creating transaction:', error);

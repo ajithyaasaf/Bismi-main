@@ -31,7 +31,9 @@ const insertOrderSchema = z.object({
   customerId: z.string().min(1),
   items: z.array(z.object({
     type: z.string().min(1),
-    quantity: z.number().min(1)
+    quantity: z.number().min(1),
+    rate: z.number().min(0),
+    details: z.string().optional()
   })),
   totalAmount: z.number().min(0),
   paymentStatus: z.string().min(1),

@@ -138,7 +138,17 @@ export async function safeJsonResponse(response: Response): Promise<any> {
   // Check if response has JSON content type
   if (contentType && contentType.includes('application/json')) {
     try {
-      return await response.json();
+      const jsonData = await response.json();
+      
+      // Handle standardized API responses
+      if (jsonData && typeof jsonData === 'object' && 'success' in jsonData) {
+        if (jsonData.success === false) {
+          throw new Error(jsonData.message || 'API request failed');
+        }
+        return jsonData.data || jsonData; // Return data if standardized, otherwise full response
+      }
+      
+      return jsonData;
     } catch (error) {
       console.error('Failed to parse JSON response:', error);
       throw new Error('Invalid JSON response from server');
@@ -156,7 +166,17 @@ export async function safeJsonResponse(response: Response): Promise<any> {
   // If it's plain text, try to parse as JSON (some APIs return JSON without proper content-type)
   if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
     try {
-      return JSON.parse(text);
+      const jsonData = JSON.parse(text);
+      
+      // Handle standardized API responses in parsed text
+      if (jsonData && typeof jsonData === 'object' && 'success' in jsonData) {
+        if (jsonData.success === false) {
+          throw new Error(jsonData.message || 'API request failed');
+        }
+        return jsonData.data || jsonData;
+      }
+      
+      return jsonData;
     } catch {
       throw new Error(`Server returned non-JSON response: ${text.substring(0, 100)}...`);
     }

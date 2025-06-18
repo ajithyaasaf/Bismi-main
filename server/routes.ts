@@ -54,9 +54,28 @@ async function getStorage() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server | void> {
-  // Add middleware to ensure all API responses are JSON
+  // Add middleware to ensure all API responses are JSON with standardized format
   app.use('/api', (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
+    
+    // Override res.json to standardize responses
+    const originalJson = res.json.bind(res);
+    res.json = function(data: any) {
+      // If already standardized, use as-is
+      if (data && typeof data === 'object' && 'success' in data) {
+        return originalJson(data);
+      }
+      
+      // Standardize successful responses
+      const standardizedResponse = {
+        success: true,
+        data: data,
+        timestamp: new Date().toISOString()
+      };
+      
+      return originalJson(standardizedResponse);
+    };
+    
     next();
   });
 
@@ -67,15 +86,17 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.get("/health", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      res.json({ 
+      res.status(200).json({ 
         status: "healthy", 
         storage: storageManager.getStorageType(),
         timestamp: new Date().toISOString()
       });
     } catch (error) {
       res.status(500).json({ 
-        status: "unhealthy", 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+        success: false,
+        message: "Health check failed",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       });
     }
   });

@@ -55,19 +55,26 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
     // Clean the phone number (remove spaces, dashes, etc.)
     let phoneNumber = customer.contact.replace(/[\s-()]/g, '');
     
-    // Ensure it has the country code (assuming India +91, but this should be adapted for other regions)
+    // Smart country code handling - configurable for different regions
     if (!phoneNumber.startsWith('+')) {
-      // If it starts with 0, replace it with +91
+      // Remove leading zeros
       if (phoneNumber.startsWith('0')) {
-        phoneNumber = '+91' + phoneNumber.substring(1);
-      } 
-      // If it doesn't have a country code, add +91
-      else if (!phoneNumber.startsWith('91')) {
-        phoneNumber = '+91' + phoneNumber;
+        phoneNumber = phoneNumber.substring(1);
       }
-      // If it starts with 91 but no +, add +
-      else if (phoneNumber.startsWith('91')) {
+      
+      // Add country code based on phone number length and format
+      if (phoneNumber.length === 10 && /^[6-9]/.test(phoneNumber)) {
+        // Indian mobile number pattern
+        phoneNumber = '+91' + phoneNumber;
+      } else if (phoneNumber.length === 11 && phoneNumber.startsWith('1')) {
+        // US/Canada number pattern
         phoneNumber = '+' + phoneNumber;
+      } else if (phoneNumber.startsWith('91') && phoneNumber.length === 12) {
+        // Already has 91 prefix
+        phoneNumber = '+' + phoneNumber;
+      } else {
+        // Default to India for backward compatibility
+        phoneNumber = '+91' + phoneNumber;
       }
     }
     

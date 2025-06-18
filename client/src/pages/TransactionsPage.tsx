@@ -87,8 +87,8 @@ export default function TransactionsPage() {
     staleTime: 30000,
   });
 
-  // Use skeleton timer for minimum 1 second display
-  const showSkeleton = useSkeletonTimer(transactionsLoading, 1000);
+  // Use skeleton timer for minimum 0.5 second display
+  const showSkeleton = useSkeletonTimer(transactionsLoading, 500);
 
   // Fetch suppliers
   const { data: suppliers = [] } = useQuery({

@@ -23,8 +23,8 @@ export default function InventoryPage() {
     queryKey: ['/api/inventory'],
   });
 
-  // Use skeleton timer for minimum 1 second display
-  const showSkeleton = useSkeletonTimer(isLoading, 1000);
+  // Use skeleton timer for minimum 0.5 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 500);
 
   const handleAddClick = () => {
     setSelectedItem(null);

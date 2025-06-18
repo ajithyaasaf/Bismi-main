@@ -36,8 +36,8 @@ export default function DashboardPage() {
   // Check if any data is loading
   const isLoading = suppliersLoading || inventoryLoading || customersLoading || ordersLoading || transactionsLoading;
   
-  // Use skeleton timer for minimum 1 second display
-  const showSkeleton = useSkeletonTimer(isLoading, 1000);
+  // Use skeleton timer for minimum 0.5 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 500);
   
   // Check for errors
   const hasErrors = suppliersError || inventoryError || customersError || ordersError || transactionsError;

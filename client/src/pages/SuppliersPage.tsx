@@ -27,8 +27,8 @@ export default function SuppliersPage() {
     queryKey: ['/api/suppliers'],
   });
 
-  // Use skeleton timer for minimum 1 second display
-  const showSkeleton = useSkeletonTimer(isLoading, 1000);
+  // Use skeleton timer for minimum 0.5 second display
+  const showSkeleton = useSkeletonTimer(isLoading, 500);
 
   const openForm = (supplier?: Supplier) => {
     setSelectedSupplier(supplier || null);

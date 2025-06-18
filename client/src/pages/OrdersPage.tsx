@@ -22,8 +22,8 @@ export default function OrdersPage() {
     queryKey: ['/api/orders'],
   });
 
-  // Use skeleton timer for minimum 1 second display
-  const showSkeleton = useSkeletonTimer(ordersLoading, 1000);
+  // Use skeleton timer for minimum 0.5 second display
+  const showSkeleton = useSkeletonTimer(ordersLoading, 500);
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],

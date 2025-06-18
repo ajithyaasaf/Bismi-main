@@ -57,7 +57,7 @@ export default function TransactionsPage() {
       return await apiRequest('POST', '/api/transactions', transactionData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       setIsFormOpen(false);
@@ -80,11 +80,9 @@ export default function TransactionsPage() {
   const deleteTransactionMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest('DELETE', `/api/transactions/${id}`);
-
-      return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       toast({
         title: "Success",
         description: "Transaction deleted successfully",

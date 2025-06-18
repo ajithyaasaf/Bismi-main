@@ -34,57 +34,9 @@ export default function TransactionsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch transactions using the new robust service
+  // Fetch transactions using the standard API pattern
   const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery({
-    queryKey: ['transactions-v2'],
-    queryFn: async () => {
-      const url = 'https://bismi-main.onrender.com/api/transactions';
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors',
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch transactions`);
-      }
-
-      const text = await response.text();
-      
-      // Check if response starts with HTML
-      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
-        throw new Error('Server returned HTML page instead of JSON data');
-      }
-      
-      try {
-        const data = JSON.parse(text);
-        
-        if (!Array.isArray(data)) {
-          return [];
-        }
-
-        return data.map((transaction: any) => ({
-          id: String(transaction.id || ''),
-          entityId: String(transaction.entityId || ''),
-          entityType: String(transaction.entityType || ''),
-          type: String(transaction.type || ''),
-          amount: Number(transaction.amount) || 0,
-          description: String(transaction.description || ''),
-          createdAt: new Date(transaction.createdAt || Date.now())
-        }));
-      } catch (parseError) {
-        console.error('JSON Parse Error:', parseError);
-        console.error('Response text:', text.substring(0, 500));
-        throw new Error('Invalid JSON response from server');
-      }
-    },
-    retry: 2,
-    refetchOnWindowFocus: false,
-    staleTime: 30000,
+    queryKey: ['/api/transactions'],
   });
 
   // Use skeleton timer for minimum 0.5 second display

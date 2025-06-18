@@ -137,12 +137,24 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('suppliers').get();
       return snapshot.docs.map((doc) => {
         const data = doc.data();
+        
+        // Debug logging to understand actual database structure
+        console.log('Supplier data from Firestore:', {
+          id: doc.id,
+          name: data.name,
+          rawData: data,
+          hasPendingAmount: !!data.pendingAmount,
+          hasDebt: !!data.debt,
+          hasUpdatedAt: !!data.updatedAt,
+          hasCreatedAt: !!data.createdAt
+        });
+        
         return {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          pendingAmount: data.pendingAmount || 0,
-          createdAt: this.convertTimestamp(data.createdAt),
+          pendingAmount: data.debt || data.pendingAmount || 0, // Handle debt vs pendingAmount field mismatch
+          createdAt: this.convertTimestamp(data.updatedAt || data.createdAt), // Handle updatedAt vs createdAt
         };
       });
     } catch (error) {
@@ -161,8 +173,8 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        pendingAmount: data?.pendingAmount || 0,
-        createdAt: this.convertTimestamp(data?.createdAt),
+        pendingAmount: data?.debt || data?.pendingAmount || 0,
+        createdAt: this.convertTimestamp(data?.updatedAt || data?.createdAt),
       };
     } catch (error) {
       console.error('Error getting supplier:', error);
@@ -172,11 +184,14 @@ export class FirestoreStorage implements IStorage {
 
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
     try {
+      const now = new Date();
       const docRef = await this.db.collection('suppliers').add({
         name: supplier.name,
         contact: supplier.contact,
-        pendingAmount: supplier.pendingAmount || 0,
-        createdAt: new Date(),
+        debt: supplier.pendingAmount || 0, // Store as 'debt' to match existing database structure
+        pendingAmount: supplier.pendingAmount || 0, // Also store as pendingAmount for consistency
+        createdAt: now,
+        updatedAt: now,
       });
 
       return {
@@ -184,7 +199,7 @@ export class FirestoreStorage implements IStorage {
         name: supplier.name,
         contact: supplier.contact,
         pendingAmount: supplier.pendingAmount || 0,
-        createdAt: new Date(),
+        createdAt: now,
       };
     } catch (error) {
       console.error('Error creating supplier:', error);
@@ -194,7 +209,13 @@ export class FirestoreStorage implements IStorage {
 
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     try {
-      await this.db.collection('suppliers').doc(id).update(supplier);
+      // Map pendingAmount to debt field for database consistency
+      const updateData: any = { ...supplier, updatedAt: new Date() };
+      if (updateData.pendingAmount !== undefined) {
+        updateData.debt = updateData.pendingAmount;
+      }
+      
+      await this.db.collection('suppliers').doc(id).update(updateData);
       return this.getSupplier(id);
     } catch (error) {
       console.error('Error updating supplier:', error);
@@ -218,15 +239,27 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('inventory').get();
       return snapshot.docs.map((doc) => {
         const data = doc.data();
+        
+        // Debug logging to understand actual database structure
+        console.log('Inventory data from Firestore:', {
+          id: doc.id,
+          rawData: data,
+          hasName: !!data.name,
+          hasRate: !!data.rate,
+          hasPrice: !!data.price,
+          hasUpdatedAt: !!data.updatedAt,
+          hasCreatedAt: !!data.createdAt
+        });
+        
         return {
           id: doc.id,
-          name: data.name || '',
-          type: data.type || '',
+          name: data.name || `Item-${data.type || 'Unknown'}`, // Generate name if missing
+          type: data.type || 'boneless',
           quantity: data.quantity || 0,
-          unit: data.unit || '',
-          price: data.price || 0,
-          supplierId: data.supplierId || '',
-          createdAt: this.convertTimestamp(data.createdAt),
+          unit: data.unit || 'kg', // Default unit
+          price: data.rate || data.price || 0, // Handle rate vs price field mismatch
+          supplierId: data.supplierId || '', // May be empty in existing data
+          createdAt: this.convertTimestamp(data.updatedAt || data.createdAt), // Handle updatedAt vs createdAt
         };
       });
     } catch (error) {
@@ -243,13 +276,13 @@ export class FirestoreStorage implements IStorage {
       const data = doc.data();
       return {
         id: doc.id,
-        name: data?.name || '',
-        type: data?.type || '',
+        name: data?.name || `Item-${data?.type || 'Unknown'}`,
+        type: data?.type || 'boneless',
         quantity: data?.quantity || 0,
-        unit: data?.unit || '',
-        price: data?.price || 0,
+        unit: data?.unit || 'kg',
+        price: data?.rate || data?.price || 0,
         supplierId: data?.supplierId || '',
-        createdAt: this.convertTimestamp(data?.createdAt),
+        createdAt: this.convertTimestamp(data?.updatedAt || data?.createdAt),
       };
     } catch (error) {
       console.error('Error getting inventory item:', error);
@@ -259,14 +292,17 @@ export class FirestoreStorage implements IStorage {
 
   async createInventoryItem(item: InsertInventory): Promise<Inventory> {
     try {
+      const now = new Date();
       const docRef = await this.db.collection('inventory').add({
         name: item.name,
         type: item.type,
         quantity: item.quantity,
         unit: item.unit,
-        price: item.price,
+        rate: item.price, // Store as 'rate' to match existing database structure
+        price: item.price, // Also store as price for consistency
         supplierId: item.supplierId,
-        createdAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       });
 
       return {
@@ -277,7 +313,7 @@ export class FirestoreStorage implements IStorage {
         unit: item.unit,
         price: item.price,
         supplierId: item.supplierId,
-        createdAt: new Date(),
+        createdAt: now,
       };
     } catch (error) {
       console.error('Error creating inventory item:', error);
@@ -287,7 +323,13 @@ export class FirestoreStorage implements IStorage {
 
   async updateInventoryItem(id: string, item: Partial<InsertInventory>): Promise<Inventory | undefined> {
     try {
-      await this.db.collection('inventory').doc(id).update(item);
+      // Map price to rate field for database consistency
+      const updateData: any = { ...item, updatedAt: new Date() };
+      if (updateData.price !== undefined) {
+        updateData.rate = updateData.price;
+      }
+      
+      await this.db.collection('inventory').doc(id).update(updateData);
       return this.getInventoryItem(id);
     } catch (error) {
       console.error('Error updating inventory item:', error);

@@ -135,6 +135,8 @@ This is a full-stack web application for managing a chicken shop business. The s
 - June 17, 2025. Fixed API response handling across all service files - implemented safeJsonResponse utility to properly handle non-JSON responses and prevent parsing errors when API returns HTML error pages
 - June 18, 2025. Replaced spinner with skeleton loading system - removed main page spinner and implemented centralized skeleton components for all pages with 0.5-second minimum display time
 - June 18, 2025. Fixed Rate field input issues across all order forms - corrected property mismatch between 'rate' and 'price' in NewOrderModal and OrderForm components, updated OrderItem interface to include rate and details properties
+- June 18, 2025. Fixed production JavaScript TypeError: Cannot read properties of undefined (reading 'toFixed') - updated Order type property access from 'total' to 'totalAmount' and 'status' to 'paymentStatus', added null safety checks for all numeric values before calling .toFixed()
+- June 18, 2025. Fixed orders page delete functionality - corrected prop name mismatch between OrdersList component expecting 'onDelete' and OrdersPage passing 'onDeleteOrder', updated interface to use consistent prop names
 
 ## User Preferences
 

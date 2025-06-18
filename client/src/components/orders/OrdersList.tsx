@@ -18,11 +18,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 interface OrdersListProps {
   orders: Order[];
   customers: Customer[];
-  onUpdateStatus: (order: Order) => void;
-  onDelete: (order: Order) => void;
+  onUpdateStatus?: (order: Order) => void;
+  onDeleteOrder?: (order: Order) => void;
 }
 
-export default function OrdersList({ orders, customers, onUpdateStatus, onDelete }: OrdersListProps) {
+export default function OrdersList({ orders, customers, onUpdateStatus, onDeleteOrder }: OrdersListProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   
   // Sort orders by date (newest first) - Enterprise level timestamp handling
@@ -227,7 +227,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                         variant="outline" 
                         size="sm" 
                         className={order.paymentStatus === 'paid' ? 'text-yellow-600' : 'text-green-600'}
-                        onClick={() => onUpdateStatus(order)}
+                        onClick={() => onUpdateStatus?.(order)}
                       >
                         <i className={`fas ${order.paymentStatus === 'paid' ? 'fa-hourglass' : 'fa-check'}`}></i>
                       </Button>
@@ -235,7 +235,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                         variant="outline" 
                         size="sm" 
                         className="text-red-600" 
-                        onClick={() => onDelete(order)}
+                        onClick={() => onDeleteOrder?.(order)}
                       >
                         <i className="fas fa-trash"></i>
                       </Button>

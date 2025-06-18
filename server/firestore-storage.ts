@@ -153,8 +153,8 @@ export class FirestoreStorage implements IStorage {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          pendingAmount: data.debt || data.pendingAmount || 0, // Handle debt vs pendingAmount field mismatch
-          createdAt: this.convertTimestamp(data.updatedAt || data.createdAt), // Handle updatedAt vs createdAt
+          pendingAmount: data.debt || 0,
+          createdAt: this.convertTimestamp(data.updatedAt),
         };
       });
     } catch (error) {
@@ -173,8 +173,8 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        pendingAmount: data?.debt || data?.pendingAmount || 0,
-        createdAt: this.convertTimestamp(data?.updatedAt || data?.createdAt),
+        pendingAmount: data?.debt || 0,
+        createdAt: this.convertTimestamp(data?.updatedAt),
       };
     } catch (error) {
       console.error('Error getting supplier:', error);
@@ -188,8 +188,7 @@ export class FirestoreStorage implements IStorage {
       const docRef = await this.db.collection('suppliers').add({
         name: supplier.name,
         contact: supplier.contact,
-        debt: supplier.pendingAmount || 0, // Store as 'debt' to match existing database structure
-        pendingAmount: supplier.pendingAmount || 0, // Also store as pendingAmount for consistency
+        debt: supplier.pendingAmount || 0,
         createdAt: now,
         updatedAt: now,
       });
@@ -253,13 +252,13 @@ export class FirestoreStorage implements IStorage {
         
         return {
           id: doc.id,
-          name: data.name || `Item-${data.type || 'Unknown'}`, // Generate name if missing
+          name: data.type || 'Item', // Database stores type as name
           type: data.type || 'boneless',
           quantity: data.quantity || 0,
-          unit: data.unit || 'kg', // Default unit
-          price: data.rate || data.price || 0, // Handle rate vs price field mismatch
-          supplierId: data.supplierId || '', // May be empty in existing data
-          createdAt: this.convertTimestamp(data.updatedAt || data.createdAt), // Handle updatedAt vs createdAt
+          unit: 'kg', // Fixed unit since database doesn't store this
+          price: data.rate || 0, // Database uses 'rate' field, not 'price'
+          supplierId: '', // Database doesn't store supplier relationship
+          createdAt: this.convertTimestamp(data.updatedAt),
         };
       });
     } catch (error) {
@@ -276,13 +275,13 @@ export class FirestoreStorage implements IStorage {
       const data = doc.data();
       return {
         id: doc.id,
-        name: data?.name || `Item-${data?.type || 'Unknown'}`,
+        name: data?.type || 'Item',
         type: data?.type || 'boneless',
         quantity: data?.quantity || 0,
-        unit: data?.unit || 'kg',
-        price: data?.rate || data?.price || 0,
-        supplierId: data?.supplierId || '',
-        createdAt: this.convertTimestamp(data?.updatedAt || data?.createdAt),
+        unit: 'kg',
+        price: data?.rate || 0,
+        supplierId: '',
+        createdAt: this.convertTimestamp(data?.updatedAt),
       };
     } catch (error) {
       console.error('Error getting inventory item:', error);
@@ -294,14 +293,9 @@ export class FirestoreStorage implements IStorage {
     try {
       const now = new Date();
       const docRef = await this.db.collection('inventory').add({
-        name: item.name,
         type: item.type,
         quantity: item.quantity,
-        unit: item.unit,
-        rate: item.price, // Store as 'rate' to match existing database structure
-        price: item.price, // Also store as price for consistency
-        supplierId: item.supplierId,
-        createdAt: now,
+        rate: item.price,
         updatedAt: now,
       });
 

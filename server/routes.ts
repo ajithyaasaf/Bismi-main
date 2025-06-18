@@ -471,96 +471,199 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  // Transaction routes
+  // Completely rebuilt transaction routes with robust error handling
   apiRouter.get("/transactions", async (req: Request, res: Response) => {
+    // Set JSON headers immediately to prevent HTML responses
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-cache');
+    
     try {
-      console.log("Transactions endpoint called");
-      
-      // Set proper JSON headers first
-      res.setHeader('Content-Type', 'application/json');
+      console.log("[TRANSACTIONS API] GET /api/transactions called");
       
       const storage = await getStorage();
-      console.log("Storage initialized for transactions");
       
-      const transactions = await storage.getAllTransactions();
-      console.log(`Retrieved ${transactions.length} transactions`);
-      
-      // Serialize dates to ISO strings to prevent JSON serialization issues
-      const serializedTransactions = (transactions || []).map(transaction => ({
-        ...transaction,
-        createdAt: transaction.createdAt instanceof Date 
-          ? transaction.createdAt.toISOString() 
-          : new Date(transaction.createdAt).toISOString()
-      }));
-      
-      res.json(serializedTransactions);
-      
-    } catch (error) {
-      console.error("Failed to get transactions:", error);
-      res.setHeader('Content-Type', 'application/json');
-      
-      // Ensure we always return valid JSON even on error
+      // Get all transactions with extensive error handling
+      let transactions: any[] = [];
       try {
-        res.status(500).json({ 
-          message: "Failed to get transactions",
-          error: error instanceof Error ? error.message : 'Unknown error',
+        transactions = await storage.getAllTransactions();
+        console.log(`[TRANSACTIONS API] Retrieved ${transactions.length} transactions from storage`);
+      } catch (storageError) {
+        console.error("[TRANSACTIONS API] Storage error:", storageError);
+        return res.status(500).json({ 
+          success: false,
+          message: "Database connection failed",
+          error: "Could not retrieve transactions from storage",
           timestamp: new Date().toISOString()
         });
-      } catch (jsonError) {
-        // If JSON serialization fails, send a simple string response
-        res.status(500).send('{"message":"Internal server error","error":"JSON serialization failed"}');
+      }
+
+      // Ensure we have a valid array
+      if (!Array.isArray(transactions)) {
+        console.warn("[TRANSACTIONS API] Storage returned non-array:", typeof transactions);
+        transactions = [];
+      }
+
+      // Safely serialize each transaction
+      const safeTransactions = transactions.map((transaction, index) => {
+        try {
+          return {
+            id: String(transaction.id || ''),
+            entityId: String(transaction.entityId || ''),
+            entityType: String(transaction.entityType || ''),
+            type: String(transaction.type || ''),
+            amount: Number(transaction.amount) || 0,
+            description: String(transaction.description || ''),
+            createdAt: transaction.createdAt instanceof Date 
+              ? transaction.createdAt.toISOString()
+              : new Date(transaction.createdAt || Date.now()).toISOString()
+          };
+        } catch (serializationError) {
+          console.error(`[TRANSACTIONS API] Failed to serialize transaction ${index}:`, serializationError);
+          return null;
+        }
+      }).filter(Boolean); // Remove any null entries
+
+      console.log(`[TRANSACTIONS API] Successfully serialized ${safeTransactions.length} transactions`);
+      
+      // Return the response
+      res.status(200).json(safeTransactions);
+      
+    } catch (error) {
+      console.error("[TRANSACTIONS API] Unexpected error:", error);
+      
+      // Always return JSON, never HTML
+      const errorResponse = {
+        success: false,
+        message: "Internal server error",
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        timestamp: new Date().toISOString()
+      };
+      
+      try {
+        res.status(500).json(errorResponse);
+      } catch (finalError) {
+        // Last resort: send minimal JSON string
+        res.status(500).send('{"success":false,"message":"Critical server error"}');
       }
     }
   });
 
   apiRouter.get("/transactions/:id", async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    
     try {
-      res.setHeader('Content-Type', 'application/json');
+      console.log(`[TRANSACTIONS API] GET /api/transactions/${req.params.id}`);
+      
       const storage = await getStorage();
       const transaction = await storage.getTransaction(req.params.id);
+      
       if (!transaction) {
-        return res.status(404).json({ message: "Transaction not found" });
+        return res.status(404).json({ 
+          success: false,
+          message: "Transaction not found" 
+        });
       }
       
-      // Serialize date to prevent JSON issues
-      const serializedTransaction = {
-        ...transaction,
+      // Safely serialize the transaction
+      const safeTransaction = {
+        id: String(transaction.id || ''),
+        entityId: String(transaction.entityId || ''),
+        entityType: String(transaction.entityType || ''),
+        type: String(transaction.type || ''),
+        amount: Number(transaction.amount) || 0,
+        description: String(transaction.description || ''),
         createdAt: transaction.createdAt instanceof Date 
           ? transaction.createdAt.toISOString() 
-          : new Date(transaction.createdAt).toISOString()
+          : new Date(transaction.createdAt || Date.now()).toISOString()
       };
       
-      res.json(serializedTransaction);
+      res.status(200).json(safeTransaction);
     } catch (error) {
-      console.error("Failed to get transaction:", error);
-      res.setHeader('Content-Type', 'application/json');
-      res.status(500).json({ message: "Failed to get transaction" });
+      console.error("[TRANSACTIONS API] Failed to get transaction:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to get transaction",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
   apiRouter.post("/transactions", async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    
     try {
-      res.setHeader('Content-Type', 'application/json');
+      console.log("[TRANSACTIONS API] POST /api/transactions", req.body);
+      
+      // Validate request data
       const validatedData = insertTransactionSchema.parse(req.body);
+      
       const storage = await getStorage();
       const transaction = await storage.createTransaction(validatedData);
       
-      // Serialize date to prevent JSON issues
-      const serializedTransaction = {
-        ...transaction,
+      // Safely serialize the new transaction
+      const safeTransaction = {
+        id: String(transaction.id || ''),
+        entityId: String(transaction.entityId || ''),
+        entityType: String(transaction.entityType || ''),
+        type: String(transaction.type || ''),
+        amount: Number(transaction.amount) || 0,
+        description: String(transaction.description || ''),
         createdAt: transaction.createdAt instanceof Date 
           ? transaction.createdAt.toISOString() 
-          : new Date(transaction.createdAt).toISOString()
+          : new Date(transaction.createdAt || Date.now()).toISOString()
       };
       
-      res.status(201).json(serializedTransaction);
+      console.log("[TRANSACTIONS API] Transaction created successfully:", safeTransaction.id);
+      res.status(201).json(safeTransaction);
+      
     } catch (error) {
-      console.error("Failed to create transaction:", error);
-      res.setHeader('Content-Type', 'application/json');
+      console.error("[TRANSACTIONS API] Failed to create transaction:", error);
+      
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res.status(400).json({ 
+          success: false,
+          message: "Invalid data provided", 
+          errors: error.errors 
+        });
       }
-      res.status(500).json({ message: "Failed to create transaction" });
+      
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to create transaction",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Add DELETE endpoint for transactions
+  apiRouter.delete("/transactions/:id", async (req: Request, res: Response) => {
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      console.log(`[TRANSACTIONS API] DELETE /api/transactions/${req.params.id}`);
+      
+      const storage = await getStorage();
+      const success = await storage.deleteTransaction(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ 
+          success: false,
+          message: "Transaction not found" 
+        });
+      }
+      
+      res.status(200).json({ 
+        success: true,
+        message: "Transaction deleted successfully" 
+      });
+      
+    } catch (error) {
+      console.error("[TRANSACTIONS API] Failed to delete transaction:", error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to delete transaction",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

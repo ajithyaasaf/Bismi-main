@@ -11,6 +11,8 @@ import TransactionFormModal from "@/components/transactions/TransactionFormModal
 import TransactionsTable from "@/components/transactions/TransactionsTable";
 import { getApiUrl } from "@/lib/config";
 import { fetchTransactionsWithDiagnostics } from "@/lib/api-diagnostics";
+import { TransactionsSkeleton } from "@/components/skeletons";
+import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
 interface TransactionFilters {
   search: string;
@@ -84,6 +86,9 @@ export default function TransactionsPage() {
     refetchOnWindowFocus: false,
     staleTime: 30000,
   });
+
+  // Use skeleton timer for minimum 1 second display
+  const showSkeleton = useSkeletonTimer(transactionsLoading, 1000);
 
   // Fetch suppliers
   const { data: suppliers = [] } = useQuery({
@@ -225,6 +230,10 @@ export default function TransactionsPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  if (showSkeleton) {
+    return <TransactionsSkeleton />;
+  }
+
   if (transactionsError) {
     return (
       <div className="space-y-6">
@@ -324,7 +333,7 @@ export default function TransactionsPage() {
         transactions={filteredTransactions}
         suppliers={suppliers}
         customers={customers}
-        isLoading={transactionsLoading}
+        isLoading={false}
         onDelete={handleDeleteTransaction}
         onEdit={setEditingTransaction}
       />

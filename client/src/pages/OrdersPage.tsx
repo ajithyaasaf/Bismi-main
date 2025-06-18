@@ -7,6 +7,8 @@ import NewOrderModal from "@/components/modals/NewOrderModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { OrdersSkeleton } from "@/components/skeletons";
+import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
 export default function OrdersPage() {
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
@@ -19,6 +21,9 @@ export default function OrdersPage() {
   const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ['/api/orders'],
   });
+
+  // Use skeleton timer for minimum 1 second display
+  const showSkeleton = useSkeletonTimer(ordersLoading, 1000);
 
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
@@ -76,6 +81,10 @@ export default function OrdersPage() {
     setOrderToDelete(null);
   };
 
+  if (showSkeleton) {
+    return <OrdersSkeleton />;
+  }
+
   return (
     <>
       <div className="flex justify-between items-center mb-6">
@@ -89,7 +98,7 @@ export default function OrdersPage() {
         orders={orders}
         customers={customers}
         inventory={inventory}
-        isLoading={ordersLoading}
+        isLoading={false}
         onDeleteOrder={handleDeleteOrder}
       />
 

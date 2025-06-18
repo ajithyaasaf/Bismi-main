@@ -23,6 +23,7 @@ interface CustomersListProps {
 
 export default function CustomersList({ 
   customers, 
+  isLoading,
   onEdit, 
   onDelete,
   onPayment,

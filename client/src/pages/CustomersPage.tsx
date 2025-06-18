@@ -156,10 +156,36 @@ export default function CustomersPage() {
         <PaymentModal
           isOpen={paymentModalOpen}
           onClose={closePaymentModal}
+          onSubmit={async (amount) => {
+            try {
+              const response = await apiRequest('POST', `/api/customers/${paymentCustomer.id}/payment`, {
+                amount,
+                description: `Payment from ${paymentCustomer.name}`
+              });
+
+              if (response.ok) {
+                toast({
+                  title: "Payment recorded",
+                  description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${paymentCustomer.name}.`,
+                });
+                
+                queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+                queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+              } else {
+                throw new Error('Failed to record payment');
+              }
+            } catch (error) {
+              toast({
+                title: "Error",
+                description: "Failed to record the payment. Please try again.",
+                variant: "destructive",
+              });
+              throw error;
+            }
+          }}
           entityType="customer"
-          entityId={paymentCustomer.id}
           entityName={paymentCustomer.name}
-          currentDebt={paymentCustomer.pendingAmount}
+          currentAmount={paymentCustomer.pendingAmount}
         />
       )}
 

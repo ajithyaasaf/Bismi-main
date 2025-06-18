@@ -97,8 +97,6 @@ export default function OrdersPage() {
       <OrdersList 
         orders={orders}
         customers={customers}
-        inventory={inventory}
-        isLoading={false}
         onDeleteOrder={handleDeleteOrder}
       />
 
@@ -114,9 +112,10 @@ export default function OrdersPage() {
       <ConfirmationDialog
         isOpen={isDeleteDialogOpen}
         onConfirm={confirmDeleteOrder}
-        onCancel={cancelDeleteOrder}
+        onClose={cancelDeleteOrder}
         title="Delete Order"
         description={orderToDelete ? `Are you sure you want to delete order #${orderToDelete.id}? This action cannot be undone.` : ""}
+        variant="destructive"
       />
     </>
   );

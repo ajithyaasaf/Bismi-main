@@ -131,8 +131,7 @@ export default function InventoryPage() {
             ? `Are you sure you want to delete "${itemToDelete.type}"? This action cannot be undone.`
             : ""
         }
-        confirmLabel="Delete"
-        confirmVariant="destructive"
+        variant="destructive"
       />
     </div>
   );

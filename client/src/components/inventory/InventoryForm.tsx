@@ -67,9 +67,12 @@ export default function InventoryForm({ item, isOpen, onClose }: InventoryFormPr
     try {
       // Prepare data
       const itemData = {
+        name: type, // Use type as name for consistency
         type,
         quantity: quantityValue,
+        unit: "kg",
         price: rateValue,
+        supplierId: "", // Default empty supplier
       };
       
       if (isEditing && item) {

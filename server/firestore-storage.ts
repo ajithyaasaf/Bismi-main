@@ -235,23 +235,15 @@ export class FirestoreStorage implements IStorage {
       return snapshot.docs.map((doc) => {
         const data = doc.data();
         
-        // Debug logging
-        console.log('Inventory data from Firestore:', {
-          id: doc.id,
-          type: data.type,
-          quantity: data.quantity,
-          price: data.rate || 0
-        });
-        
         return {
           id: doc.id,
-          name: data.type || 'boneless',
+          name: data.name || data.type || 'Item',
           type: data.type || 'boneless',
           quantity: data.quantity || 0,
-          unit: 'kg',
-          price: data.rate || 0,
-          supplierId: '',
-          createdAt: this.convertTimestamp(data.updatedAt),
+          unit: data.unit || 'kg',
+          price: data.rate || data.price || 0,
+          supplierId: data.supplierId || '',
+          createdAt: this.convertTimestamp(data.updatedAt || data.createdAt),
         };
       });
     } catch (error) {
@@ -268,13 +260,13 @@ export class FirestoreStorage implements IStorage {
       const data = doc.data();
       return {
         id: doc.id,
-        name: data?.type || 'Item',
+        name: data?.name || data?.type || 'Item',
         type: data?.type || 'boneless',
         quantity: data?.quantity || 0,
-        unit: 'kg',
-        price: data?.rate || 0,
-        supplierId: '',
-        createdAt: this.convertTimestamp(data?.updatedAt),
+        unit: data?.unit || 'kg',
+        price: data?.rate || data?.price || 0,
+        supplierId: data?.supplierId || '',
+        createdAt: this.convertTimestamp(data?.updatedAt || data?.createdAt),
       };
     } catch (error) {
       console.error('Error getting inventory item:', error);
@@ -286,20 +278,23 @@ export class FirestoreStorage implements IStorage {
     try {
       const now = new Date();
       const docRef = await this.db.collection('inventory').add({
+        name: item.name || item.type,
         type: item.type,
         quantity: item.quantity,
+        unit: item.unit || 'kg',
         rate: item.price,
+        supplierId: item.supplierId || '',
         updatedAt: now,
       });
 
       return {
         id: docRef.id,
-        name: item.type,
+        name: item.name || item.type,
         type: item.type,
         quantity: item.quantity,
-        unit: 'kg',
+        unit: item.unit || 'kg',
         price: item.price,
-        supplierId: '',
+        supplierId: item.supplierId || '',
         createdAt: now,
       };
     } catch (error) {
@@ -314,15 +309,6 @@ export class FirestoreStorage implements IStorage {
       if (updateData.price !== undefined) {
         updateData.rate = updateData.price;
         delete updateData.price;
-      }
-      if (updateData.name !== undefined) {
-        delete updateData.name;
-      }
-      if (updateData.unit !== undefined) {
-        delete updateData.unit;
-      }
-      if (updateData.supplierId !== undefined) {
-        delete updateData.supplierId;
       }
       
       await this.db.collection('inventory').doc(id).update(updateData);

@@ -31,9 +31,9 @@ export default function TransactionsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch transactions with better error handling
+  // Fetch transactions using the new robust service
   const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery({
-    queryKey: ['/api/transactions'],
+    queryKey: ['transactions-v2'],
     queryFn: async () => {
       try {
         const response = await fetch(getApiUrl('/api/transactions'), {
@@ -46,36 +46,42 @@ export default function TransactionsPage() {
         });
 
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('Transaction API error:', errorText);
+          throw new Error(`Server error: ${response.status}`);
         }
 
         const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
+        if (!contentType?.includes('application/json')) {
           const text = await response.text();
-          console.error('Non-JSON response received:', text.substring(0, 200));
-          throw new Error('Server returned non-JSON response');
+          console.error('Non-JSON response:', text.substring(0, 200));
+          throw new Error('Invalid response format from server');
         }
 
         const data = await response.json();
         
-        // Ensure data is an array and convert date strings
         if (!Array.isArray(data)) {
-          console.error('Expected array but got:', typeof data);
+          console.error('Invalid data format:', typeof data);
           return [];
         }
 
         return data.map((transaction: any) => ({
-          ...transaction,
-          createdAt: new Date(transaction.createdAt),
-          amount: Number(transaction.amount) || 0
+          id: String(transaction.id),
+          entityId: String(transaction.entityId),
+          entityType: String(transaction.entityType),
+          type: String(transaction.type),
+          amount: Number(transaction.amount) || 0,
+          description: String(transaction.description),
+          createdAt: new Date(transaction.createdAt)
         }));
       } catch (error) {
-        console.error('Error fetching transactions:', error);
-        throw error;
+        console.error('Transaction fetch error:', error);
+        throw new Error('Unable to load transactions');
       }
     },
-    retry: 1,
+    retry: 2,
     refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
 
   // Fetch suppliers
@@ -127,7 +133,7 @@ export default function TransactionsPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-v2'] });
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
       setIsFormOpen(false);
@@ -162,7 +168,7 @@ export default function TransactionsPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions-v2'] });
       toast({
         title: "Success",
         description: "Transaction deleted successfully",
@@ -202,8 +208,8 @@ export default function TransactionsPage() {
       'Date,Entity Type,Entity,Type,Amount,Description',
       ...filteredTransactions.map(t => {
         const entityName = t.entityType === 'supplier' 
-          ? suppliers.find(s => s.id === t.entityId)?.name || 'Unknown'
-          : customers.find(c => c.id === t.entityId)?.name || 'Unknown';
+          ? suppliers.find((s: Supplier) => s.id === t.entityId)?.name || 'Unknown'
+          : customers.find((c: Customer) => c.id === t.entityId)?.name || 'Unknown';
         
         return `${t.createdAt.toLocaleDateString()},${t.entityType},${entityName},${t.type},${t.amount},"${t.description}"`;
       })

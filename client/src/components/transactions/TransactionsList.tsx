@@ -70,7 +70,7 @@ export default function TransactionsList({
             {sortedTransactions.map((transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell>
-                  {format(new Date(transaction.date), 'MMM dd, yyyy HH:mm')}
+                  {format(new Date(transaction.createdAt), 'MMM dd, yyyy HH:mm')}
                 </TableCell>
                 <TableCell className="font-medium">
                   {getEntityName(transaction.entityId, transaction.entityType)}

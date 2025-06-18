@@ -51,8 +51,8 @@ export default function LowStockAlert({ lowStockItems, onAddStock }: LowStockAle
                         : 'text-gray-500'
                     }`}>
                       {isNegative 
-                        ? `Negative stock: ${item.quantity.toFixed(1)} kg` 
-                        : `Low stock: ${item.quantity.toFixed(1)} kg remaining`
+                        ? `Negative stock: ${(item.quantity || 0).toFixed(1)} kg` 
+                        : `Low stock: ${(item.quantity || 0).toFixed(1)} kg remaining`
                       }
                     </p>
                   </div>

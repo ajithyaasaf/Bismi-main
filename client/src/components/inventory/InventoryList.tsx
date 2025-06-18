@@ -77,18 +77,18 @@ export default function InventoryList({ items, onEdit, onDelete }: InventoryList
                       ? 'text-amber-600' 
                       : ''
                   }`}>
-                    {item.quantity < 0 ? 'Negative: ' : ''}{item.quantity.toFixed(2)} kg
+                    {(item.quantity || 0) < 0 ? 'Negative: ' : ''}{(item.quantity || 0).toFixed(2)} kg
                   </p>
                 </div>
                 
                 <div className="space-y-1">
                   <p className="text-xs text-gray-500">Rate</p>
-                  <p className="font-medium">₹{item.price.toFixed(2)}/kg</p>
+                  <p className="font-medium">₹{(item.price || 0).toFixed(2)}/kg</p>
                 </div>
                 
                 <div className="space-y-1 col-span-2 pt-2 border-t border-gray-100">
                   <p className="text-xs text-gray-500">Total Value</p>
-                  <p className="font-bold text-lg">₹{(item.quantity * item.price).toFixed(2)}</p>
+                  <p className="font-bold text-lg">₹{((item.quantity || 0) * (item.price || 0)).toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>

@@ -60,7 +60,7 @@ export default function Dashboard({
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         <StatsCard 
           title="Current Stock"
-          value={`${totalStock.toFixed(1)} kg`}
+          value={`${(totalStock || 0).toFixed(1)} kg`}
           icon="boxes"
           iconBgColor="bg-blue-100"
           iconColor="text-blue-600"
@@ -70,7 +70,7 @@ export default function Dashboard({
         
         <StatsCard 
           title="Today's Sales"
-          value={`₹${todaysSales.toFixed(0)}`}
+          value={`₹${(todaysSales || 0).toFixed(0)}`}
           icon="rupee-sign"
           iconBgColor="bg-orange-100"
           iconColor="text-orange-600"
@@ -80,7 +80,7 @@ export default function Dashboard({
         
         <StatsCard 
           title="Supplier Debts"
-          value={`₹${supplierDebts.toFixed(0)}`}
+          value={`₹${(supplierDebts || 0).toFixed(0)}`}
           icon="truck-loading"
           iconBgColor="bg-red-100"
           iconColor="text-red-600"
@@ -90,7 +90,7 @@ export default function Dashboard({
         
         <StatsCard 
           title="Pending Payments"
-          value={`₹${pendingPayments.toFixed(0)}`}
+          value={`₹${(pendingPayments || 0).toFixed(0)}`}
           icon="users"
           iconBgColor="bg-green-100"
           iconColor="text-green-600"

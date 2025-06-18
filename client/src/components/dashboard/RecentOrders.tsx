@@ -85,7 +85,7 @@ export default function RecentOrders({ orders, customers }: RecentOrdersProps) {
                 </div>
               </div>
               <div className="mt-2 flex justify-between">
-                <div className="text-sm text-gray-900 font-medium">₹{order.total.toFixed(2)}</div>
+                <div className="text-sm text-gray-900 font-medium">₹{(order.totalAmount || 0).toFixed(2)}</div>
               </div>
             </div>
           ))

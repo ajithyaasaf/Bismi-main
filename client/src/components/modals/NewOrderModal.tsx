@@ -47,6 +47,14 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   // Hotels (filtered customers)
   const hotels = customers.filter(c => c.customerType === 'hotel');
   
+  // Debug logging
+  console.log('NewOrderModal Debug:', {
+    totalCustomers: customers.length,
+    customers: customers,
+    hotelsFiltered: hotels.length,
+    hotels: hotels
+  });
+  
   // Calculate total order amount
   const calculateTotal = () => {
     return items.reduce((total, item) => {

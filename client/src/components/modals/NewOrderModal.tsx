@@ -105,10 +105,10 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   // Set default rate based on inventory when item type changes
   const updateItemType = (id: string, type: string) => {
     const inventoryItem = inventory.find(item => item.type === type);
-    const rate = inventoryItem ? String(inventoryItem.price) : '';
+    const price = inventoryItem ? String(inventoryItem.price) : '';
     
     setItems(items.map(item => 
-      item.id === id ? { ...item, type, rate } : item
+      item.id === id ? { ...item, type, price } : item
     ));
   };
   

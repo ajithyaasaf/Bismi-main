@@ -12,12 +12,9 @@ const insertSupplierSchema = z.object({
 });
 
 const insertInventorySchema = z.object({
-  name: z.string().min(1),
   type: z.string().min(1),
   quantity: z.number().min(0),
-  unit: z.string().min(1),
-  price: z.number().min(0),
-  supplierId: z.string().min(1)
+  price: z.number().min(0)
 });
 
 const insertCustomerSchema = z.object({

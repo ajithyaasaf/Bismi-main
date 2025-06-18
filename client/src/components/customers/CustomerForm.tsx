@@ -18,7 +18,7 @@ interface CustomerFormProps {
 
 export default function CustomerForm({ customer, isOpen, onClose }: CustomerFormProps) {
   const [name, setName] = useState(customer?.name || "");
-  const [type, setType] = useState(customer?.type || "hotel");
+  const [type, setType] = useState(customer?.customerType || "hotel");
   const [contact, setContact] = useState(customer?.contact || "");
   const [pendingAmount, setPendingAmount] = useState(customer?.pendingAmount?.toString() || "0");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -55,7 +55,7 @@ export default function CustomerForm({ customer, isOpen, onClose }: CustomerForm
       // Prepare data
       const customerData = {
         name,
-        type,
+        customerType: type,
         contact,
         pendingAmount: pendingValue,
       };

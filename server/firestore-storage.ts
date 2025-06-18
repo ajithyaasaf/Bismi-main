@@ -301,12 +301,12 @@ export class FirestoreStorage implements IStorage {
 
       return {
         id: docRef.id,
-        name: item.name,
+        name: item.type,
         type: item.type,
         quantity: item.quantity,
-        unit: item.unit,
+        unit: 'kg',
         price: item.price,
-        supplierId: item.supplierId,
+        supplierId: '',
         createdAt: now,
       };
     } catch (error) {

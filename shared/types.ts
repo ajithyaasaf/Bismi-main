@@ -38,12 +38,9 @@ export interface Inventory {
 }
 
 export interface InsertInventory {
-  name: string;
   type: string;
   quantity: number;
-  unit: string;
   price: number;
-  supplierId: string;
 }
 
 export interface Customer {

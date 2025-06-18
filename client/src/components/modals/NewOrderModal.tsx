@@ -44,27 +44,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   // Item types from centralized constants
   const itemTypes = ITEM_TYPES;
   
-  // Hotels (filtered customers)
-  const hotels = customers.filter(c => c.customerType === 'hotel');
-  
-  // Debug logging
-  console.log('NewOrderModal Debug:', {
-    totalCustomers: customers.length,
-    customers: customers,
-    customerTypes: customers.map(c => ({id: c.id, name: c.name, customerType: c.customerType})),
-    hotelsFiltered: hotels.length,
-    hotels: hotels,
-    items: items
-  });
-
-  // Alternative filtering attempts
-  const hotelsWithType = customers.filter(c => c.customerType === 'hotel');
-  const hotelsWithTypeAlt = customers.filter(c => (c as any).type === 'hotel');
-  
-  console.log('Filtering tests:', {
-    customerTypeHotel: hotelsWithType.length,
-    typeHotel: hotelsWithTypeAlt.length
-  });
+  // Hotels (filtered customers) - using the correct field name 'type'
+  const hotels = customers.filter(c => c.type === 'hotel');
   
   // Calculate total order amount
   const calculateTotal = () => {

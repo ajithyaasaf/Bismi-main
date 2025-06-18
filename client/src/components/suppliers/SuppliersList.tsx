@@ -12,6 +12,7 @@ import {
 
 interface SuppliersListProps {
   suppliers: Supplier[];
+  isLoading?: boolean;
   onEdit: (supplier: Supplier) => void;
   onDelete: (supplier: Supplier) => void;
   onPayment: (supplierId: string, supplierName: string) => void;
@@ -19,6 +20,7 @@ interface SuppliersListProps {
 
 export default function SuppliersList({ 
   suppliers, 
+  isLoading,
   onEdit, 
   onDelete,
   onPayment 

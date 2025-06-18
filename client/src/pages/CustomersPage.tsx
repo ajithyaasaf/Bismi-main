@@ -122,10 +122,16 @@ export default function CustomersPage() {
 
       <CustomersList 
         customers={customers}
-        isLoading={isLoading}
-        onEditCustomer={handleEditCustomer}
-        onDeleteCustomer={handleDeleteCustomer}
-        onMakePayment={handleMakePayment}
+        onEdit={handleEditCustomer}
+        onDelete={handleDeleteCustomer}
+        onPayment={(customerId, customerName) => {
+          const customer = customers.find(c => c.id === customerId);
+          if (customer) handleMakePayment({
+            id: customer.id,
+            name: customer.name,
+            pendingAmount: customer.pendingAmount
+          });
+        }}
         onGenerateInvoice={handleGenerateInvoice}
       />
 
@@ -140,9 +146,10 @@ export default function CustomersPage() {
       <ConfirmationDialog
         isOpen={isDeleteDialogOpen}
         onConfirm={confirmDelete}
-        onCancel={cancelDelete}
+        onClose={cancelDelete}
         title="Delete Customer"
         description={customerToDelete ? `Are you sure you want to delete ${customerToDelete.name}? This action cannot be undone.` : ""}
+        variant="destructive"
       />
 
       {paymentModalOpen && paymentCustomer && (

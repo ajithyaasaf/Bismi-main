@@ -88,6 +88,36 @@ export default function SuppliersPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
   };
 
+  const handlePaymentSubmit = async (amount: number) => {
+    if (!supplierForPayment) return;
+
+    try {
+      const response = await apiRequest('POST', `/api/suppliers/${supplierForPayment.id}/payment`, {
+        amount,
+        description: `Payment to ${supplierForPayment.name}`
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Payment recorded",
+          description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${supplierForPayment.name}.`,
+        });
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      } else {
+        throw new Error('Failed to record payment');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to record the payment. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
   return (
     <>
       <div className="flex justify-between items-center mb-6">
@@ -100,9 +130,12 @@ export default function SuppliersPage() {
       <SuppliersList 
         suppliers={suppliers}
         isLoading={isLoading}
-        onEditSupplier={openForm}
-        onDeleteSupplier={handleDeleteSupplier}
-        onMakePayment={openPaymentModal}
+        onEdit={openForm}
+        onDelete={handleDeleteSupplier}
+        onPayment={(supplierId, supplierName) => {
+          const supplier = suppliers.find(s => s.id === supplierId);
+          if (supplier) openPaymentModal(supplier);
+        }}
       />
 
       {isFormOpen && (
@@ -116,20 +149,21 @@ export default function SuppliersPage() {
       <ConfirmationDialog
         isOpen={isDeleteDialogOpen}
         onConfirm={confirmDeleteSupplier}
-        onCancel={cancelDeleteSupplier}
+        onClose={cancelDeleteSupplier}
         title="Delete Supplier"
         description={supplierToDelete ? `Are you sure you want to delete ${supplierToDelete.name}? This action cannot be undone.` : ""}
         isLoading={isDeletingSupplier}
+        variant="destructive"
       />
 
       {isPaymentModalOpen && supplierForPayment && (
         <PaymentModal
           isOpen={isPaymentModalOpen}
           onClose={closePaymentModal}
+          onSubmit={handlePaymentSubmit}
           entityType="supplier"
-          entityId={supplierForPayment.id}
           entityName={supplierForPayment.name}
-          currentDebt={supplierForPayment.pendingAmount || 0}
+          currentAmount={supplierForPayment.pendingAmount || 0}
         />
       )}
     </>

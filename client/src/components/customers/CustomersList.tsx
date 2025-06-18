@@ -14,6 +14,7 @@ import * as CustomerService from "@/lib/customer-service";
 
 interface CustomersListProps {
   customers: Customer[];
+  isLoading?: boolean;
   onEdit: (customer: Customer) => void;
   onDelete: (customer: Customer) => void;
   onPayment: (customerId: string, customerName: string) => void;

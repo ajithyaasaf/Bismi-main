@@ -138,15 +138,11 @@ export class FirestoreStorage implements IStorage {
       return snapshot.docs.map((doc) => {
         const data = doc.data();
         
-        // Debug logging to understand actual database structure
+        // Debug logging
         console.log('Supplier data from Firestore:', {
           id: doc.id,
           name: data.name,
-          rawData: data,
-          hasPendingAmount: !!data.pendingAmount,
-          hasDebt: !!data.debt,
-          hasUpdatedAt: !!data.updatedAt,
-          hasCreatedAt: !!data.createdAt
+          pendingAmount: data.debt || 0
         });
         
         return {
@@ -239,15 +235,12 @@ export class FirestoreStorage implements IStorage {
       return snapshot.docs.map((doc) => {
         const data = doc.data();
         
-        // Debug logging to understand actual database structure
+        // Debug logging
         console.log('Inventory data from Firestore:', {
           id: doc.id,
-          rawData: data,
-          hasName: !!data.name,
-          hasRate: !!data.rate,
-          hasPrice: !!data.price,
-          hasUpdatedAt: !!data.updatedAt,
-          hasCreatedAt: !!data.createdAt
+          type: data.type,
+          quantity: data.quantity,
+          price: data.rate || 0
         });
         
         return {
@@ -361,9 +354,7 @@ export class FirestoreStorage implements IStorage {
         console.log('Customer data from Firestore:', {
           id: doc.id,
           name: data.name,
-          rawData: data,
-          typeField: data.type,
-          customerTypeField: data.customerType
+          type: data.type
         });
         
         return {

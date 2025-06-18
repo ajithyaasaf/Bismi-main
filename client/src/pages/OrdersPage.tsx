@@ -46,6 +46,35 @@ export default function OrdersPage() {
     setIsDeleteDialogOpen(true);
   };
 
+  const handleUpdateStatus = async (order: Order) => {
+    try {
+      // Toggle payment status: paid -> pending, pending -> paid
+      const newPaymentStatus = order.paymentStatus === 'paid' ? 'pending' : 'paid';
+      
+      const response = await apiRequest('PUT', `/api/orders/${order.id}`, {
+        paymentStatus: newPaymentStatus
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Status updated",
+          description: `Order payment status changed to ${newPaymentStatus}.`,
+        });
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      } else {
+        throw new Error('Failed to update order status');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update the order status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const confirmDeleteOrder = async () => {
     if (!orderToDelete) return;
 
@@ -97,6 +126,7 @@ export default function OrdersPage() {
       <OrdersList 
         orders={orders}
         customers={customers}
+        onUpdateStatus={handleUpdateStatus}
         onDeleteOrder={handleDeleteOrder}
       />
 

@@ -33,9 +33,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Removing TooltipProvider as it's causing React hooks error */}
+      <TooltipProvider>
         <Toaster />
         <Router />
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }

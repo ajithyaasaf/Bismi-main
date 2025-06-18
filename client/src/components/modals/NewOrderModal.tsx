@@ -51,6 +51,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   console.log('NewOrderModal Debug:', {
     totalCustomers: customers.length,
     customers: customers,
+    customerTypes: customers.map(c => ({id: c.id, name: c.name, customerType: c.customerType})),
     hotelsFiltered: hotels.length,
     hotels: hotels
   });

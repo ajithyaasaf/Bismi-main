@@ -65,6 +65,8 @@ export interface InsertCustomer {
 export interface OrderItem {
   type: string;
   quantity: number;
+  rate: number;
+  details?: string;
 }
 
 export interface Order {

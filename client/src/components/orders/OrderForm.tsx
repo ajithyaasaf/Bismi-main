@@ -88,10 +88,10 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
   // Set default rate based on inventory when item type changes
   const updateItemType = (id: string, type: string) => {
     const inventoryItem = inventory.find(item => item.type === type);
-    const rate = inventoryItem ? String(inventoryItem.price) : '';
+    const price = inventoryItem ? String(inventoryItem.price) : '';
     
     setItems(items.map(item => 
-      item.id === id ? { ...item, type, rate } : item
+      item.id === id ? { ...item, type, price } : item
     ));
   };
   
@@ -375,7 +375,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
                     step="0.01"
                     min="0"
                     value={item.price}
-                    onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
+                    onChange={(e) => updateItem(item.id, 'price', e.target.value)}
                     className="h-8 text-xs"
                   />
                 </div>

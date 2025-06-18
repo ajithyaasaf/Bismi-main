@@ -218,10 +218,9 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       await apiRequest('POST', '/api/orders', {
         customerId: orderCustomerId,
         items: validItems,
-        date: new Date().toISOString(), // Convert to ISO string format for proper serialization
-        total,
-        status: paymentStatus,
-        type: customerType
+        totalAmount: total,
+        paymentStatus: paymentStatus,
+        orderStatus: 'pending'
       });
       
       // Show success message

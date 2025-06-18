@@ -240,10 +240,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       await apiRequest('POST', '/api/orders', {
         customerId: orderCustomerId,
         items: validItems,
-        date: selectedOrderDate.toISOString(),
-        total,
-        status: paymentStatus,
-        type: customerType
+        totalAmount: total,
+        paymentStatus: paymentStatus,
+        orderStatus: 'pending'
       });
       
 

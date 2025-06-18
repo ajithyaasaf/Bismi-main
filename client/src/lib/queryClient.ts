@@ -85,7 +85,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const endpoint = queryKey[0] as string;
-    const url = endpoint.startsWith('http') ? endpoint : getApiUrl(endpoint.replace('/api', ''));
+    const url = endpoint.startsWith('http') ? endpoint : getApiUrl(endpoint.startsWith('/api') ? endpoint.substring(4) : endpoint);
     
     // Add retry logic for queries too
     let retries = 3;

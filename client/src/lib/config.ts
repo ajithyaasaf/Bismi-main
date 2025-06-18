@@ -12,7 +12,11 @@ export const API_CONFIG = {
 export function getApiUrl(endpoint: string): string {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const baseUrl = API_CONFIG.BASE_URL;
-  const fullUrl = `${baseUrl}/api${cleanEndpoint}`;
+  
+  // If endpoint already starts with /api, don't add another /api prefix
+  const fullUrl = cleanEndpoint.startsWith('/api') 
+    ? `${baseUrl}${cleanEndpoint}` 
+    : `${baseUrl}/api${cleanEndpoint}`;
   
   // Enhanced logging for debugging
   console.log(`API Request: ${fullUrl}`);

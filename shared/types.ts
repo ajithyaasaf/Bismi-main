@@ -47,7 +47,7 @@ export interface Customer {
   id: string;
   name: string;
   contact: string;
-  customerType: string;
+  type: string;
   pendingAmount: number;
   createdAt: Date;
 }
@@ -55,7 +55,7 @@ export interface Customer {
 export interface InsertCustomer {
   name: string;
   contact: string;
-  customerType: string;
+  type: string;
   pendingAmount?: number;
 }
 

@@ -20,7 +20,7 @@ const insertInventorySchema = z.object({
 const insertCustomerSchema = z.object({
   name: z.string().min(1),
   contact: z.string().min(1),
-  customerType: z.string().min(1),
+  type: z.string().min(1),
   pendingAmount: z.number().optional().default(0)
 });
 

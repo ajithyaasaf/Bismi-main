@@ -370,7 +370,7 @@ export class FirestoreStorage implements IStorage {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          customerType: data.type || 'hotel',
+          type: data.type || 'hotel',
           pendingAmount: data.pendingAmount || 0,
           createdAt: this.convertTimestamp(data.createdAt),
         };
@@ -391,7 +391,7 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        customerType: data?.type || 'hotel',
+        type: data?.type || 'hotel',
         pendingAmount: data?.pendingAmount || 0,
         createdAt: this.convertTimestamp(data?.createdAt),
       };
@@ -406,7 +406,7 @@ export class FirestoreStorage implements IStorage {
       const docRef = await this.db.collection('customers').add({
         name: customer.name,
         contact: customer.contact,
-        type: customer.customerType,
+        type: customer.type,
         pendingAmount: customer.pendingAmount || 0,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -416,7 +416,7 @@ export class FirestoreStorage implements IStorage {
         id: docRef.id,
         name: customer.name,
         contact: customer.contact,
-        customerType: customer.customerType,
+        type: customer.type,
         pendingAmount: customer.pendingAmount || 0,
         createdAt: new Date(),
       };

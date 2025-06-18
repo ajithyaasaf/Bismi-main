@@ -51,16 +51,25 @@ export class FirestoreStorage implements IStorage {
   }
 
   private convertTimestamp(timestamp: any): Date {
-    if (timestamp && typeof timestamp.toDate === 'function') {
-      return timestamp.toDate();
+    try {
+      if (timestamp && typeof timestamp.toDate === 'function') {
+        return timestamp.toDate();
+      }
+      if (timestamp instanceof Date) {
+        return timestamp;
+      }
+      if (typeof timestamp === 'string') {
+        const parsed = new Date(timestamp);
+        return isNaN(parsed.getTime()) ? new Date() : parsed;
+      }
+      if (typeof timestamp === 'number') {
+        return new Date(timestamp);
+      }
+      return new Date();
+    } catch (error) {
+      console.warn('Failed to convert timestamp:', timestamp, error);
+      return new Date();
     }
-    if (timestamp instanceof Date) {
-      return timestamp;
-    }
-    if (typeof timestamp === 'string') {
-      return new Date(timestamp);
-    }
-    return new Date();
   }
 
   // User operations

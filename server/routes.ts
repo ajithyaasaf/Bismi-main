@@ -476,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       console.log("Transactions endpoint called");
       
-      // Set proper JSON headers
+      // Set proper JSON headers first
       res.setHeader('Content-Type', 'application/json');
       
       const storage = await getStorage();
@@ -485,43 +485,78 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       const transactions = await storage.getAllTransactions();
       console.log(`Retrieved ${transactions.length} transactions`);
       
-      // Ensure we return valid JSON array
-      const validTransactions = transactions || [];
-      res.json(validTransactions);
+      // Serialize dates to ISO strings to prevent JSON serialization issues
+      const serializedTransactions = (transactions || []).map(transaction => ({
+        ...transaction,
+        createdAt: transaction.createdAt instanceof Date 
+          ? transaction.createdAt.toISOString() 
+          : new Date(transaction.createdAt).toISOString()
+      }));
+      
+      res.json(serializedTransactions);
       
     } catch (error) {
       console.error("Failed to get transactions:", error);
       res.setHeader('Content-Type', 'application/json');
-      res.status(500).json({ 
-        message: "Failed to get transactions",
-        error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
-      });
+      
+      // Ensure we always return valid JSON even on error
+      try {
+        res.status(500).json({ 
+          message: "Failed to get transactions",
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: new Date().toISOString()
+        });
+      } catch (jsonError) {
+        // If JSON serialization fails, send a simple string response
+        res.status(500).send('{"message":"Internal server error","error":"JSON serialization failed"}');
+      }
     }
   });
 
   apiRouter.get("/transactions/:id", async (req: Request, res: Response) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
       const storage = await getStorage();
       const transaction = await storage.getTransaction(req.params.id);
       if (!transaction) {
         return res.status(404).json({ message: "Transaction not found" });
       }
-      res.json(transaction);
+      
+      // Serialize date to prevent JSON issues
+      const serializedTransaction = {
+        ...transaction,
+        createdAt: transaction.createdAt instanceof Date 
+          ? transaction.createdAt.toISOString() 
+          : new Date(transaction.createdAt).toISOString()
+      };
+      
+      res.json(serializedTransaction);
     } catch (error) {
       console.error("Failed to get transaction:", error);
+      res.setHeader('Content-Type', 'application/json');
       res.status(500).json({ message: "Failed to get transaction" });
     }
   });
 
   apiRouter.post("/transactions", async (req: Request, res: Response) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
       const validatedData = insertTransactionSchema.parse(req.body);
       const storage = await getStorage();
       const transaction = await storage.createTransaction(validatedData);
-      res.status(201).json(transaction);
+      
+      // Serialize date to prevent JSON issues
+      const serializedTransaction = {
+        ...transaction,
+        createdAt: transaction.createdAt instanceof Date 
+          ? transaction.createdAt.toISOString() 
+          : new Date(transaction.createdAt).toISOString()
+      };
+      
+      res.status(201).json(serializedTransaction);
     } catch (error) {
       console.error("Failed to create transaction:", error);
+      res.setHeader('Content-Type', 'application/json');
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
@@ -532,6 +567,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   // Simple reports endpoint without balance validation
   apiRouter.get("/reports", async (req: Request, res: Response) => {
     try {
+      res.setHeader('Content-Type', 'application/json');
       const storage = await getStorage();
       
       const [suppliers, customers, orders, transactions] = await Promise.all([
@@ -540,6 +576,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         storage.getAllOrders(),
         storage.getAllTransactions()
       ]);
+
+      // Serialize all dates to ISO strings to prevent JSON issues
+      const serializeDate = (obj: any) => ({
+        ...obj,
+        createdAt: obj.createdAt instanceof Date 
+          ? obj.createdAt.toISOString() 
+          : new Date(obj.createdAt).toISOString()
+      });
 
       const report = {
         summary: {
@@ -551,15 +595,16 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           totalSupplierDebt: suppliers.reduce((sum, supplier) => sum + supplier.pendingAmount, 0),
           totalCustomerDebt: customers.reduce((sum, customer) => sum + customer.pendingAmount, 0)
         },
-        suppliers,
-        customers,
-        orders,
-        transactions
+        suppliers: suppliers.map(serializeDate),
+        customers: customers.map(serializeDate),
+        orders: orders.map(serializeDate),
+        transactions: transactions.map(serializeDate)
       };
 
       res.json(report);
     } catch (error) {
       console.error("Failed to generate reports:", error);
+      res.setHeader('Content-Type', 'application/json');
       res.status(500).json({ message: "Failed to generate reports" });
     }
   });

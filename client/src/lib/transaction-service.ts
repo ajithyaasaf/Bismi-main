@@ -2,8 +2,19 @@ import { apiRequest, safeJsonResponse } from './queryClient';
 
 // Get all transactions from API
 export async function getTransactions() {
-  const response = await apiRequest('GET', '/api/transactions');
-  return safeJsonResponse(response);
+  try {
+    const response = await apiRequest('GET', '/api/transactions');
+    const data = await safeJsonResponse(response);
+    
+    // Convert date strings back to Date objects for frontend consistency
+    return data.map((transaction: any) => ({
+      ...transaction,
+      createdAt: new Date(transaction.createdAt)
+    }));
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    throw error;
+  }
 }
 
 // Get a transaction by ID from API

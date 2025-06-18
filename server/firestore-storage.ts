@@ -500,6 +500,35 @@ export class FirestoreStorage implements IStorage {
         createdAt: order.createdAt || new Date(),
       });
 
+      // Update customer pending amount if payment is pending
+      if (order.paymentStatus === 'pending') {
+        const customer = await this.getCustomer(order.customerId);
+        if (customer) {
+          const newPendingAmount = (customer.pendingAmount || 0) + order.totalAmount;
+          await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
+        }
+      }
+
+      // Update inventory quantities for ordered items
+      for (const item of order.items) {
+        const allInventory = await this.getAllInventory();
+        const inventoryItem = allInventory.find(inv => inv.type === item.type);
+        
+        if (inventoryItem) {
+          const newQuantity = inventoryItem.quantity - item.quantity;
+          await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
+        }
+      }
+
+      // Create transaction record for order
+      await this.createTransaction({
+        entityId: order.customerId,
+        entityType: 'customer',
+        type: order.paymentStatus === 'paid' ? 'sale' : 'credit',
+        amount: order.totalAmount,
+        description: `Order #${docRef.id} - ${order.items.length} items`
+      });
+
       return {
         id: docRef.id,
         customerId: order.customerId,
@@ -517,7 +546,33 @@ export class FirestoreStorage implements IStorage {
 
   async updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined> {
     try {
+      // Get existing order to compare payment status changes
+      const existingOrder = await this.getOrder(id);
+      
       await this.db.collection('orders').doc(id).update(order);
+      
+      // Handle payment status changes
+      if (existingOrder && order.paymentStatus && order.paymentStatus !== existingOrder.paymentStatus) {
+        const customer = await this.getCustomer(existingOrder.customerId);
+        if (customer) {
+          let pendingAmountChange = 0;
+          
+          // Calculate pending amount change based on status transition
+          if (existingOrder.paymentStatus === 'pending' && order.paymentStatus === 'paid') {
+            // Order was paid - reduce customer pending amount
+            pendingAmountChange = -existingOrder.totalAmount;
+          } else if (existingOrder.paymentStatus === 'paid' && order.paymentStatus === 'pending') {
+            // Order was unpaid - increase customer pending amount
+            pendingAmountChange = existingOrder.totalAmount;
+          }
+          
+          if (pendingAmountChange !== 0) {
+            const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) + pendingAmountChange);
+            await this.updateCustomer(existingOrder.customerId, { pendingAmount: newPendingAmount });
+          }
+        }
+      }
+      
       return this.getOrder(id);
     } catch (error) {
       console.error('Error updating order:', error);
@@ -527,6 +582,38 @@ export class FirestoreStorage implements IStorage {
 
   async deleteOrder(id: string): Promise<boolean> {
     try {
+      // Get order details before deletion for reversal operations
+      const order = await this.getOrder(id);
+      if (!order) return false;
+
+      // Reverse inventory quantity changes
+      for (const item of order.items) {
+        const allInventory = await this.getAllInventory();
+        const inventoryItem = allInventory.find(inv => inv.type === item.type);
+        
+        if (inventoryItem) {
+          const newQuantity = inventoryItem.quantity + item.quantity;
+          await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
+        }
+      }
+
+      // Reverse customer pending amount if order was pending
+      if (order.paymentStatus === 'pending') {
+        const customer = await this.getCustomer(order.customerId);
+        if (customer) {
+          const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) - order.totalAmount);
+          await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
+        }
+      }
+
+      // Delete related transactions
+      const transactions = await this.getTransactionsByEntity(order.customerId);
+      for (const transaction of transactions) {
+        if (transaction.description.includes(`Order #${id}`)) {
+          await this.deleteTransaction(transaction.id);
+        }
+      }
+
       await this.db.collection('orders').doc(id).delete();
       return true;
     } catch (error) {

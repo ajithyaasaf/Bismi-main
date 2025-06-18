@@ -26,7 +26,7 @@ export default function TransactionsList({
 }: TransactionsListProps) {
   // Sort transactions by date (newest first)
   const sortedTransactions = [...transactions].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
   
   // Get entity name by ID and type

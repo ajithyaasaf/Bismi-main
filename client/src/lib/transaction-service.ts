@@ -19,8 +19,19 @@ export async function getTransactions() {
 
 // Get a transaction by ID from API
 export async function getTransactionById(id: string) {
-  const response = await apiRequest('GET', `/api/transactions/${id}`);
-  return safeJsonResponse(response);
+  try {
+    const response = await apiRequest('GET', `/api/transactions/${id}`);
+    const data = await safeJsonResponse(response);
+    
+    // Convert date string back to Date object
+    return {
+      ...data,
+      createdAt: new Date(data.createdAt)
+    };
+  } catch (error) {
+    console.error('Error fetching transaction by ID:', error);
+    throw error;
+  }
 }
 
 // Get transactions by entity ID from API
@@ -31,6 +42,17 @@ export async function getTransactionsByEntity(entityId: string) {
 
 // Add a new transaction (uses API for enterprise validation)
 export async function addTransaction(transactionData: any) {
-  const response = await apiRequest('POST', '/api/transactions', transactionData);
-  return safeJsonResponse(response);
+  try {
+    const response = await apiRequest('POST', '/api/transactions', transactionData);
+    const data = await safeJsonResponse(response);
+    
+    // Convert date string back to Date object
+    return {
+      ...data,
+      createdAt: new Date(data.createdAt)
+    };
+  } catch (error) {
+    console.error('Error adding transaction:', error);
+    throw error;
+  }
 }

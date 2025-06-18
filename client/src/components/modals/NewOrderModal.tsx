@@ -443,6 +443,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                         console.log('Rate field onChange:', e.target.value);
                         updateItem(item.id, 'price', e.target.value);
                       }}
+                      onFocus={() => console.log('Rate field focused')}
+                      onClick={() => console.log('Rate field clicked')}
+                      onKeyDown={(e) => console.log('Rate field keydown:', e.key)}
                       className="h-9 text-sm"
                       placeholder="0.00"
                     />

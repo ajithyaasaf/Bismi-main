@@ -114,7 +114,7 @@ export default function Dashboard({
         <LowStockAlert lowStockItems={lowStockItems} onAddStock={onAddStock} />
         
         {/* Supplier Debts */}
-        <SupplierDebts suppliers={suppliersWithDebt} />
+        <SupplierDebts />
       </div>
     </div>
   );

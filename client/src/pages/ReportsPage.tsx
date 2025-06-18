@@ -167,8 +167,8 @@ export default function ReportsPage() {
                         <TableCell>{order.customerName || order.customerId}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 text-xs rounded-full 
-                            ${order.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                            {order.status}
+                            ${order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            {order.paymentStatus}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">₹{(order.totalAmount || 0).toFixed(2)}</TableCell>

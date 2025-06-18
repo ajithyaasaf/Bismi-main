@@ -429,10 +429,6 @@ export class FirestoreStorage implements IStorage {
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
       const updateData: any = { ...customer, updatedAt: new Date() };
-      if (updateData.customerType) {
-        updateData.type = updateData.customerType;
-        delete updateData.customerType;
-      }
       
       await this.db.collection('customers').doc(id).update(updateData);
       return this.getCustomer(id);

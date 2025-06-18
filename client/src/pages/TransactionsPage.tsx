@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import TransactionFormModal from "@/components/transactions/TransactionFormModal";
 import TransactionsTable from "@/components/transactions/TransactionsTable";
 import { getApiUrl } from "@/lib/config";
+import { fetchTransactionsWithDiagnostics } from "@/lib/api-diagnostics";
 
 interface TransactionFilters {
   search: string;
@@ -35,48 +36,48 @@ export default function TransactionsPage() {
   const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery({
     queryKey: ['transactions-v2'],
     queryFn: async () => {
+      const url = 'https://bismi-main.onrender.com/api/transactions';
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        mode: 'cors',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch transactions`);
+      }
+
+      const text = await response.text();
+      
+      // Check if response starts with HTML
+      if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+        throw new Error('Server returned HTML page instead of JSON data');
+      }
+      
       try {
-        const response = await fetch(getApiUrl('/api/transactions'), {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Transaction API error:', errorText);
-          throw new Error(`Server error: ${response.status}`);
-        }
-
-        const contentType = response.headers.get('content-type');
-        if (!contentType?.includes('application/json')) {
-          const text = await response.text();
-          console.error('Non-JSON response:', text.substring(0, 200));
-          throw new Error('Invalid response format from server');
-        }
-
-        const data = await response.json();
+        const data = JSON.parse(text);
         
         if (!Array.isArray(data)) {
-          console.error('Invalid data format:', typeof data);
           return [];
         }
 
         return data.map((transaction: any) => ({
-          id: String(transaction.id),
-          entityId: String(transaction.entityId),
-          entityType: String(transaction.entityType),
-          type: String(transaction.type),
+          id: String(transaction.id || ''),
+          entityId: String(transaction.entityId || ''),
+          entityType: String(transaction.entityType || ''),
+          type: String(transaction.type || ''),
           amount: Number(transaction.amount) || 0,
-          description: String(transaction.description),
-          createdAt: new Date(transaction.createdAt)
+          description: String(transaction.description || ''),
+          createdAt: new Date(transaction.createdAt || Date.now())
         }));
-      } catch (error) {
-        console.error('Transaction fetch error:', error);
-        throw new Error('Unable to load transactions');
+      } catch (parseError) {
+        console.error('JSON Parse Error:', parseError);
+        console.error('Response text:', text.substring(0, 500));
+        throw new Error('Invalid JSON response from server');
       }
     },
     retry: 2,

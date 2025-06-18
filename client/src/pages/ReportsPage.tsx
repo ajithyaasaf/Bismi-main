@@ -171,7 +171,7 @@ export default function ReportsPage() {
                             {order.status}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">₹{order.total.toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{(order.totalAmount || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

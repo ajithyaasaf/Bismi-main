@@ -39,7 +39,7 @@ export default function ReportGenerator({
       if (report.orders && report.orders.length > 0) {
         report.orders.forEach((order: any) => {
           const orderDate = format(new Date(order.date), 'yyyy-MM-dd HH:mm:ss');
-          csvContent += `${orderDate},${order.customerId},${order.status},₹${order.total.toFixed(2)}\n`;
+          csvContent += `${orderDate},${order.customerId},${order.paymentStatus},₹${(order.totalAmount || 0).toFixed(2)}\n`;
         });
       }
     } else if (reportType === 'debts') {

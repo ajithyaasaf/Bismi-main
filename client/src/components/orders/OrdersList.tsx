@@ -30,8 +30,8 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
     // Use createdAt as primary timestamp, fallback to date field
     const aOrder = a as any;
     const bOrder = b as any;
-    const dateA = aOrder.createdAt ? new Date(aOrder.createdAt) : (a.date ? new Date(a.date) : new Date(0));
-    const dateB = bOrder.createdAt ? new Date(bOrder.createdAt) : (b.date ? new Date(b.date) : new Date(0));
+    const dateA = new Date(a.createdAt);
+    const dateB = new Date(b.createdAt);
     return dateB.getTime() - dateA.getTime();
   });
   
@@ -162,7 +162,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                     {(() => {
                       // Enterprise-level timestamp handling - use createdAt first, then date, with proper error handling
                       const orderWithTimestamp = order as any;
-                      const orderTimestamp = orderWithTimestamp.createdAt || order.date;
+                      const orderTimestamp = order.createdAt;
                       if (!orderTimestamp) {
                         return <span className="text-red-500 text-xs">No timestamp</span>;
                       }
@@ -226,10 +226,10 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className={order.status === 'paid' ? 'text-yellow-600' : 'text-green-600'}
+                        className={order.paymentStatus === 'paid' ? 'text-yellow-600' : 'text-green-600'}
                         onClick={() => onUpdateStatus(order)}
                       >
-                        <i className={`fas ${order.status === 'paid' ? 'fa-hourglass' : 'fa-check'}`}></i>
+                        <i className={`fas ${order.paymentStatus === 'paid' ? 'fa-hourglass' : 'fa-check'}`}></i>
                       </Button>
                       <Button 
                         variant="outline" 
@@ -293,7 +293,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                   <p className="font-medium">
                     {(() => {
                       const orderWithTimestamp = selectedOrder as any;
-                      const orderTimestamp = orderWithTimestamp.createdAt || selectedOrder.date;
+                      const orderTimestamp = selectedOrder.createdAt;
                       if (!orderTimestamp) {
                         return <span className="text-red-500 text-xs">No timestamp</span>;
                       }
@@ -307,13 +307,13 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Status</p>
-                  <p className={`font-medium ${selectedOrder.status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {selectedOrder.status === 'paid' ? 'Paid' : 'Pending'}
+                  <p className={`font-medium ${selectedOrder.paymentStatus === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
+                    {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Type</p>
-                  <p className="font-medium capitalize">{selectedOrder.type}</p>
+                  <p className="font-medium capitalize">{selectedOrder.orderStatus}</p>
                 </div>
               </div>
               

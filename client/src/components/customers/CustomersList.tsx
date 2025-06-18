@@ -111,17 +111,17 @@ export default function CustomersList({
             
             message += `\n\n*Order Details:*`;
             message += `\n📅 Date: ${formattedDate}`;
-            message += `\n💰 Amount: ₹${latestOrder.total.toFixed(2)}`;
-            message += `\n📦 Status: ${latestOrder.status === 'paid' ? 'Paid' : 'Pending'}`;
+            message += `\n💰 Amount: ₹${(latestOrder.totalAmount || 0).toFixed(2)}`;
+            message += `\n📦 Status: ${latestOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
             
             // Add item details with proper type mapping
             if (latestOrder.items && latestOrder.items.length > 0) {
               message += `\n\n*Items Purchased:*`;
               latestOrder.items.forEach((item: any) => {
                 const itemDetails = item.details ? ` - ${item.details}` : '';
-                const itemTotal = (item.quantity * item.price).toFixed(2);
-                message += `\n• ${item.quantity.toFixed(2)} kg ${item.type}${itemDetails}`;
-                message += `\n  Rate: ₹${item.price.toFixed(2)}/kg | Total: ₹${itemTotal}`;
+                const itemTotal = ((item.quantity || 0) * (item.rate || 0)).toFixed(2);
+                message += `\n• ${(item.quantity || 0).toFixed(2)} kg ${item.type}${itemDetails}`;
+                message += `\n  Rate: ₹${(item.rate || 0).toFixed(2)}/kg | Total: ₹${itemTotal}`;
               });
             }
           }

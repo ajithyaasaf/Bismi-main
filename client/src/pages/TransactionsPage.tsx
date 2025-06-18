@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import TransactionFormModal from "@/components/transactions/TransactionFormModal";
 import TransactionsTable from "@/components/transactions/TransactionsTable";
-import { getApiUrl } from "@/lib/config";
-import { fetchTransactionsWithDiagnostics } from "@/lib/api-diagnostics";
+import { apiRequest } from "@/lib/queryClient";
 import { TransactionsSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
@@ -35,7 +34,7 @@ export default function TransactionsPage() {
   const queryClient = useQueryClient();
 
   // Fetch transactions using the standard API pattern
-  const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery({
+  const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery<Transaction[]>({
     queryKey: ['/api/transactions'],
   });
 
@@ -43,52 +42,19 @@ export default function TransactionsPage() {
   const showSkeleton = useSkeletonTimer(transactionsLoading, 500);
 
   // Fetch suppliers
-  const { data: suppliers = [] } = useQuery({
+  const { data: suppliers = [] } = useQuery<Supplier[]>({
     queryKey: ['/api/suppliers'],
-    queryFn: async () => {
-      const response = await fetch(getApiUrl('/api/suppliers'), {
-        headers: { 'Accept': 'application/json' },
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch suppliers');
-      return response.json();
-    },
-    retry: 1,
   });
 
   // Fetch customers
-  const { data: customers = [] } = useQuery({
+  const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
-    queryFn: async () => {
-      const response = await fetch(getApiUrl('/api/customers'), {
-        headers: { 'Accept': 'application/json' },
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch customers');
-      return response.json();
-    },
-    retry: 1,
   });
 
   // Create transaction mutation
   const createTransactionMutation = useMutation({
     mutationFn: async (transactionData: any) => {
-      const response = await fetch(getApiUrl('/api/transactions'), {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(transactionData),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to create transaction: ${errorText}`);
-      }
-
-      return response.json();
+      return await apiRequest('POST', '/api/transactions', transactionData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions-v2'] });
@@ -113,15 +79,7 @@ export default function TransactionsPage() {
   // Delete transaction mutation
   const deleteTransactionMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(getApiUrl(`/api/transactions/${id}`), {
-        method: 'DELETE',
-        headers: { 'Accept': 'application/json' },
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete transaction');
-      }
+      return await apiRequest('DELETE', `/api/transactions/${id}`);
 
       return response.json();
     },

@@ -55,6 +55,15 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     hotelsFiltered: hotels.length,
     hotels: hotels
   });
+
+  // Alternative filtering attempts
+  const hotelsWithType = customers.filter(c => c.customerType === 'hotel');
+  const hotelsWithTypeAlt = customers.filter(c => (c as any).type === 'hotel');
+  
+  console.log('Filtering tests:', {
+    customerTypeHotel: hotelsWithType.length,
+    typeHotel: hotelsWithTypeAlt.length
+  });
   
   // Calculate total order amount
   const calculateTotal = () => {

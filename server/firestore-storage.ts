@@ -311,11 +311,21 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('customers').get();
       return snapshot.docs.map((doc) => {
         const data = doc.data();
+        
+        // Debug logging
+        console.log('Customer data from Firestore:', {
+          id: doc.id,
+          name: data.name,
+          rawData: data,
+          typeField: data.type,
+          customerTypeField: data.customerType
+        });
+        
         return {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          customerType: data.type || data.customerType || 'regular',
+          customerType: data.type || data.customerType || 'random',
           pendingAmount: data.pendingAmount || 0,
           createdAt: this.convertTimestamp(data.createdAt),
         };
@@ -336,7 +346,7 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        customerType: data?.type || data?.customerType || 'regular',
+        customerType: data?.type || data?.customerType || 'random',
         pendingAmount: data?.pendingAmount || 0,
         createdAt: this.convertTimestamp(data?.createdAt),
       };

@@ -208,10 +208,10 @@ export class FirestoreStorage implements IStorage {
 
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     try {
-      // Map pendingAmount to debt field for database consistency
       const updateData: any = { ...supplier, updatedAt: new Date() };
       if (updateData.pendingAmount !== undefined) {
         updateData.debt = updateData.pendingAmount;
+        delete updateData.pendingAmount;
       }
       
       await this.db.collection('suppliers').doc(id).update(updateData);
@@ -252,12 +252,12 @@ export class FirestoreStorage implements IStorage {
         
         return {
           id: doc.id,
-          name: data.type || 'Item', // Database stores type as name
+          name: data.type || 'boneless',
           type: data.type || 'boneless',
           quantity: data.quantity || 0,
-          unit: 'kg', // Fixed unit since database doesn't store this
-          price: data.rate || 0, // Database uses 'rate' field, not 'price'
-          supplierId: '', // Database doesn't store supplier relationship
+          unit: 'kg',
+          price: data.rate || 0,
+          supplierId: '',
           createdAt: this.convertTimestamp(data.updatedAt),
         };
       });
@@ -317,10 +317,19 @@ export class FirestoreStorage implements IStorage {
 
   async updateInventoryItem(id: string, item: Partial<InsertInventory>): Promise<Inventory | undefined> {
     try {
-      // Map price to rate field for database consistency
       const updateData: any = { ...item, updatedAt: new Date() };
       if (updateData.price !== undefined) {
         updateData.rate = updateData.price;
+        delete updateData.price;
+      }
+      if (updateData.name !== undefined) {
+        delete updateData.name;
+      }
+      if (updateData.unit !== undefined) {
+        delete updateData.unit;
+      }
+      if (updateData.supplierId !== undefined) {
+        delete updateData.supplierId;
       }
       
       await this.db.collection('inventory').doc(id).update(updateData);
@@ -361,8 +370,8 @@ export class FirestoreStorage implements IStorage {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          customerType: data.type || data.customerType || 'random',
-          pendingAmount: data.pendingAmount || data.debt || 0,
+          customerType: data.type || 'hotel',
+          pendingAmount: data.pendingAmount || 0,
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
@@ -382,8 +391,8 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        customerType: data?.type || data?.customerType || 'random',
-        pendingAmount: data?.pendingAmount || data?.debt || 0,
+        customerType: data?.type || 'hotel',
+        pendingAmount: data?.pendingAmount || 0,
         createdAt: this.convertTimestamp(data?.createdAt),
       };
     } catch (error) {
@@ -397,10 +406,10 @@ export class FirestoreStorage implements IStorage {
       const docRef = await this.db.collection('customers').add({
         name: customer.name,
         contact: customer.contact,
-        type: customer.customerType, // Store as 'type' to match existing database structure
+        type: customer.customerType,
         pendingAmount: customer.pendingAmount || 0,
-        debt: customer.pendingAmount || 0, // Also store as debt for consistency
         createdAt: new Date(),
+        updatedAt: new Date(),
       });
 
       return {
@@ -419,15 +428,10 @@ export class FirestoreStorage implements IStorage {
 
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
-      // Map customerType to type field for database consistency
-      const updateData: any = { ...customer };
+      const updateData: any = { ...customer, updatedAt: new Date() };
       if (updateData.customerType) {
         updateData.type = updateData.customerType;
         delete updateData.customerType;
-      }
-      // Also handle pendingAmount to debt mapping for existing records
-      if (updateData.pendingAmount !== undefined) {
-        updateData.debt = updateData.pendingAmount;
       }
       
       await this.db.collection('customers').doc(id).update(updateData);

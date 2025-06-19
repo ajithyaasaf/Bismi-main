@@ -63,6 +63,8 @@ import { monitoredApiCall } from './performance-monitor';
 
 export async function fetchDashboardData() {
   return await monitoredApiCall('dashboard-parallel', async () => {
+    console.log('Starting parallel dashboard data fetch...');
+    
     // Make all requests in parallel for better performance
     const [
       suppliersResponse,
@@ -71,15 +73,32 @@ export async function fetchDashboardData() {
       ordersResponse,
       transactionsResponse
     ] = await Promise.all([
-      fetch(getApiUrl('/api/suppliers'), { credentials: 'include' }),
-      fetch(getApiUrl('/api/inventory'), { credentials: 'include' }),
-      fetch(getApiUrl('/api/customers'), { credentials: 'include' }),
-      fetch(getApiUrl('/api/orders'), { credentials: 'include' }),
-      fetch(getApiUrl('/api/transactions'), { credentials: 'include' })
+      fetch(getApiUrl('/api/suppliers'), { 
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      }),
+      fetch(getApiUrl('/api/inventory'), { 
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      }),
+      fetch(getApiUrl('/api/customers'), { 
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      }),
+      fetch(getApiUrl('/api/orders'), { 
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      }),
+      fetch(getApiUrl('/api/transactions'), { 
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' }
+      })
     ]);
 
-    // Parse all responses
-    const [suppliers, inventory, customers, orders, transactions] = await Promise.all([
+    console.log('All responses received, parsing...');
+
+    // Parse all responses and handle standardized API format
+    const [suppliersData, inventoryData, customersData, ordersData, transactionsData] = await Promise.all([
       suppliersResponse.json(),
       inventoryResponse.json(),
       customersResponse.json(),
@@ -87,13 +106,36 @@ export async function fetchDashboardData() {
       transactionsResponse.json()
     ]);
 
-    return {
-      suppliers: { success: true, data: suppliers },
-      inventory: { success: true, data: inventory },
-      customers: { success: true, data: customers },
-      orders: { success: true, data: orders },
-      transactions: { success: true, data: transactions }
+    console.log('Sample response structure:', {
+      suppliers: suppliersData?.success ? 'standardized' : 'direct',
+      dataLength: suppliersData?.data?.length || suppliersData?.length || 0
+    });
+
+    // Extract data from standardized API responses or use direct data
+    const extractData = (response: any) => {
+      if (response && typeof response === 'object' && 'data' in response) {
+        return response.data; // Standardized API response
+      }
+      return response; // Direct data response
     };
+
+    const result = {
+      suppliers: { success: true, data: extractData(suppliersData) || [] },
+      inventory: { success: true, data: extractData(inventoryData) || [] },
+      customers: { success: true, data: extractData(customersData) || [] },
+      orders: { success: true, data: extractData(ordersData) || [] },
+      transactions: { success: true, data: extractData(transactionsData) || [] }
+    };
+
+    console.log('Final extracted data counts:', {
+      suppliers: result.suppliers.data.length,
+      inventory: result.inventory.data.length,
+      customers: result.customers.data.length,
+      orders: result.orders.data.length,
+      transactions: result.transactions.data.length
+    });
+
+    return result;
   });
 }
 

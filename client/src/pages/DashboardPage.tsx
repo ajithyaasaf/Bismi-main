@@ -20,12 +20,12 @@ export default function DashboardPage() {
     staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
-  // Extract data from batched response
-  const suppliers = dashboardData?.suppliers?.data || [];
-  const inventory = dashboardData?.inventory?.data || [];
-  const customers = dashboardData?.customers?.data || [];
-  const orders = dashboardData?.orders?.data || [];
-  const transactions = dashboardData?.transactions?.data || [];
+  // Extract data from batched response with proper fallbacks
+  const suppliers = (dashboardData?.suppliers?.data || []).filter(Boolean);
+  const inventory = (dashboardData?.inventory?.data || []).filter(Boolean);
+  const customers = (dashboardData?.customers?.data || []).filter(Boolean);
+  const orders = (dashboardData?.orders?.data || []).filter(Boolean);
+  const transactions = (dashboardData?.transactions?.data || []).filter(Boolean);
 
   // Use skeleton timer for minimum 0.3 second display (reduced for speed)
   const showSkeleton = useSkeletonTimer(isLoading, 300);
@@ -34,27 +34,28 @@ export default function DashboardPage() {
   const hasErrors = error || 
     (dashboardData && Object.values(dashboardData).some((result: any) => !result.success));
   
-  // Debug logging
+  // Debug logging with more detail
   console.log('Dashboard Data Debug:', {
-    suppliers: suppliers.length,
-    inventory: inventory.length,
-    customers: customers.length,
-    orders: orders.length,
-    transactions: transactions.length,
+    suppliers: suppliers?.length || 0,
+    inventory: inventory?.length || 0,
+    customers: customers?.length || 0,
+    orders: orders?.length || 0,
+    transactions: transactions?.length || 0,
     isLoading,
-    hasErrors
+    hasErrors,
+    rawData: dashboardData ? Object.keys(dashboardData) : 'no data'
   });
 
-  // Calculate totals
-  const totalStock = inventory.reduce((sum: number, item: any) => sum + item.quantity, 0);
-  const supplierDebts = suppliers.reduce((sum: number, supplier: any) => sum + (supplier.pendingAmount || 0), 0);
-  const pendingPayments = customers.reduce((sum: number, customer: any) => sum + (customer.pendingAmount || 0), 0);
+  // Calculate totals with safety checks
+  const totalStock = Array.isArray(inventory) ? inventory.reduce((sum: number, item: any) => sum + (item?.quantity || 0), 0) : 0;
+  const supplierDebts = Array.isArray(suppliers) ? suppliers.reduce((sum: number, supplier: any) => sum + (supplier?.pendingAmount || 0), 0) : 0;
+  const pendingPayments = Array.isArray(customers) ? customers.reduce((sum: number, customer: any) => sum + (customer?.pendingAmount || 0), 0) : 0;
   
   // Get today's orders
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const todaysOrders = orders.filter((order: any) => {
+  const todaysOrders = Array.isArray(orders) ? orders.filter((order: any) => {
     if (!order.createdAt) return false;
     try {
       const orderDate = new Date(order.createdAt.toString());
@@ -63,17 +64,18 @@ export default function DashboardPage() {
     } catch {
       return false;
     }
-  });
+  }) : [];
   
-  const todaysSales = todaysOrders.reduce((sum: number, order: any) => sum + order.totalAmount, 0);
+  const todaysSales = Array.isArray(todaysOrders) ? todaysOrders.reduce((sum: number, order: any) => sum + (order?.totalAmount || 0), 0) : 0;
   
   // Enterprise stock monitoring: Show negative stock and low stock items
-  const lowStockItems = inventory.filter((item: any) => item.quantity < 5)
-    .sort((a: any, b: any) => a.quantity - b.quantity); // Sort by quantity (negative first, then lowest positive)
+  const lowStockItems = Array.isArray(inventory) ? inventory
+    .filter((item: any) => item && item.quantity < 5)
+    .sort((a: any, b: any) => (a?.quantity || 0) - (b?.quantity || 0)) : []; // Sort by quantity (negative first, then lowest positive)
   
   // Recent orders (last 5)
-  const recentOrders = [...orders]
-    .filter(order => order.createdAt)
+  const recentOrders = Array.isArray(orders) ? [...orders]
+    .filter(order => order && order.createdAt)
     .sort((a, b) => {
       try {
         return new Date(b.createdAt!.toString()).getTime() - new Date(a.createdAt!.toString()).getTime();
@@ -81,12 +83,12 @@ export default function DashboardPage() {
         return 0;
       }
     })
-    .slice(0, 5);
+    .slice(0, 5) : [];
   
   // Suppliers with pendingAmount
-  const suppliersWithDebt = suppliers
-    .filter((supplier: any) => (supplier.pendingAmount || 0) > 0)
-    .sort((a: any, b: any) => (b.pendingAmount || 0) - (a.pendingAmount || 0));
+  const suppliersWithDebt = Array.isArray(suppliers) ? suppliers
+    .filter((supplier: any) => supplier && (supplier.pendingAmount || 0) > 0)
+    .sort((a: any, b: any) => (b?.pendingAmount || 0) - (a?.pendingAmount || 0)) : [];
 
   // Handle modal toggling
   const openAddStockModal = () => setIsAddStockModalOpen(true);

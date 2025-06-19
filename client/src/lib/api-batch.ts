@@ -1,4 +1,4 @@
-// Batched API requests for improved performance
+// Parallel API requests for improved performance
 import { getApiUrl } from './config';
 
 interface BatchRequest {
@@ -17,9 +17,12 @@ interface BatchResponse {
 
 // Batch multiple API requests into a single HTTP call
 export async function batchApiRequests(requests: Record<string, BatchRequest>): Promise<BatchResponse> {
-  const url = getApiUrl('/batch');
+  const url = getApiUrl('/api/batch');
   
   try {
+    console.log('Making batch request to:', url);
+    console.log('Request payload:', { requests });
+    
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -30,31 +33,67 @@ export async function batchApiRequests(requests: Record<string, BatchRequest>): 
       body: JSON.stringify({ requests }),
     });
 
+    console.log('Batch response status:', response.status);
+    console.log('Batch response headers:', Object.fromEntries(response.headers.entries()));
+
     if (!response.ok) {
-      throw new Error(`Batch request failed: ${response.status}`);
+      const errorText = await response.text();
+      console.error('Batch request error response:', errorText);
+      throw new Error(`Batch request failed: ${response.status} - ${errorText}`);
     }
 
-    return await response.json();
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('Non-JSON response from batch endpoint:', text.substring(0, 200));
+      throw new Error('Batch endpoint returned non-JSON response');
+    }
+
+    const result = await response.json();
+    console.log('Batch response data:', result);
+    return result;
   } catch (error) {
     console.error('Batch API request failed:', error);
     throw error;
   }
 }
 
-// Dashboard data fetcher using batched requests with performance monitoring
+// Dashboard data fetcher - using parallel requests instead of batching for now
 import { monitoredApiCall } from './performance-monitor';
 
 export async function fetchDashboardData() {
-  const requests = {
-    suppliers: { endpoint: '/suppliers' },
-    inventory: { endpoint: '/inventory' },
-    customers: { endpoint: '/customers' },
-    orders: { endpoint: '/orders' },
-    transactions: { endpoint: '/transactions' }
-  };
+  return await monitoredApiCall('dashboard-parallel', async () => {
+    // Make all requests in parallel for better performance
+    const [
+      suppliersResponse,
+      inventoryResponse, 
+      customersResponse,
+      ordersResponse,
+      transactionsResponse
+    ] = await Promise.all([
+      fetch(getApiUrl('/api/suppliers'), { credentials: 'include' }),
+      fetch(getApiUrl('/api/inventory'), { credentials: 'include' }),
+      fetch(getApiUrl('/api/customers'), { credentials: 'include' }),
+      fetch(getApiUrl('/api/orders'), { credentials: 'include' }),
+      fetch(getApiUrl('/api/transactions'), { credentials: 'include' })
+    ]);
 
-  return await monitoredApiCall('dashboard-batch', async () => {
-    return await batchApiRequests(requests);
+    // Parse all responses
+    const [suppliers, inventory, customers, orders, transactions] = await Promise.all([
+      suppliersResponse.json(),
+      inventoryResponse.json(),
+      customersResponse.json(),
+      ordersResponse.json(),
+      transactionsResponse.json()
+    ]);
+
+    return {
+      suppliers: { success: true, data: suppliers },
+      inventory: { success: true, data: inventory },
+      customers: { success: true, data: customers },
+      orders: { success: true, data: orders },
+      transactions: { success: true, data: transactions }
+    };
   });
 }
 

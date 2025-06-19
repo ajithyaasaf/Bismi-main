@@ -3,8 +3,6 @@ import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
-import { cacheMiddleware, invalidateCache } from './middleware/cache';
-import { FirestoreBatchOptimizer, FirestoreConnectionManager } from './middleware/firestore-optimizer';
 
 // Validation schemas
 const insertSupplierSchema = z.object({
@@ -85,35 +83,51 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   const apiRouter = express.Router();
   app.use("/api", apiRouter);
 
-  // Optimized batch endpoint for multiple requests
-  apiRouter.post("/batch", 
-    cacheMiddleware(2 * 60 * 1000), // 2 minute cache for batch requests
-    async (req: Request, res: Response) => {
+  // Batch endpoint for multiple requests
+  apiRouter.post("/batch", async (req: Request, res: Response) => {
     try {
       const { requests } = req.body;
-      const storage = await getStorage();
-      const batchOptimizer = FirestoreBatchOptimizer.getInstance();
-      
-      // Extract unique collections needed
-      const collections = Array.from(new Set(
-        Object.values(requests).map((req: any) => 
-          req.endpoint.replace('/', '')
-        )
-      ));
-      
-      // Use batch read for better performance
-      const batchResults = await batchOptimizer.batchRead(storage as any, collections);
-      
-      // Map results back to original request structure
       const results: Record<string, any> = {};
       
-      Object.entries(requests).forEach(([key, requestData]: [string, any]) => {
-        const collection = requestData.endpoint.replace('/', '');
-        if (batchResults[collection]) {
-          results[key] = { success: true, data: batchResults[collection] };
-        } else {
-          results[key] = { success: false, error: `Collection ${collection} not found` };
+      // Process requests in parallel for better performance
+      const promises = Object.entries(requests).map(async ([key, requestData]: [string, any]) => {
+        try {
+          const storage = await getStorage();
+          let result;
+          
+          switch (requestData.endpoint) {
+            case '/suppliers':
+              result = await storage.getAllSuppliers();
+              break;
+            case '/inventory':
+              result = await storage.getAllInventory();
+              break;
+            case '/customers':
+              result = await storage.getAllCustomers();
+              break;
+            case '/orders':
+              result = await storage.getAllOrders();
+              break;
+            case '/transactions':
+              result = await storage.getAllTransactions();
+              break;
+            default:
+              throw new Error(`Unsupported endpoint: ${requestData.endpoint}`);
+          }
+          
+          return { key, success: true, data: result };
+        } catch (error) {
+          return { 
+            key, 
+            success: false, 
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          };
         }
+      });
+      
+      const responses = await Promise.all(promises);
+      responses.forEach(({ key, success, data, error }) => {
+        results[key] = success ? { success: true, data } : { success: false, error };
       });
       
       res.json(results);
@@ -145,18 +159,11 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  // Supplier routes with caching
-  apiRouter.get("/suppliers", 
-    cacheMiddleware(5 * 60 * 1000), // 5 minute cache
-    async (req: Request, res: Response) => {
+  // Supplier routes
+  apiRouter.get("/suppliers", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      const connectionManager = FirestoreConnectionManager.getInstance();
-      
-      const suppliers = await connectionManager.acquireConnection(async () => {
-        return await storage.getAllSuppliers();
-      });
-      
+      const suppliers = await storage.getAllSuppliers();
       res.json(suppliers);
     } catch (error) {
       console.error("Failed to get suppliers:", error);
@@ -178,18 +185,11 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  apiRouter.post("/suppliers", 
-    invalidateCache(['suppliers', 'batch']),
-    async (req: Request, res: Response) => {
+  apiRouter.post("/suppliers", async (req: Request, res: Response) => {
     try {
       const validatedData = insertSupplierSchema.parse(req.body);
       const storage = await getStorage();
-      const connectionManager = FirestoreConnectionManager.getInstance();
-      
-      const supplier = await connectionManager.acquireConnection(async () => {
-        return await storage.createSupplier(validatedData);
-      });
-      
+      const supplier = await storage.createSupplier(validatedData);
       res.status(201).json(supplier);
     } catch (error) {
       console.error("Failed to create supplier:", error);

@@ -43,7 +43,7 @@ app.use(express.urlencoded({
   parameterLimit: 1000 // Prevent DOS attacks
 }));
 
-// Enable response compression
+// Enable response compression for better performance
 app.use(compression({
   filter: (req: any, res: any) => {
     if (req.headers['x-no-compression']) {
@@ -51,8 +51,9 @@ app.use(compression({
     }
     return compression.filter(req, res);
   },
-  level: 6, // Balance between compression ratio and speed
-  threshold: 1024, // Only compress responses larger than 1KB
+  level: 1, // Fast compression for speed
+  threshold: 512, // Compress smaller responses
+  memLevel: 8, // Memory usage optimization
 }));
 
 // Development note: Frontend configured to use Render backend directly
@@ -63,27 +64,16 @@ if (process.env.NODE_ENV === 'development') {
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
 
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      // Log slow requests only
+      if (duration > 1000) {
+        log(`SLOW ${req.method} ${path} ${res.statusCode} in ${duration}ms`);
+      } else if (duration > 500) {
+        log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
     }
   });
 

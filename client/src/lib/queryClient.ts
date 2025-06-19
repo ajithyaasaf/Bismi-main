@@ -50,13 +50,13 @@ export async function apiRequest(
     headers["Accept-Encoding"] = "gzip, deflate, br";
   }
 
-  let retries = 2; // Reduced retries for speed
+  let retries = 1; // Single retry for speed
   let lastError: Error | null = null;
 
   while (retries > 0) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // Reduced timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
       const res = await fetch(url, {
         method,
@@ -65,9 +65,9 @@ export async function apiRequest(
         credentials: "include",
         mode: "cors",
         signal: controller.signal,
-        // HTTP/2 optimization hints
+        // Performance optimizations
         cache: method === 'GET' ? 'default' : 'no-cache',
-        priority: 'high'
+        keepalive: true
       } as RequestInit);
 
       clearTimeout(timeoutId);
@@ -78,14 +78,13 @@ export async function apiRequest(
       retries--;
       
       if (retries > 0) {
-        // Exponential backoff with jitter
-        const delay = Math.min(1000 * Math.pow(2, 2 - retries) + Math.random() * 1000, 3000);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        // Quick retry with minimal delay
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
   }
 
-  throw lastError || new Error('Request failed after all retries');
+  throw lastError || new Error('Request failed after retry');
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -202,14 +201,16 @@ export const queryClient = new QueryClient({
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
       refetchOnWindowFocus: false, // Disable for performance
-      staleTime: 1000 * 60 * 10, // 10 minutes - longer cache
-      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
-      retry: 1, // Single retry for resilience
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
+      staleTime: 1000 * 60 * 3, // 3 minutes cache
+      gcTime: 1000 * 60 * 15, // 15 minutes garbage collection
+      retry: 1, // Single retry for speed
+      retryDelay: 500, // Quick retry
+      networkMode: 'online', // Only fetch when online
     },
     mutations: {
       retry: 1,
-      retryDelay: 1000,
+      retryDelay: 500,
+      networkMode: 'online',
     },
   },
 });

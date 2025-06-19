@@ -63,8 +63,6 @@ import { monitoredApiCall } from './performance-monitor';
 
 export async function fetchDashboardData() {
   return await monitoredApiCall('dashboard-parallel', async () => {
-    console.log('Starting parallel dashboard data fetch...');
-    
     // Make all requests in parallel for better performance
     const [
       suppliersResponse,
@@ -95,9 +93,8 @@ export async function fetchDashboardData() {
       })
     ]);
 
-    console.log('All responses received, parsing...');
-
     // Parse all responses and handle standardized API format
+
     const [suppliersData, inventoryData, customersData, ordersData, transactionsData] = await Promise.all([
       suppliersResponse.json(),
       inventoryResponse.json(),
@@ -105,11 +102,6 @@ export async function fetchDashboardData() {
       ordersResponse.json(),
       transactionsResponse.json()
     ]);
-
-    console.log('Sample response structure:', {
-      suppliers: suppliersData?.success ? 'standardized' : 'direct',
-      dataLength: suppliersData?.data?.length || suppliersData?.length || 0
-    });
 
     // Extract data from standardized API responses or use direct data
     const extractData = (response: any) => {
@@ -119,23 +111,13 @@ export async function fetchDashboardData() {
       return response; // Direct data response
     };
 
-    const result = {
+    return {
       suppliers: { success: true, data: extractData(suppliersData) || [] },
       inventory: { success: true, data: extractData(inventoryData) || [] },
       customers: { success: true, data: extractData(customersData) || [] },
       orders: { success: true, data: extractData(ordersData) || [] },
       transactions: { success: true, data: extractData(transactionsData) || [] }
     };
-
-    console.log('Final extracted data counts:', {
-      suppliers: result.suppliers.data.length,
-      inventory: result.inventory.data.length,
-      customers: result.customers.data.length,
-      orders: result.orders.data.length,
-      transactions: result.transactions.data.length
-    });
-
-    return result;
   });
 }
 

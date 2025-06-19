@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { safeDateTimeFormat } from "@/utils/date-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { createOrderWhatsAppMessage } from "@/lib/whatsapp-service";
 
 interface OrdersListProps {
   orders: Order[];
@@ -45,70 +46,6 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
   const getCustomerName = (customerId: string) => {
     const customer = getCustomer(customerId);
     return customer ? customer.name : 'Unknown Customer';
-  };
-  
-  // Create WhatsApp link for a customer
-  const createWhatsAppLink = (customerId: string, specificOrder?: Order) => {
-    const customer = getCustomer(customerId);
-    if (!customer || !customer.contact) return null;
-    
-    // Clean the phone number (remove spaces, dashes, etc.)
-    let phoneNumber = customer.contact.replace(/[\s-()]/g, '');
-    
-    // Smart country code handling - configurable for different regions
-    if (!phoneNumber.startsWith('+')) {
-      // Remove leading zeros
-      if (phoneNumber.startsWith('0')) {
-        phoneNumber = phoneNumber.substring(1);
-      }
-      
-      // Add country code based on phone number length and format
-      if (phoneNumber.length === 10 && /^[6-9]/.test(phoneNumber)) {
-        // Indian mobile number pattern
-        phoneNumber = '+91' + phoneNumber;
-      } else if (phoneNumber.length === 11 && phoneNumber.startsWith('1')) {
-        // US/Canada number pattern
-        phoneNumber = '+' + phoneNumber;
-      } else if (phoneNumber.startsWith('91') && phoneNumber.length === 12) {
-        // Already has 91 prefix
-        phoneNumber = '+' + phoneNumber;
-      } else {
-        // Default to India for backward compatibility
-        phoneNumber = '+91' + phoneNumber;
-      }
-    }
-    
-    // Create a dynamic message with order details and pending amount
-    let message = `*BISMI CHICKEN SHOP*\n\nHello ${customer.name},`;
-    
-    // Add pending amount info if applicable
-    if (customer.pendingAmount && customer.pendingAmount > 0) {
-      message += `\n\n*Current Pending Amount: ₹${customer.pendingAmount.toFixed(2)}*`;
-    }
-    
-    // If a specific order is provided, include its details
-    if (specificOrder) {
-      message += `\n\n*Order Details:*`;
-      // Use proper timestamp for WhatsApp message
-      const orderTimestamp = specificOrder.createdAt;
-      message += `\n📅 Date: ${safeDateTimeFormat(orderTimestamp)}`;
-      message += `\n💰 Amount: ₹${(specificOrder.totalAmount || 0).toFixed(2)}`;
-      message += `\n📦 Status: ${specificOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
-      
-      // Add item details
-      message += `\n\n*Items Purchased:*`;
-      (specificOrder.items as OrderItem[]).forEach(item => {
-        message += `\n- ${(item.quantity || 0).toFixed(2)} kg ${getItemLabel(item.type)} (₹${(item.rate || 0).toFixed(2)}/kg)`;
-      });
-    } else {
-      // No specific order, just a general message
-      message += `\n\nThank you for your business with us.`;
-    }
-    
-    // Add a closing message
-    message += `\n\nFor any queries, please contact us.`;
-    
-    return `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
   };
   
   // Format items for display
@@ -179,23 +116,24 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                   </TableCell>
                   <TableCell className="font-medium flex items-center gap-2">
                     {getCustomerName(order.customerId)}
-                    {createWhatsAppLink(order.customerId, order) && (
+                    {getCustomer(order.customerId)?.contact && (
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <a 
-                              href={createWhatsAppLink(order.customerId, order) || "#"} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              onClick={async () => {
+                                const { createOrderWhatsAppMessage } = await import("@/lib/whatsapp-service");
+                                const whatsappLink = await createOrderWhatsAppMessage(order.customerId, order.id);
+                                if (whatsappLink) {
+                                  window.open(whatsappLink, '_blank', 'noopener,noreferrer');
+                                }
+                              }}
                             >
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <i className="fab fa-whatsapp text-lg"></i>
-                              </Button>
-                            </a>
+                              <i className="fab fa-whatsapp text-lg"></i>
+                            </Button>
                           </TooltipTrigger>
                           <TooltipContent>
                             <p>Send order details via WhatsApp</p>

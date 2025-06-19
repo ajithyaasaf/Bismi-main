@@ -1,6 +1,7 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager";
+import { createPendingCalculator } from "./utils/pending-calculator";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 
@@ -49,9 +50,6 @@ const insertTransactionSchema = z.object({
 });
 
 // Use enterprise storage with Firestore exclusively
-async function getStorage() {
-  return await storageManager.initialize();
-}
 
 export async function registerRoutes(app: Express): Promise<Server | void> {
   // Add middleware to ensure all API responses are JSON with standardized format
@@ -82,6 +80,15 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   // API routes
   const apiRouter = express.Router();
   app.use("/api", apiRouter);
+
+  async function getStorage() {
+    return storageManager.getStorage();
+  }
+
+  async function getPendingCalculator() {
+    const storage = await getStorage();
+    return createPendingCalculator(storage);
+  }
 
   // Batch endpoint for multiple requests
   apiRouter.post("/batch", async (req: Request, res: Response) => {
@@ -241,6 +248,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       }
 
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
       const supplier = await storage.getSupplier(req.params.id);
       
       if (!supplier) {
@@ -258,11 +266,13 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
       const transaction = await storage.createTransaction(transactionData);
 
-      // Update supplier pending amount
-      const newAmount = (supplier.pendingAmount || 0) - parseFloat(amount);
-      await storage.updateSupplier(req.params.id, { pendingAmount: Math.max(0, newAmount) });
+      // Recalculate and sync supplier pending amount
+      const newPendingAmount = await pendingCalculator.syncSupplierPendingAmount(req.params.id);
 
-      res.status(201).json(transaction);
+      res.status(201).json({
+        transaction,
+        updatedPendingAmount: newPendingAmount
+      });
     } catch (error) {
       console.error("Failed to process supplier payment:", error);
       res.status(500).json({ message: "Failed to process payment" });
@@ -382,8 +392,8 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       }
       
       // Update supplier pending amount
-      const newPendingAmount = (supplier.pendingAmount || 0) + totalCost;
-      await storage.updateSupplier(supplierId, { pendingAmount: newPendingAmount });
+      const pendingCalculator = await getPendingCalculator();
+      await pendingCalculator.syncSupplierPendingAmount(supplierId);
       
       // Create transaction record
       await storage.createTransaction({
@@ -439,11 +449,38 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.get("/customers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
+      
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      res.json(customer);
+      
+      // Calculate real-time pending amount for accuracy
+      const realTimePendingAmount = await pendingCalculator.calculateCustomerPendingAmount(req.params.id);
+      
+      res.json({
+        ...customer,
+        pendingAmount: realTimePendingAmount,
+        _storedPendingAmount: customer.pendingAmount // For debugging purposes
+      });
+    } catch (error) {
+      console.error("Failed to get customer:", error);
+      res.status(500).json({ message: "Failed to get customer" });
+    }
+  });
+
+  // Add new endpoint for WhatsApp customer data with accurate pending amounts
+  apiRouter.get("/customers/:id/whatsapp", async (req: Request, res: Response) => {
+    try {
+      const pendingCalculator = await getPendingCalculator();
+      const customerData = await pendingCalculator.getCustomerForWhatsApp(req.params.id);
+      
+      if (!customerData) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      res.json(customerData);
     } catch (error) {
       console.error("Failed to get customer:", error);
       res.status(500).json({ message: "Failed to get customer" });
@@ -506,28 +543,27 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       }
 
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
       const customer = await storage.getCustomer(req.params.id);
       
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      // Create transaction record
-      const transactionData = {
-        type: "payment",
-        amount: parseFloat(amount),
-        entityId: req.params.id,
-        entityType: "customer",
-        description: description || `Payment from customer: ${customer.name}`
-      };
+      // Process payment with proper order status updates
+      const paymentResult = await pendingCalculator.processCustomerPayment(
+        req.params.id,
+        parseFloat(amount),
+        description || `Payment from customer: ${customer.name}`
+      );
 
-      const transaction = await storage.createTransaction(transactionData);
-
-      // Update customer pending amount
-      const newAmount = (customer.pendingAmount || 0) - parseFloat(amount);
-      await storage.updateCustomer(req.params.id, { pendingAmount: Math.max(0, newAmount) });
-
-      res.status(201).json(transaction);
+      res.status(201).json({
+        message: "Payment processed successfully",
+        appliedAmount: paymentResult.appliedAmount,
+        remainingCredit: paymentResult.remainingCredit,
+        updatedOrders: paymentResult.updatedOrders,
+        totalOrdersUpdated: paymentResult.updatedOrders.length
+      });
     } catch (error) {
       console.error("Failed to process customer payment:", error);
       res.status(500).json({ message: "Failed to process payment" });
@@ -586,7 +622,16 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const validatedData = insertOrderSchema.parse(req.body);
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
+      
+      // Create the order
       const order = await storage.createOrder(validatedData);
+      
+      // If order is pending, update customer's pending amount
+      if (order.paymentStatus === 'pending') {
+        await pendingCalculator.syncCustomerPendingAmount(order.customerId);
+      }
+      
       res.status(201).json(order);
     } catch (error) {
       console.error("Failed to create order:", error);
@@ -601,10 +646,25 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const validatedData = insertOrderSchema.partial().parse(req.body);
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
+      
+      // Get original order to track payment status changes
+      const originalOrder = await storage.getOrder(req.params.id);
+      if (!originalOrder) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Update the order
       const order = await storage.updateOrder(req.params.id, validatedData);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
+      
+      // If payment status changed, recalculate customer pending amount
+      if (validatedData.paymentStatus && validatedData.paymentStatus !== originalOrder.paymentStatus) {
+        await pendingCalculator.syncCustomerPendingAmount(order.customerId);
+      }
+      
       res.json(order);
     } catch (error) {
       console.error("Failed to update order:", error);

@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
+import compression from 'compression';
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -31,8 +32,28 @@ app.use((req, res, next) => {
   console.log(`Request from origin: ${req.get('Origin')} to ${req.method} ${req.path}`);
   next();
 });
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: false, limit: '50mb' }));
+// Optimized JSON parsing with compression
+app.use(express.json({ 
+  limit: '10mb', // Reduced limit for better performance 
+  type: ['application/json', 'text/plain']
+}));
+app.use(express.urlencoded({ 
+  extended: false, 
+  limit: '10mb',
+  parameterLimit: 1000 // Prevent DOS attacks
+}));
+
+// Enable response compression
+app.use(compression({
+  filter: (req: any, res: any) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Balance between compression ratio and speed
+  threshold: 1024, // Only compress responses larger than 1KB
+}));
 
 // Development note: Frontend configured to use Render backend directly
 if (process.env.NODE_ENV === 'development') {

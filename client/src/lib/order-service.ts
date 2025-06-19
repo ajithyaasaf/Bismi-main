@@ -6,10 +6,10 @@ export async function getOrders() {
   return safeJsonResponse(response);
 }
 
-// Get orders by customer ID from API
+// Get orders by customer ID from API (optimized server-side filtering)
 export async function getOrdersByCustomer(customerId: string) {
-  const orders = await getOrders();
-  return orders.filter((order: any) => order.customerId === customerId);
+  const response = await apiRequest('GET', `/api/orders?customerId=${customerId}`);
+  return safeJsonResponse(response);
 }
 
 // Get an order by ID from API

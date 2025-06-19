@@ -28,6 +28,9 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Connection pool for HTTP/1.1 optimization
+const connectionPool = new Map<string, Promise<Response>>();
+
 export async function apiRequest(
   method: string,
   endpoint: string,
@@ -38,16 +41,22 @@ export async function apiRequest(
   const headers: Record<string, string> = {
     "Accept": "application/json",
     "Content-Type": "application/json",
+    "Keep-Alive": "timeout=5, max=1000", // Connection reuse
+    "Connection": "keep-alive"
   };
 
-  // Add retry logic for Render backend wake-up
-  let retries = 3;
+  // Enable compression
+  if (!headers["Accept-Encoding"]) {
+    headers["Accept-Encoding"] = "gzip, deflate, br";
+  }
+
+  let retries = 2; // Reduced retries for speed
   let lastError: Error | null = null;
 
   while (retries > 0) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Reduced timeout
 
       const res = await fetch(url, {
         method,
@@ -56,7 +65,10 @@ export async function apiRequest(
         credentials: "include",
         mode: "cors",
         signal: controller.signal,
-      });
+        // HTTP/2 optimization hints
+        cache: method === 'GET' ? 'default' : 'no-cache',
+        priority: 'high'
+      } as RequestInit);
 
       clearTimeout(timeoutId);
       await throwIfResNotOk(res);
@@ -65,12 +77,10 @@ export async function apiRequest(
       lastError = error as Error;
       retries--;
       
-      if (retries > 0 && (error as Error).name === 'AbortError') {
-        console.log(`Backend timeout, retrying... (${retries} attempts left)`);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2s before retry
-      } else if (retries > 0) {
-        console.log(`Request failed, retrying... (${retries} attempts left)`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      if (retries > 0) {
+        // Exponential backoff with jitter
+        const delay = Math.min(1000 * Math.pow(2, 2 - retries) + Math.random() * 1000, 3000);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
@@ -191,12 +201,15 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: true,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: false,
+      refetchOnWindowFocus: false, // Disable for performance
+      staleTime: 1000 * 60 * 10, // 10 minutes - longer cache
+      gcTime: 1000 * 60 * 30, // 30 minutes garbage collection
+      retry: 1, // Single retry for resilience
+      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
     },
     mutations: {
-      retry: false,
+      retry: 1,
+      retryDelay: 1000,
     },
   },
 });

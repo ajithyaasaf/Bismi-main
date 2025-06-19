@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
+import { cacheMiddleware, invalidateCache } from './middleware/cache';
+import { FirestoreBatchOptimizer, FirestoreConnectionManager } from './middleware/firestore-optimizer';
 
 // Validation schemas
 const insertSupplierSchema = z.object({
@@ -83,6 +85,48 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   const apiRouter = express.Router();
   app.use("/api", apiRouter);
 
+  // Optimized batch endpoint for multiple requests
+  apiRouter.post("/batch", 
+    cacheMiddleware(2 * 60 * 1000), // 2 minute cache for batch requests
+    async (req: Request, res: Response) => {
+    try {
+      const { requests } = req.body;
+      const storage = await getStorage();
+      const batchOptimizer = FirestoreBatchOptimizer.getInstance();
+      
+      // Extract unique collections needed
+      const collections = Array.from(new Set(
+        Object.values(requests).map((req: any) => 
+          req.endpoint.replace('/', '')
+        )
+      ));
+      
+      // Use batch read for better performance
+      const batchResults = await batchOptimizer.batchRead(storage as any, collections);
+      
+      // Map results back to original request structure
+      const results: Record<string, any> = {};
+      
+      Object.entries(requests).forEach(([key, requestData]: [string, any]) => {
+        const collection = requestData.endpoint.replace('/', '');
+        if (batchResults[collection]) {
+          results[key] = { success: true, data: batchResults[collection] };
+        } else {
+          results[key] = { success: false, error: `Collection ${collection} not found` };
+        }
+      });
+      
+      res.json(results);
+    } catch (error) {
+      console.error("Batch request failed:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Batch request failed",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   apiRouter.get("/health", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
@@ -101,11 +145,18 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  // Supplier routes
-  apiRouter.get("/suppliers", async (req: Request, res: Response) => {
+  // Supplier routes with caching
+  apiRouter.get("/suppliers", 
+    cacheMiddleware(5 * 60 * 1000), // 5 minute cache
+    async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      const suppliers = await storage.getAllSuppliers();
+      const connectionManager = FirestoreConnectionManager.getInstance();
+      
+      const suppliers = await connectionManager.acquireConnection(async () => {
+        return await storage.getAllSuppliers();
+      });
+      
       res.json(suppliers);
     } catch (error) {
       console.error("Failed to get suppliers:", error);
@@ -127,11 +178,18 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  apiRouter.post("/suppliers", async (req: Request, res: Response) => {
+  apiRouter.post("/suppliers", 
+    invalidateCache(['suppliers', 'batch']),
+    async (req: Request, res: Response) => {
     try {
       const validatedData = insertSupplierSchema.parse(req.body);
       const storage = await getStorage();
-      const supplier = await storage.createSupplier(validatedData);
+      const connectionManager = FirestoreConnectionManager.getInstance();
+      
+      const supplier = await connectionManager.acquireConnection(async () => {
+        return await storage.createSupplier(validatedData);
+      });
+      
       res.status(201).json(supplier);
     } catch (error) {
       console.error("Failed to create supplier:", error);
@@ -343,12 +401,35 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  // Customer routes
+  // Customer routes with filtering support
   apiRouter.get("/customers", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
       const customers = await storage.getAllCustomers();
-      res.json(customers);
+      
+      // Support query filtering to reduce data transfer
+      const { type, fields } = req.query;
+      let filteredCustomers = customers;
+      
+      if (type) {
+        filteredCustomers = customers.filter(customer => customer.type === type);
+      }
+      
+      // Support field selection to reduce payload size
+      if (fields && typeof fields === 'string') {
+        const selectedFields = fields.split(',');
+        filteredCustomers = filteredCustomers.map(customer => {
+          const filtered: any = { id: customer.id }; // Always include ID
+          selectedFields.forEach(field => {
+            if (field in customer) {
+              filtered[field] = (customer as any)[field];
+            }
+          });
+          return filtered;
+        });
+      }
+      
+      res.json(filteredCustomers);
     } catch (error) {
       console.error("Failed to get customers:", error);
       res.status(500).json({ message: "Failed to get customers" });
@@ -453,11 +534,33 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  // Order routes
+  // Order routes with customer filtering
   apiRouter.get("/orders", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      const orders = await storage.getAllOrders();
+      const { customerId, status, limit } = req.query;
+      
+      if (customerId) {
+        // Optimized endpoint for customer-specific orders
+        const orders = await storage.getOrdersByCustomer(customerId as string);
+        return res.json(orders);
+      }
+      
+      let orders = await storage.getAllOrders();
+      
+      // Server-side filtering to reduce data transfer
+      if (status) {
+        orders = orders.filter(order => order.orderStatus === status);
+      }
+      
+      // Limit results for pagination
+      if (limit) {
+        const limitNum = parseInt(limit as string, 10);
+        if (!isNaN(limitNum)) {
+          orders = orders.slice(0, limitNum);
+        }
+      }
+      
       res.json(orders);
     } catch (error) {
       console.error("Failed to get orders:", error);

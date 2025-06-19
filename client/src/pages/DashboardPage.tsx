@@ -6,41 +6,33 @@ import AddStockModal from "@/components/modals/AddStockModal";
 import NewOrderModal from "@/components/modals/NewOrderModal";
 import { DashboardSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
+import { fetchDashboardData } from "@/lib/api-batch";
 
 export default function DashboardPage() {
   const [isAddStockModalOpen, setIsAddStockModalOpen] = useState(false);
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const queryClient = useQueryClient();
   
-  // Data fetch from API only
-  const { data: suppliers = [], isLoading: suppliersLoading, error: suppliersError } = useQuery<Supplier[]>({ 
-    queryKey: ['/api/suppliers'],
-  });
-  
-  const { data: inventory = [], isLoading: inventoryLoading, error: inventoryError } = useQuery<Inventory[]>({ 
-    queryKey: ['/api/inventory'],
-  });
-  
-  const { data: customers = [], isLoading: customersLoading, error: customersError } = useQuery<Customer[]>({ 
-    queryKey: ['/api/customers'],
-  });
-  
-  const { data: orders = [], isLoading: ordersLoading, error: ordersError } = useQuery<Order[]>({ 
-    queryKey: ['/api/orders'],
-  });
-  
-  const { data: transactions = [], isLoading: transactionsLoading, error: transactionsError } = useQuery<Transaction[]>({ 
-    queryKey: ['/api/transactions'],
+  // Optimized batched data fetching
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ['dashboard-batch'],
+    queryFn: fetchDashboardData,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
   });
 
-  // Check if any data is loading
-  const isLoading = suppliersLoading || inventoryLoading || customersLoading || ordersLoading || transactionsLoading;
+  // Extract data from batched response
+  const suppliers = dashboardData?.suppliers?.data || [];
+  const inventory = dashboardData?.inventory?.data || [];
+  const customers = dashboardData?.customers?.data || [];
+  const orders = dashboardData?.orders?.data || [];
+  const transactions = dashboardData?.transactions?.data || [];
+
+  // Use skeleton timer for minimum 0.3 second display (reduced for speed)
+  const showSkeleton = useSkeletonTimer(isLoading, 300);
   
-  // Use skeleton timer for minimum 0.5 second display
-  const showSkeleton = useSkeletonTimer(isLoading, 500);
-  
-  // Check for errors
-  const hasErrors = suppliersError || inventoryError || customersError || ordersError || transactionsError;
+  // Check for batched errors
+  const hasErrors = error || 
+    (dashboardData && Object.values(dashboardData).some((result: any) => !result.success));
   
   // Debug logging
   console.log('Dashboard Data Debug:', {
@@ -54,15 +46,15 @@ export default function DashboardPage() {
   });
 
   // Calculate totals
-  const totalStock = inventory.reduce((sum, item) => sum + item.quantity, 0);
-  const supplierDebts = suppliers.reduce((sum, supplier) => sum + (supplier.pendingAmount || 0), 0);
-  const pendingPayments = customers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
+  const totalStock = inventory.reduce((sum: number, item: any) => sum + item.quantity, 0);
+  const supplierDebts = suppliers.reduce((sum: number, supplier: any) => sum + (supplier.pendingAmount || 0), 0);
+  const pendingPayments = customers.reduce((sum: number, customer: any) => sum + (customer.pendingAmount || 0), 0);
   
   // Get today's orders
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const todaysOrders = orders.filter(order => {
+  const todaysOrders = orders.filter((order: any) => {
     if (!order.createdAt) return false;
     try {
       const orderDate = new Date(order.createdAt.toString());
@@ -73,11 +65,11 @@ export default function DashboardPage() {
     }
   });
   
-  const todaysSales = todaysOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const todaysSales = todaysOrders.reduce((sum: number, order: any) => sum + order.totalAmount, 0);
   
   // Enterprise stock monitoring: Show negative stock and low stock items
-  const lowStockItems = inventory.filter(item => item.quantity < 5)
-    .sort((a, b) => a.quantity - b.quantity); // Sort by quantity (negative first, then lowest positive)
+  const lowStockItems = inventory.filter((item: any) => item.quantity < 5)
+    .sort((a: any, b: any) => a.quantity - b.quantity); // Sort by quantity (negative first, then lowest positive)
   
   // Recent orders (last 5)
   const recentOrders = [...orders]
@@ -93,8 +85,8 @@ export default function DashboardPage() {
   
   // Suppliers with pendingAmount
   const suppliersWithDebt = suppliers
-    .filter(supplier => (supplier.pendingAmount || 0) > 0)
-    .sort((a, b) => (b.pendingAmount || 0) - (a.pendingAmount || 0));
+    .filter((supplier: any) => (supplier.pendingAmount || 0) > 0)
+    .sort((a: any, b: any) => (b.pendingAmount || 0) - (a.pendingAmount || 0));
 
   // Handle modal toggling
   const openAddStockModal = () => setIsAddStockModalOpen(true);

@@ -21,6 +21,7 @@ export class FirestoreStorage implements IStorage {
   constructor() {
     this.initializeFirebase();
     this.db = admin.firestore();
+    console.log('FirestoreStorage constructor completed successfully');
   }
 
   private initializeFirebase() {
@@ -34,15 +35,20 @@ export class FirestoreStorage implements IStorage {
         let serviceAccount;
         try {
           serviceAccount = JSON.parse(serviceAccountKey);
+          console.log('Firebase service account parsed successfully for project:', serviceAccount.project_id);
         } catch (parseError) {
+          console.error('Firebase service account JSON parse error:', parseError);
           throw new Error('Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY');
         }
 
+        console.log('Initializing Firebase Admin SDK...');
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
         });
 
-        console.log('Firebase Admin SDK initialized with project:', serviceAccount.project_id);
+        console.log('Firebase Admin SDK initialized successfully with project:', serviceAccount.project_id);
+      } else {
+        console.log('Firebase Admin SDK already initialized');
       }
     } catch (error) {
       console.error('Failed to initialize Firebase Admin SDK:', error);

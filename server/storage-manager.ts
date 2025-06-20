@@ -32,7 +32,7 @@ class StorageManager {
       // Reset state on failure for serverless retry capability
       this.currentStorage = null;
       this.storageType = 'unknown';
-      throw new Error(`Storage initialization failed: ${error.message}`);
+      throw new Error(`Storage initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

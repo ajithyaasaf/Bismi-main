@@ -82,7 +82,15 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   app.use("/api", apiRouter);
 
   async function getStorage() {
-    return storageManager.getStorage();
+    try {
+      // Always ensure storage is initialized first
+      const storage = await storageManager.initialize();
+      console.log('Storage initialized successfully, type:', storageManager.getStorageType());
+      return storage;
+    } catch (error) {
+      console.error('Storage initialization error:', error);
+      throw error;
+    }
   }
 
   async function getPendingCalculator() {

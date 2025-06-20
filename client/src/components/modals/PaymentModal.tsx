@@ -28,16 +28,16 @@ export default function PaymentModal({
   const [amount, setAmount] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Reset form when modal opens/closes or currentAmount changes
+  // Reset form when modal opens/closes
   useEffect(() => {
     if (isOpen) {
-      setAmount(currentAmount > 0 ? currentAmount.toString() : '');
+      setAmount(''); // Always start with empty field
       setIsSubmitting(false);
     } else {
       setAmount('');
       setIsSubmitting(false);
     }
-  }, [isOpen, currentAmount]);
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

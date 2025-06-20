@@ -204,30 +204,28 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                   <p className="text-sm text-gray-500">Customer</p>
                   <div className="flex items-center gap-2">
                     <p className="font-medium">{getCustomerName(selectedOrder.customerId)}</p>
-                    {createWhatsAppLink(selectedOrder.customerId, selectedOrder) && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <a 
-                              href={createWhatsAppLink(selectedOrder.customerId, selectedOrder) || "#"} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                            >
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                              >
-                                <i className="fab fa-whatsapp text-lg"></i>
-                              </Button>
-                            </a>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Send order details via WhatsApp</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            onClick={async () => {
+                              const whatsappLink = await createOrderWhatsAppMessage(selectedOrder.customerId, selectedOrder.id);
+                              if (whatsappLink) {
+                                window.open(whatsappLink, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                          >
+                            <i className="fab fa-whatsapp text-lg"></i>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Send order details via WhatsApp</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                 </div>
                 <div>

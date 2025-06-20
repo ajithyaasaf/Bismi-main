@@ -118,6 +118,11 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleEditTransaction = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setIsFormOpen(true);
+  };
+
   const handleExportTransactions = () => {
     const csv = [
       'Date,Entity Type,Entity,Type,Amount,Description',
@@ -250,14 +255,17 @@ export default function TransactionsPage() {
         customers={customers}
         isLoading={false}
         onDelete={handleDeleteTransaction}
-        onEdit={setEditingTransaction}
+        onEdit={handleEditTransaction}
       />
 
       {/* Transaction Form Modal */}
       {isFormOpen && (
         <TransactionFormModal
           isOpen={isFormOpen}
-          onClose={() => setIsFormOpen(false)}
+          onClose={() => {
+            setIsFormOpen(false);
+            setEditingTransaction(null);
+          }}
           onSubmit={handleCreateTransaction}
           suppliers={suppliers}
           customers={customers}

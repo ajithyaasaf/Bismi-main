@@ -111,7 +111,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Total Sales</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">₹{report.totalSales.toFixed(2)}</p>
+                <p className="text-2xl font-bold">₹{(report?.totalSales || 0).toFixed(2)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -119,7 +119,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Order Count</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{report.orderCount}</p>
+                <p className="text-2xl font-bold">{report?.orderCount || 0}</p>
               </CardContent>
             </Card>
             <Card>
@@ -128,7 +128,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">
-                  ₹{report.orderCount > 0 ? (report.totalSales / report.orderCount).toFixed(2) : '0.00'}
+                  ₹{(report?.orderCount || 0) > 0 ? ((report?.totalSales || 0) / (report?.orderCount || 1)).toFixed(2) : '0.00'}
                 </p>
               </CardContent>
             </Card>
@@ -192,7 +192,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Total Supplier Debts</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600">₹{report.totalSupplierDebt.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-red-600">₹{(report?.totalSupplierDebt || 0).toFixed(2)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -200,7 +200,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Total Customer Pending</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-amber-600">₹{report.totalCustomerPending.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-amber-600">₹{(report?.totalCustomerPending || 0).toFixed(2)}</p>
               </CardContent>
             </Card>
           </div>
@@ -211,7 +211,7 @@ export default function ReportsPage() {
                 <CardTitle>Supplier Debts</CardTitle>
               </CardHeader>
               <CardContent>
-                {report.suppliers && report.suppliers.length > 0 ? (
+                {(report?.suppliers || []).length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -220,10 +220,10 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {report.suppliers.map((supplier: any) => (
+                      {(report?.suppliers || []).map((supplier: any) => (
                         <TableRow key={supplier.id}>
                           <TableCell>{supplier.name}</TableCell>
-                          <TableCell className="text-right text-red-600">₹{supplier.pendingAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-red-600">₹{(supplier.pendingAmount || 0).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -239,7 +239,7 @@ export default function ReportsPage() {
                 <CardTitle>Customer Pending Payments</CardTitle>
               </CardHeader>
               <CardContent>
-                {report.customers && report.customers.length > 0 ? (
+                {(report?.customers || []).length > 0 ? (
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -249,11 +249,11 @@ export default function ReportsPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {report.customers.map((customer: any) => (
+                      {(report?.customers || []).map((customer: any) => (
                         <TableRow key={customer.id}>
                           <TableCell>{customer.name}</TableCell>
                           <TableCell>{customer.type}</TableCell>
-                          <TableCell className="text-right text-amber-600">₹{customer.pendingAmount.toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-amber-600">₹{(customer.pendingAmount || 0).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

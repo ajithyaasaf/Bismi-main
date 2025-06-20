@@ -27,22 +27,39 @@ export class PendingAmountCalculator {
   }
 
   /**
-   * Calculate supplier's actual pending amount from their transactions and purchases
-   * Formula: Sum of all expenses/purchases minus sum of all payments
+   * Calculate supplier's actual pending amount from stored debt and transactions
+   * Formula: Current stored debt + purchases - payments
    */
   async calculateSupplierPendingAmount(supplierId: string): Promise<number> {
     try {
+      // Get supplier's current stored debt
+      const supplier = await this.storage.getSupplier(supplierId);
+      if (!supplier) return 0;
+      
+      // Get all transactions for this supplier
       const transactions = await this.storage.getTransactionsByEntity(supplierId);
       
-      const expenses = transactions
+      // Calculate total purchases (increases debt)
+      const purchases = transactions
         .filter(t => t.type === 'expense' || t.type === 'purchase')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
+      // Calculate total payments (reduces debt)
       const payments = transactions
         .filter(t => t.type === 'payment')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
-      return Math.max(0, expenses - payments);
+      // Start with original debt amount, add purchases, subtract payments
+      const finalAmount = (supplier.pendingAmount || 0) + purchases - payments;
+      
+      console.log(`Supplier ${supplierId} debt calculation:`, {
+        originalDebt: supplier.pendingAmount || 0,
+        purchases,
+        payments,
+        finalAmount: Math.max(0, finalAmount)
+      });
+      
+      return Math.max(0, finalAmount);
     } catch (error) {
       console.error(`Error calculating pending amount for supplier ${supplierId}:`, error);
       return 0;

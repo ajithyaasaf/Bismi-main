@@ -211,6 +211,8 @@ export class FirestoreStorage implements IStorage {
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     try {
       const updateData: any = { ...supplier, updatedAt: new Date() };
+      
+      // Handle pending amount updates by maintaining debt in Firestore
       if (updateData.pendingAmount !== undefined) {
         updateData.debt = updateData.pendingAmount;
         delete updateData.pendingAmount;

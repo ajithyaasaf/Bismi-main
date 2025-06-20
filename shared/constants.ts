@@ -46,7 +46,9 @@ export const ORDER_STATUS = [
 export const TRANSACTION_TYPES = [
   { value: 'payment', label: 'Payment' },
   { value: 'receipt', label: 'Receipt' },
-  { value: 'expense', label: 'Expense' }
+  { value: 'expense', label: 'Expense' },
+  { value: 'purchase', label: 'Purchase' },
+  { value: 'initial_debt', label: 'Initial Debt' }
 ] as const;
 
 export const ENTITY_TYPES = [

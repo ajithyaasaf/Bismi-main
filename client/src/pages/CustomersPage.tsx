@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { processCustomerPayment } from "@/lib/customer-service";
 import CustomerForm from "@/components/customers/CustomerForm";
 import CustomersList from "@/components/customers/CustomersList";
 import PaymentModal from "@/components/modals/PaymentModal";
@@ -167,22 +168,16 @@ export default function CustomersPage() {
           onClose={closePaymentModal}
           onSubmit={async (amount) => {
             try {
-              const response = await apiRequest('POST', `/api/customers/${paymentCustomer.id}/payment`, {
+              await processCustomerPayment(
+                paymentCustomer.id,
                 amount,
-                description: `Payment from ${paymentCustomer.name}`
-              });
+                `Payment from ${paymentCustomer.name}`
+              );
 
-              if (response.ok) {
-                toast({
-                  title: "Payment recorded",
-                  description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${paymentCustomer.name}.`,
-                });
-                
-                queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-                queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-              } else {
-                throw new Error('Failed to record payment');
-              }
+              toast({
+                title: "Payment recorded",
+                description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${paymentCustomer.name}.`,
+              });
             } catch (error) {
               toast({
                 title: "Error",

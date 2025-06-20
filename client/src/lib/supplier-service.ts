@@ -1,4 +1,4 @@
-import { apiRequest, safeJsonResponse } from './queryClient';
+import { apiRequest, safeJsonResponse, queryClient } from './queryClient';
 
 // Get all suppliers from API
 export async function getSuppliers() {
@@ -34,4 +34,30 @@ export async function deleteSupplier(id: string) {
 export async function makeSupplierPayment(id: string, paymentData: any) {
   const response = await apiRequest('POST', `/api/suppliers/${id}/payment`, paymentData);
   return safeJsonResponse(response);
+}
+
+// Process supplier payment with comprehensive cache invalidation
+export async function processSupplierPayment(supplierId: string, amount: number, description?: string) {
+  try {
+    const response = await apiRequest('POST', `/api/suppliers/${supplierId}/payment`, {
+      amount,
+      description
+    });
+    
+    const result = await safeJsonResponse(response);
+    
+    // Invalidate all related cache keys for dynamic updates
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers', supplierId] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+    ]);
+    
+    return result;
+  } catch (error) {
+    console.error('Supplier payment processing failed:', error);
+    throw error;
+  }
 }

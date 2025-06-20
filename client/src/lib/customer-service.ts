@@ -1,4 +1,4 @@
-import { apiRequest, safeJsonResponse } from './queryClient';
+import { apiRequest, safeJsonResponse, queryClient } from './queryClient';
 import * as OrderService from './order-service';
 
 // Get all customers from API
@@ -46,4 +46,32 @@ export async function recalculateCustomerPendingAmount(customerId: string) {
     .reduce((sum: number, order: any) => sum + (order.total || 0), 0);
   
   return await updateCustomer(customerId, { pendingAmount });
+}
+
+// Process customer payment with comprehensive cache invalidation
+export async function processCustomerPayment(customerId: string, amount: number, description?: string) {
+  try {
+    const response = await apiRequest('POST', `/api/customers/${customerId}/payment`, {
+      amount,
+      description
+    });
+    
+    const result = await safeJsonResponse(response);
+    
+    // Invalidate all related cache keys for dynamic updates
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+      queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] })
+    ]);
+    
+    return result;
+  } catch (error) {
+    console.error('Customer payment processing failed:', error);
+    throw error;
+  }
 }

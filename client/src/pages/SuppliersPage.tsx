@@ -8,6 +8,7 @@ import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import PaymentModal from "@/components/modals/PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { processSupplierPayment } from "@/lib/supplier-service";
 import { SuppliersSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
 
@@ -97,22 +98,16 @@ export default function SuppliersPage() {
     if (!supplierForPayment) return;
 
     try {
-      const response = await apiRequest('POST', `/api/suppliers/${supplierForPayment.id}/payment`, {
+      await processSupplierPayment(
+        supplierForPayment.id,
         amount,
-        description: `Payment to ${supplierForPayment.name}`
-      });
+        `Payment to ${supplierForPayment.name}`
+      );
 
-      if (response.ok) {
-        toast({
-          title: "Payment recorded",
-          description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${supplierForPayment.name}.`,
-        });
-        
-        queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
-      } else {
-        throw new Error('Failed to record payment');
-      }
+      toast({
+        title: "Payment recorded",
+        description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${supplierForPayment.name}.`,
+      });
     } catch (error) {
       toast({
         title: "Error",

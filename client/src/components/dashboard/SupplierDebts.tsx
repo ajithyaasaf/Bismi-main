@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { processSupplierPayment } from '@/lib/supplier-service';
 import PaymentModal from '@/components/modals/PaymentModal';
 
 export default function SupplierDebts() {
@@ -41,19 +41,16 @@ export default function SupplierDebts() {
     try {
       setIsPaying(selectedSupplier.id);
       
-      await apiRequest('POST', `/api/suppliers/${selectedSupplier.id}/payment`, {
-        amount,
-        type: 'payment',
-        description: `Payment to ${selectedSupplier.name}`
-      });
+      await processSupplierPayment(
+        selectedSupplier.id, 
+        amount, 
+        `Payment to ${selectedSupplier.name}`
+      );
       
       toast({
         title: "Payment recorded",
         description: `Payment of ₹${amount} to ${selectedSupplier.name} has been recorded`,
       });
-      
-      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
       
       closePaymentModal();
     } catch (error) {

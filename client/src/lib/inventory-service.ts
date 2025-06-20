@@ -1,4 +1,4 @@
-import { apiRequest, safeJsonResponse } from './queryClient';
+import { apiRequest, safeJsonResponse, queryClient } from './queryClient';
 
 // Get all inventory items from API
 export async function getInventoryItems() {
@@ -32,6 +32,21 @@ export async function deleteInventoryItem(id: string) {
 
 // Add stock to inventory (uses API for enterprise validation and supplier pendingAmount tracking)
 export async function addStock(stockData: any) {
-  const response = await apiRequest('POST', '/api/add-stock', stockData);
-  return safeJsonResponse(response);
+  try {
+    const response = await apiRequest('POST', '/api/add-stock', stockData);
+    const result = await safeJsonResponse(response);
+    
+    // Invalidate related cache keys for dynamic updates
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+    ]);
+    
+    return result;
+  } catch (error) {
+    console.error('Add stock failed:', error);
+    throw error;
+  }
 }

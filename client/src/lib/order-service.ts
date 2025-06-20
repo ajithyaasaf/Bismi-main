@@ -1,4 +1,4 @@
-import { apiRequest, safeJsonResponse } from './queryClient';
+import { apiRequest, safeJsonResponse, queryClient } from './queryClient';
 
 // Get all orders from API
 export async function getOrders() {
@@ -20,18 +20,68 @@ export async function getOrderById(id: string) {
 
 // Add a new order (uses API for enterprise validation and inventory updates)
 export async function addOrder(orderData: any) {
-  const response = await apiRequest('POST', '/api/orders', orderData);
-  return safeJsonResponse(response);
+  try {
+    const response = await apiRequest('POST', '/api/orders', orderData);
+    const result = await safeJsonResponse(response);
+    
+    // Invalidate related cache keys for dynamic updates
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/customers', orderData.customerId] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+      queryClient.invalidateQueries({ queryKey: [`/api/customers/${orderData.customerId}/whatsapp`] })
+    ]);
+    
+    return result;
+  } catch (error) {
+    console.error('Order creation failed:', error);
+    throw error;
+  }
 }
 
 // Update an existing order (uses API for enterprise validation)
 export async function updateOrder(id: string, orderData: any) {
-  const response = await apiRequest('PUT', `/api/orders/${id}`, orderData);
-  return safeJsonResponse(response);
+  try {
+    const response = await apiRequest('PUT', `/api/orders/${id}`, orderData);
+    const result = await safeJsonResponse(response);
+    
+    // Invalidate related cache keys for dynamic updates
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', id] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+    ]);
+    
+    return result;
+  } catch (error) {
+    console.error('Order update failed:', error);
+    throw error;
+  }
 }
 
 // Delete an order (uses API for enterprise validation)
 export async function deleteOrder(id: string) {
-  const response = await apiRequest('DELETE', `/api/orders/${id}`);
-  return response.ok;
+  try {
+    const response = await apiRequest('DELETE', `/api/orders/${id}`);
+    const success = response.ok;
+    
+    if (success) {
+      // Invalidate related cache keys for dynamic updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      ]);
+    }
+    
+    return success;
+  } catch (error) {
+    console.error('Order deletion failed:', error);
+    throw error;
+  }
 }

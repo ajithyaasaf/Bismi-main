@@ -65,9 +65,11 @@ export default function SupplierDebts() {
     }
   };
 
-  // Use supplier's actual pending amount field
+  // Use supplier's actual pending amount field with proper null checks
   const supplierDebts = suppliers.filter(supplier => 
-    supplier.pendingAmount && supplier.pendingAmount > 0
+    supplier && 
+    typeof supplier.pendingAmount === 'number' && 
+    supplier.pendingAmount > 0
   );
 
   if (isLoading) {
@@ -108,7 +110,7 @@ export default function SupplierDebts() {
                   </div>
                   <div className="flex items-center space-x-3">
                     <Badge variant="destructive">
-                      ₹{supplier.pendingAmount?.toLocaleString()}
+                      ₹{(supplier.pendingAmount || 0).toLocaleString()}
                     </Badge>
                     <Button 
                       size="sm" 

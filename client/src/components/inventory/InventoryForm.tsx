@@ -72,7 +72,7 @@ export default function InventoryForm({ item, isOpen, onClose }: InventoryFormPr
         quantity: quantityValue,
         unit: "kg",
         price: rateValue,
-        supplierId: "", // Default empty supplier
+        supplierId: item?.supplierId || "", // Preserve existing supplier or default to empty
       };
       
       if (isEditing && item) {

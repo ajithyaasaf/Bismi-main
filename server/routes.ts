@@ -388,22 +388,22 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         const newQuantity = existingItem.quantity + parseFloat(quantity);
         updatedItem = await storage.updateInventoryItem(existingItem.id, {
           quantity: newQuantity,
-          price: parseFloat(price) // Update price to latest
+          price: parseFloat(price), // Update price to latest
+          supplierId: supplierId // Update supplier relationship
         });
       } else {
-        // Create new inventory item
+        // Create new inventory item with proper supplier relationship
         updatedItem = await storage.createInventoryItem({
+          name: type,
           type,
           quantity: parseFloat(quantity),
-          price: parseFloat(price)
+          unit: "kg",
+          price: parseFloat(price),
+          supplierId: supplierId
         });
       }
       
-      // Update supplier pending amount
-      const pendingCalculator = await getPendingCalculator();
-      await pendingCalculator.syncSupplierPendingAmount(supplierId);
-      
-      // Create transaction record
+      // Create transaction record first
       await storage.createTransaction({
         entityId: supplierId,
         entityType: "supplier",
@@ -412,6 +412,10 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         description: `Stock purchase: ${quantity}kg ${type} @ ₹${price}/kg`
       });
 
+      // Update supplier pending amount after transaction
+      const pendingCalculator = await getPendingCalculator();
+      await pendingCalculator.syncSupplierPendingAmount(supplierId);
+      
       res.json(updatedItem);
     } catch (error) {
       console.error("Failed to add stock:", error);

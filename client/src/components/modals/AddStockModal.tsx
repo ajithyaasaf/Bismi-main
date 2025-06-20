@@ -64,6 +64,17 @@ export default function AddStockModal({ isOpen, onClose, suppliers }: AddStockMo
         });
         return;
       }
+
+      // Validate supplier exists
+      const selectedSupplier = suppliers.find(s => s.id === supplier);
+      if (!selectedSupplier) {
+        toast({
+          title: "Invalid supplier",
+          description: "Selected supplier not found",
+          variant: "destructive"
+        });
+        return;
+      }
       
       if (!type) {
         toast({

@@ -122,9 +122,14 @@ export default function TransactionsPage() {
     const csv = [
       'Date,Entity Type,Entity,Type,Amount,Description',
       ...filteredTransactions.map(t => {
-        const entityName = t.entityType === 'supplier' 
-          ? suppliers.find((s: Supplier) => s.id === t.entityId)?.name || 'Unknown'
-          : customers.find((c: Customer) => c.id === t.entityId)?.name || 'Unknown';
+        let entityName = 'Unknown';
+        if (t.entityType === 'supplier') {
+          const supplier = suppliers.find((s: Supplier) => s && s.id === t.entityId);
+          entityName = supplier?.name || `Supplier-${t.entityId.slice(0, 8)}`;
+        } else {
+          const customer = customers.find((c: Customer) => c && c.id === t.entityId);
+          entityName = customer?.name || `Customer-${t.entityId.slice(0, 8)}`;
+        }
         
         const dateStr = safeDateFormat(t.createdAt);
         return `${dateStr},${t.entityType},${entityName},${t.type},${t.amount},"${t.description}"`;

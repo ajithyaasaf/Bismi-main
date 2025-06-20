@@ -73,11 +73,17 @@ export default function DashboardPage() {
   }, [inventory]);
 
   const supplierDebts = useMemo(() => {
-    return suppliers.reduce((sum: number, supplier: any) => sum + (supplier?.pendingAmount || 0), 0);
+    return suppliers.reduce((sum: number, supplier: any) => {
+      if (!supplier || typeof supplier.pendingAmount !== 'number') return sum;
+      return sum + supplier.pendingAmount;
+    }, 0);
   }, [suppliers]);
 
   const pendingPayments = useMemo(() => {
-    return customers.reduce((sum: number, customer: any) => sum + (customer?.pendingAmount || 0), 0);
+    return customers.reduce((sum: number, customer: any) => {
+      if (!customer || typeof customer.pendingAmount !== 'number') return sum;
+      return sum + customer.pendingAmount;
+    }, 0);
   }, [customers]);
   
   // Get today's orders
@@ -125,8 +131,12 @@ export default function DashboardPage() {
   // Suppliers with pendingAmount
   const suppliersWithDebt = useMemo(() => {
     return suppliers
-      .filter((supplier: any) => supplier && (supplier.pendingAmount || 0) > 0)
-      .sort((a: any, b: any) => (b?.pendingAmount || 0) - (a?.pendingAmount || 0));
+      .filter((supplier: any) => 
+        supplier && 
+        typeof supplier.pendingAmount === 'number' && 
+        supplier.pendingAmount > 0
+      )
+      .sort((a: any, b: any) => (b.pendingAmount || 0) - (a.pendingAmount || 0));
   }, [suppliers]);
 
   // Handle modal toggling

@@ -49,12 +49,14 @@ export default function PaymentModal({
     
     setIsSubmitting(true);
     try {
+      console.log(`[PaymentModal] Submitting payment of ₹${numAmount} for ${entityName}`);
       await onSubmit(numAmount);
+      console.log(`[PaymentModal] Payment submission successful, closing modal`);
       // Reset form and close modal on success
       setAmount('');
       onClose();
     } catch (error) {
-      console.error('Payment submission error:', error);
+      console.error('[PaymentModal] Payment submission error:', error);
     } finally {
       setIsSubmitting(false);
     }

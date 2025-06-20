@@ -47,6 +47,7 @@ export async function processSupplierPayment(supplierId: string, amount: number,
     const result = await safeJsonResponse(response);
     
     // Invalidate all related cache keys for dynamic updates
+    console.log(`[Payment] Invalidating cache for supplier ${supplierId} after payment of ${amount}`);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers', supplierId] }),
@@ -54,6 +55,7 @@ export async function processSupplierPayment(supplierId: string, amount: number,
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
     ]);
+    console.log(`[Payment] Cache invalidation completed for supplier ${supplierId}`);
     
     return result;
   } catch (error) {

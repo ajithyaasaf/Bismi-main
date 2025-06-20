@@ -98,17 +98,27 @@ export default function SuppliersPage() {
     if (!supplierForPayment) return;
 
     try {
+      console.log(`[UI] Starting payment of ₹${amount} for supplier ${supplierForPayment.name} (ID: ${supplierForPayment.id})`);
+      console.log(`[UI] Current pending amount before payment: ₹${supplierForPayment.pendingAmount}`);
+      
       await processSupplierPayment(
         supplierForPayment.id,
         amount,
         `Payment to ${supplierForPayment.name}`
       );
 
+      console.log(`[UI] Payment completed, invalidating queries`);
+      
+      // Force immediate cache refresh
+      await queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/suppliers'] });
+
       toast({
         title: "Payment recorded",
         description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${supplierForPayment.name}.`,
       });
     } catch (error) {
+      console.error('[UI] Payment error:', error);
       toast({
         title: "Error",
         description: "Failed to record the payment. Please try again.",

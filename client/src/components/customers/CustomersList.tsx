@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import * as CustomerService from "@/lib/customer-service";
+import { createCustomerWhatsAppMessage } from "@/lib/whatsapp-service";
 
 interface CustomersListProps {
   customers: Customer[];
@@ -30,121 +31,15 @@ export default function CustomersList({
   onGenerateInvoice
 }: CustomersListProps) {
   
-  // Create WhatsApp link for a customer
-  // Function to handle WhatsApp message sending
+  // Handle WhatsApp message sending with accurate pending amounts
   const handleWhatsAppClick = async (customer: Customer) => {
     if (!customer.contact) return;
     
     try {
-      // Get the latest customer data to ensure pending amount is up-to-date
-      let latestCustomer = customer;
-      
-      try {
-        // Get the latest customer data from API
-        const updatedCustomer = await CustomerService.getCustomerById(customer.id) as any;
-        if (updatedCustomer) {
-          // Use the updated customer data directly, fallback to original if properties are missing
-          latestCustomer = {
-            ...customer,
-            ...updatedCustomer,
-            pendingAmount: updatedCustomer.pendingAmount !== undefined ? 
-              updatedCustomer.pendingAmount : customer.pendingAmount
-          };
-          console.log("Got latest customer data for WhatsApp message:", latestCustomer);
-        }
-      } catch (error) {
-        console.error("Error getting latest customer data:", error);
-        // Continue with existing customer data if fetch fails
+      const whatsappUrl = await createCustomerWhatsAppMessage(customer.id, true);
+      if (whatsappUrl) {
+        window.open(whatsappUrl, '_blank');
       }
-      
-      // Clean the phone number (remove spaces, dashes, etc.)
-      let phoneNumber = latestCustomer.contact ? latestCustomer.contact.replace(/[\s-()]/g, '') : '';
-      if (!phoneNumber) return;
-      
-      // Ensure it has the country code (assuming India +91, but this should be adapted for other regions)
-      if (!phoneNumber.startsWith('+')) {
-        // If it starts with 0, replace it with +91
-        if (phoneNumber.startsWith('0')) {
-          phoneNumber = '+91' + phoneNumber.substring(1);
-        } 
-        // If it doesn't have a country code, add +91
-        else if (!phoneNumber.startsWith('91')) {
-          phoneNumber = '+91' + phoneNumber;
-        }
-        // If it starts with 91 but no +, add +
-        else if (phoneNumber.startsWith('91')) {
-          phoneNumber = '+' + phoneNumber;
-        }
-      }
-      
-      // Create a dynamic message with customer details
-      let message = `*BISMI CHICKEN SHOP*\n\nHello ${latestCustomer.name},`;
-      
-      // Add pending amount info if applicable
-      if (latestCustomer.pendingAmount && latestCustomer.pendingAmount > 0) {
-        message += `\n\n*Current Pending Amount: ₹${latestCustomer.pendingAmount.toFixed(2)}*`;
-      }
-      
-      // Fetch recent orders for this customer to include in the message
-      try {
-        const response = await fetch(`/api/orders?customerId=${latestCustomer.id}`);
-        if (response.ok) {
-          const orders = await response.json();
-          
-          // If there are recent orders, add them to the message
-          if (orders && orders.length > 0) {
-            // Sort orders by date, newest first
-            const sortedOrders = [...orders].sort((a, b) => 
-              new Date(b.date).getTime() - new Date(a.date).getTime()
-            );
-            
-            // Get the most recent order
-            const latestOrder = sortedOrders[0];
-            
-            // Format the date in a nicer format
-            const orderDate = new Date(latestOrder.date);
-            const formattedDate = orderDate.toLocaleDateString('en-US', {
-              month: 'short',
-              day: 'numeric', 
-              year: 'numeric'
-            });
-            
-            message += `\n\n*Order Details:*`;
-            message += `\n📅 Date: ${formattedDate}`;
-            message += `\n💰 Amount: ₹${(latestOrder.totalAmount || 0).toFixed(2)}`;
-            message += `\n📦 Status: ${latestOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
-            
-            // Add item details with proper type mapping
-            if (latestOrder.items && latestOrder.items.length > 0) {
-              message += `\n\n*Items Purchased:*`;
-              latestOrder.items.forEach((item: any) => {
-                const itemDetails = item.details ? ` - ${item.details}` : '';
-                const itemTotal = ((item.quantity || 0) * (item.rate || 0)).toFixed(2);
-                message += `\n• ${(item.quantity || 0).toFixed(2)} kg ${item.type}${itemDetails}`;
-                message += `\n  Rate: ₹${(item.rate || 0).toFixed(2)}/kg | Total: ₹${itemTotal}`;
-              });
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching orders for WhatsApp message:", error);
-      }
-      
-      // Add a general message based on pending amount
-      if (latestCustomer.pendingAmount && latestCustomer.pendingAmount > 0) {
-        message += `\n\nThis is a friendly reminder about your pending payment. Please settle at your earliest convenience.`;
-      } else {
-        message += `\n\nThank you for your business with us.`;
-      }
-      
-      // Add a closing message
-      message += `\n\nFor any queries, please contact us.`;
-      
-      // Create the WhatsApp URL
-      const whatsappUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
-      
-      // Open in a new tab
-      window.open(whatsappUrl, '_blank');
     } catch (error) {
       console.error("Error creating WhatsApp message:", error);
     }

@@ -13,6 +13,12 @@ export async function getCustomerById(id: string) {
   return safeJsonResponse(response);
 }
 
+// Get customer data specifically formatted for WhatsApp with accurate pending amounts
+export async function getCustomerForWhatsApp(id: string) {
+  const response = await apiRequest('GET', `/api/customers/${id}/whatsapp`);
+  return safeJsonResponse(response);
+}
+
 // Add a new customer (uses API for enterprise validation)
 export async function addCustomer(customerData: any) {
   const response = await apiRequest('POST', '/api/customers', customerData);

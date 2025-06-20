@@ -27,21 +27,17 @@ export class PendingAmountCalculator {
   }
 
   /**
-   * Calculate supplier's actual pending amount from stored debt and transactions
-   * Formula: Current stored debt + purchases - payments
+   * Calculate supplier's actual pending amount from transactions only
+   * Formula: Sum of all debt-increasing transactions - sum of all payments
    */
   async calculateSupplierPendingAmount(supplierId: string): Promise<number> {
     try {
-      // Get supplier's current stored debt
-      const supplier = await this.storage.getSupplier(supplierId);
-      if (!supplier) return 0;
-      
       // Get all transactions for this supplier
       const transactions = await this.storage.getTransactionsByEntity(supplierId);
       
-      // Calculate total purchases (increases debt)
-      const purchases = transactions
-        .filter(t => t.type === 'expense' || t.type === 'purchase')
+      // Calculate total debt increases (purchases, expenses, initial debt)
+      const debtIncreases = transactions
+        .filter(t => t.type === 'expense' || t.type === 'purchase' || t.type === 'initial_debt')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
       // Calculate total payments (reduces debt)
@@ -49,14 +45,42 @@ export class PendingAmountCalculator {
         .filter(t => t.type === 'payment')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
-      // Start with original debt amount, add purchases, subtract payments
-      const finalAmount = (supplier.pendingAmount || 0) + purchases - payments;
+      // If no initial_debt transaction exists but there are other transactions,
+      // we need to account for the original debt amount
+      const hasInitialDebt = transactions.some(t => t.type === 'initial_debt');
+      let originalDebt = 0;
+      
+      if (!hasInitialDebt && transactions.length > 0) {
+        // Get the original debt amount from the supplier record
+        const supplier = await this.storage.getSupplier(supplierId);
+        // Use the initial debt that was set when supplier was created
+        // We need to reverse-calculate this: current + payments - purchases = original
+        originalDebt = (supplier?.pendingAmount || 0) + payments - (debtIncreases);
+        console.log(`Supplier ${supplierId} calculated original debt: ${originalDebt}`);
+      }
+      
+      // If no transactions exist at all, use the stored pending amount
+      if (transactions.length === 0) {
+        const supplier = await this.storage.getSupplier(supplierId);
+        const initialDebt = supplier?.pendingAmount || 0;
+        
+        console.log(`Supplier ${supplierId} debt calculation (no transactions):`, {
+          initialDebt,
+          finalAmount: Math.max(0, initialDebt)
+        });
+        
+        return Math.max(0, initialDebt);
+      }
+      
+      // Calculate based on transaction history + original debt if needed
+      const finalAmount = (debtIncreases + originalDebt) - payments;
       
       console.log(`Supplier ${supplierId} debt calculation:`, {
-        originalDebt: supplier.pendingAmount || 0,
-        purchases,
+        debtIncreases,
         payments,
-        finalAmount: Math.max(0, finalAmount)
+        transactionCount: transactions.length,
+        finalAmount: Math.max(0, finalAmount),
+        transactions: transactions.map(t => ({ type: t.type, amount: t.amount, description: t.description }))
       });
       
       return Math.max(0, finalAmount);

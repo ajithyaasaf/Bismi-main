@@ -195,13 +195,26 @@ export class FirestoreStorage implements IStorage {
         updatedAt: now,
       });
 
-      return {
+      const newSupplier = {
         id: docRef.id,
         name: supplier.name,
         contact: supplier.contact,
         pendingAmount: supplier.pendingAmount || 0,
         createdAt: now,
       };
+
+      // If there's an initial pending amount, create an initial debt transaction
+      if (supplier.pendingAmount && supplier.pendingAmount > 0) {
+        await this.createTransaction({
+          entityId: docRef.id,
+          entityType: 'supplier',
+          type: 'initial_debt',
+          amount: supplier.pendingAmount,
+          description: `Initial debt for supplier: ${supplier.name}`
+        });
+      }
+
+      return newSupplier;
     } catch (error) {
       console.error('Error creating supplier:', error);
       throw new Error(`Failed to create supplier: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -68,7 +68,35 @@ export default function ReportsPage() {
           `/api/reports?type=${reportType}&startDate=${startDateStr}&endDate=${endDateStr}`,
           undefined
         );
-        return response.json();
+        const data = await response.json();
+        
+        // Debug log to understand the data structure
+        console.log('Report data received:', data);
+        
+        // Ensure safe data structure
+        const safeData = {
+          totalSales: data?.totalSales || 0,
+          orderCount: data?.orderCount || 0,
+          totalSupplierDebt: data?.totalSupplierDebt || 0,
+          totalCustomerPending: data?.totalCustomerPending || 0,
+          orders: data?.orders || [],
+          suppliers: data?.suppliers || [],
+          customers: data?.customers || []
+        };
+        
+        return safeData;
+      } catch (error) {
+        console.error('Report generation error:', error);
+        // Return safe fallback data
+        return {
+          totalSales: 0,
+          orderCount: 0,
+          totalSupplierDebt: 0,
+          totalCustomerPending: 0,
+          orders: [],
+          suppliers: [],
+          customers: []
+        };
       } finally {
         setIsGenerating(false);
       }
@@ -111,7 +139,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Total Sales</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">₹{(report?.totalSales || 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold">₹{Number(report?.totalSales || 0).toFixed(2)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -119,7 +147,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Order Count</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold">{report?.orderCount || 0}</p>
+                <p className="text-2xl font-bold">{Number(report?.orderCount || 0)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -128,7 +156,7 @@ export default function ReportsPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold">
-                  ₹{(report?.orderCount || 0) > 0 ? ((report?.totalSales || 0) / (report?.orderCount || 1)).toFixed(2) : '0.00'}
+                  ₹{Number(report?.orderCount || 0) > 0 ? (Number(report?.totalSales || 0) / Number(report?.orderCount || 1)).toFixed(2) : '0.00'}
                 </p>
               </CardContent>
             </Card>
@@ -139,7 +167,7 @@ export default function ReportsPage() {
               <CardTitle>Orders</CardTitle>
             </CardHeader>
             <CardContent>
-              {report.orders && report.orders.length > 0 ? (
+              {(report?.orders || []).length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -150,7 +178,7 @@ export default function ReportsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {report.orders.map((order: any) => (
+                    {(report?.orders || []).map((order: any) => (
                       <TableRow key={order.id}>
                         <TableCell>
                           {(() => {
@@ -171,7 +199,7 @@ export default function ReportsPage() {
                             {order.paymentStatus}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">₹{(order.totalAmount || 0).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">₹{Number(order.totalAmount || 0).toFixed(2)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -192,7 +220,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Total Supplier Debts</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600">₹{(report?.totalSupplierDebt || 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold text-red-600">₹{Number(report?.totalSupplierDebt || 0).toFixed(2)}</p>
               </CardContent>
             </Card>
             <Card>
@@ -200,7 +228,7 @@ export default function ReportsPage() {
                 <CardTitle className="text-sm text-gray-500">Total Customer Pending</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-amber-600">₹{(report?.totalCustomerPending || 0).toFixed(2)}</p>
+                <p className="text-2xl font-bold text-amber-600">₹{Number(report?.totalCustomerPending || 0).toFixed(2)}</p>
               </CardContent>
             </Card>
           </div>
@@ -223,7 +251,7 @@ export default function ReportsPage() {
                       {(report?.suppliers || []).map((supplier: any) => (
                         <TableRow key={supplier.id}>
                           <TableCell>{supplier.name}</TableCell>
-                          <TableCell className="text-right text-red-600">₹{(supplier.pendingAmount || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-red-600">₹{Number(supplier.pendingAmount || 0).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -253,7 +281,7 @@ export default function ReportsPage() {
                         <TableRow key={customer.id}>
                           <TableCell>{customer.name}</TableCell>
                           <TableCell>{customer.type}</TableCell>
-                          <TableCell className="text-right text-amber-600">₹{(customer.pendingAmount || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right text-amber-600">₹{Number(customer.pendingAmount || 0).toFixed(2)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

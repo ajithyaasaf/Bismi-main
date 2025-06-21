@@ -243,7 +243,7 @@ export default function ReportGenerator({
     return lines.join('\n');
   };
   
-  // Download function with progress indication
+  // Download function with progress indication and proper encoding
   const downloadFile = async (content: string, filename: string, type: string) => {
     setIsExporting(true);
     
@@ -251,7 +251,11 @@ export default function ReportGenerator({
       // Add small delay for better UX
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const blob = new Blob([content], { type: `text/${type};charset=utf-8;` });
+      // Add BOM for proper UTF-8 encoding in Excel
+      const BOM = '\uFEFF';
+      const csvWithBOM = BOM + content;
+      
+      const blob = new Blob([csvWithBOM], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       
       if (link.download !== undefined) {

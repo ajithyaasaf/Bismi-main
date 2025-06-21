@@ -72,13 +72,14 @@ export default function ReportsPage() {
   const { data: report, isLoading, refetch, isError, error } = useQuery({
     queryKey: ['/api/reports', reportType, startDate?.toISOString(), endDate?.toISOString()],
     queryFn: async () => {
-      if (!startDate || !endDate) {
+      const { from, to } = getDateRange();
+      if (!from || !to) {
         throw new Error('Date range is required');
       }
       
       try {
-        const startDateStr = format(startDate, 'yyyy-MM-dd');
-        const endDateStr = format(endDate, 'yyyy-MM-dd');
+        const startDateStr = format(from, 'yyyy-MM-dd');
+        const endDateStr = format(to, 'yyyy-MM-dd');
         
         console.log(`Generating ${reportType} report from ${startDateStr} to ${endDateStr}`);
         
@@ -119,24 +120,27 @@ export default function ReportsPage() {
   
   // Generate report with validation
   const generateReport = () => {
-    if (!startDate || !endDate) {
+    const { from, to } = getDateRange();
+    if (!from || !to) {
       console.error('Cannot generate report: missing date range');
       return;
     }
+    console.log(`Generating report from ${from.toISOString()} to ${to.toISOString()}`);
     refetch();
   };
 
   // Format date range for display
   const formatDateRange = () => {
-    if (!startDate || !endDate) return '';
+    const { from, to } = getDateRange();
+    if (!from || !to) return '';
     
-    if (startDate.toDateString() === endDate.toDateString()) {
-      if (isToday(startDate)) return 'Today';
-      if (isYesterday(startDate)) return 'Yesterday';
-      return format(startDate, 'MMM dd, yyyy');
+    if (from.toDateString() === to.toDateString()) {
+      if (isToday(from)) return 'Today';
+      if (isYesterday(from)) return 'Yesterday';
+      return format(from, 'MMM dd, yyyy');
     }
     
-    return `${format(startDate, 'MMM dd')} - ${format(endDate, 'MMM dd, yyyy')}`;
+    return `${format(from, 'MMM dd')} - ${format(to, 'MMM dd, yyyy')}`;
   };
 
   // Render loading skeleton
@@ -560,8 +564,8 @@ export default function ReportsPage() {
                 <ReportGenerator 
                   report={report} 
                   reportType={reportType} 
-                  startDate={startDate || new Date()} 
-                  endDate={endDate || new Date()} 
+                  startDate={getDateRange().from || new Date()} 
+                  endDate={getDateRange().to || new Date()} 
                 />
               )}
             </div>

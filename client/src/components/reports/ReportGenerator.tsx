@@ -50,23 +50,23 @@ export default function ReportGenerator({
   const generateSalesCSV = () => {
     const lines: string[] = [];
     
-    // Report metadata section
-    lines.push('BISMI CHICKEN SHOP - SALES REPORT');
-    lines.push('Generated on,' + format(new Date(), 'yyyy-MM-dd HH:mm:ss'));
-    lines.push('Report Period,' + dateRangeText);
-    lines.push('Report Type,Sales Analysis');
+    // Report metadata section with proper escaping
+    lines.push(escapeCSV('BISMI CHICKEN SHOP - SALES REPORT'));
+    lines.push([escapeCSV('Generated on'), escapeCSV(format(new Date(), 'yyyy-MM-dd HH:mm:ss'))].join(','));
+    lines.push([escapeCSV('Report Period'), escapeCSV(dateRangeText)].join(','));
+    lines.push([escapeCSV('Report Type'), escapeCSV('Sales Analysis')].join(','));
     lines.push('');
     
-    // Executive summary section
-    lines.push('EXECUTIVE SUMMARY');
-    lines.push('Total Sales Revenue,₹' + report.totalSales.toFixed(2));
-    lines.push('Total Orders Count,' + report.orderCount);
-    lines.push('Average Order Value,₹' + report.averageOrderValue.toFixed(2));
-    lines.push('Data Export Time,' + format(new Date(), 'yyyy-MM-dd HH:mm:ss'));
+    // Executive summary section with proper formatting
+    lines.push(escapeCSV('EXECUTIVE SUMMARY'));
+    lines.push([escapeCSV('Total Sales Revenue'), escapeCSV('Rs ' + report.totalSales.toFixed(2))].join(','));
+    lines.push([escapeCSV('Total Orders Count'), escapeCSV(report.orderCount.toString())].join(','));
+    lines.push([escapeCSV('Average Order Value'), escapeCSV('Rs ' + report.averageOrderValue.toFixed(2))].join(','));
+    lines.push([escapeCSV('Data Export Time'), escapeCSV(format(new Date(), 'yyyy-MM-dd HH:mm:ss'))].join(','));
     lines.push('');
     
     // Detailed orders section
-    lines.push('DETAILED ORDERS');
+    lines.push(escapeCSV('DETAILED ORDERS'));
     const orderHeaders = [
       'Order ID',
       'Date',
@@ -75,7 +75,7 @@ export default function ReportGenerator({
       'Customer ID',
       'Payment Status',
       'Order Status',
-      'Total Amount (₹)',
+      'Total Amount',
       'Items Count'
     ];
     lines.push(orderHeaders.map(escapeCSV).join(','));
@@ -93,17 +93,17 @@ export default function ReportGenerator({
           order.customerId,
           order.paymentStatus,
           order.orderStatus || 'N/A',
-          (order.totalAmount || 0).toFixed(2),
-          itemsCount
+          'Rs ' + (order.totalAmount || 0).toFixed(2),
+          itemsCount.toString()
         ];
         lines.push(row.map(escapeCSV).join(','));
       });
     } else {
-      lines.push('No orders found for the selected period');
+      lines.push(escapeCSV('No orders found for the selected period'));
     }
     
     lines.push('');
-    lines.push('END OF REPORT');
+    lines.push(escapeCSV('END OF REPORT'));
     
     return lines.join('\n');
   };
@@ -112,27 +112,27 @@ export default function ReportGenerator({
   const generateDebtsCSV = () => {
     const lines: string[] = [];
     
-    // Report metadata section
-    lines.push('BISMI CHICKEN SHOP - DEBTS & RECEIVABLES REPORT');
-    lines.push('Generated on,' + format(new Date(), 'yyyy-MM-dd HH:mm:ss'));
-    lines.push('Report Date,' + dateRangeText);
-    lines.push('Report Type,Financial Position Analysis');
+    // Report metadata section with proper escaping
+    lines.push(escapeCSV('BISMI CHICKEN SHOP - DEBTS & RECEIVABLES REPORT'));
+    lines.push([escapeCSV('Generated on'), escapeCSV(format(new Date(), 'yyyy-MM-dd HH:mm:ss'))].join(','));
+    lines.push([escapeCSV('Report Date'), escapeCSV(dateRangeText)].join(','));
+    lines.push([escapeCSV('Report Type'), escapeCSV('Financial Position Analysis')].join(','));
     lines.push('');
     
-    // Financial summary section
-    lines.push('FINANCIAL SUMMARY');
-    lines.push('Total Supplier Debts,₹' + report.totalSupplierDebt.toFixed(2));
-    lines.push('Total Customer Receivables,₹' + report.totalCustomerPending.toFixed(2));
-    lines.push('Net Position,₹' + (report.totalCustomerPending - report.totalSupplierDebt).toFixed(2));
+    // Financial summary section with proper formatting
+    lines.push(escapeCSV('FINANCIAL SUMMARY'));
+    lines.push([escapeCSV('Total Supplier Debts'), escapeCSV('Rs ' + report.totalSupplierDebt.toFixed(2))].join(','));
+    lines.push([escapeCSV('Total Customer Receivables'), escapeCSV('Rs ' + report.totalCustomerPending.toFixed(2))].join(','));
+    lines.push([escapeCSV('Net Position'), escapeCSV('Rs ' + (report.totalCustomerPending - report.totalSupplierDebt).toFixed(2))].join(','));
     lines.push('');
     
     // Supplier debts section
-    lines.push('SUPPLIER DEBTS');
+    lines.push(escapeCSV('SUPPLIER DEBTS'));
     const supplierHeaders = [
       'Supplier ID',
       'Supplier Name', 
       'Contact Number',
-      'Outstanding Amount (₹)',
+      'Outstanding Amount',
       'Account Status'
     ];
     lines.push(supplierHeaders.map(escapeCSV).join(','));
@@ -146,25 +146,25 @@ export default function ReportGenerator({
           supplier.id,
           supplier.name,
           supplier.contact || 'Not provided',
-          amount.toFixed(2),
+          'Rs ' + amount.toFixed(2),
           status
         ];
         lines.push(row.map(escapeCSV).join(','));
       });
     } else {
-      lines.push('No outstanding supplier debts');
+      lines.push(escapeCSV('No outstanding supplier debts'));
     }
     
     lines.push('');
     
     // Customer receivables section  
-    lines.push('CUSTOMER RECEIVABLES');
+    lines.push(escapeCSV('CUSTOMER RECEIVABLES'));
     const customerHeaders = [
       'Customer ID',
       'Customer Name',
       'Customer Type', 
       'Contact Number',
-      'Pending Amount (₹)',
+      'Pending Amount',
       'Account Status'
     ];
     lines.push(customerHeaders.map(escapeCSV).join(','));
@@ -179,17 +179,17 @@ export default function ReportGenerator({
           customer.name,
           customer.type,
           customer.contact || 'Not provided',
-          amount.toFixed(2),
+          'Rs ' + amount.toFixed(2),
           status
         ];
         lines.push(row.map(escapeCSV).join(','));
       });
     } else {
-      lines.push('No pending customer payments');
+      lines.push(escapeCSV('No pending customer payments'));
     }
     
     lines.push('');
-    lines.push('END OF REPORT');
+    lines.push(escapeCSV('END OF REPORT'));
     
     return lines.join('\n');
   };
@@ -198,29 +198,30 @@ export default function ReportGenerator({
   const generateAnalyticsCSV = () => {
     const lines: string[] = [];
     
-    lines.push('BISMI CHICKEN SHOP - BUSINESS ANALYTICS');
-    lines.push('Generated on,' + format(new Date(), 'yyyy-MM-dd HH:mm:ss'));
-    lines.push('Analysis Period,' + dateRangeText);
+    lines.push(escapeCSV('BISMI CHICKEN SHOP - BUSINESS ANALYTICS'));
+    lines.push([escapeCSV('Generated on'), escapeCSV(format(new Date(), 'yyyy-MM-dd HH:mm:ss'))].join(','));
+    lines.push([escapeCSV('Analysis Period'), escapeCSV(dateRangeText)].join(','));
     lines.push('');
     
-    // Business metrics
-    lines.push('KEY PERFORMANCE INDICATORS');
-    lines.push('Revenue,₹' + report.totalSales.toFixed(2));
-    lines.push('Order Volume,' + report.orderCount);
-    lines.push('Average Transaction,₹' + report.averageOrderValue.toFixed(2));
-    lines.push('Outstanding Receivables,₹' + report.totalCustomerPending.toFixed(2));
-    lines.push('Supplier Liabilities,₹' + report.totalSupplierDebt.toFixed(2));
+    // Business metrics with proper formatting
+    lines.push(escapeCSV('KEY PERFORMANCE INDICATORS'));
+    lines.push([escapeCSV('Revenue'), escapeCSV('Rs ' + report.totalSales.toFixed(2))].join(','));
+    lines.push([escapeCSV('Order Volume'), escapeCSV(report.orderCount.toString())].join(','));
+    lines.push([escapeCSV('Average Transaction'), escapeCSV('Rs ' + report.averageOrderValue.toFixed(2))].join(','));
+    lines.push([escapeCSV('Outstanding Receivables'), escapeCSV('Rs ' + report.totalCustomerPending.toFixed(2))].join(','));
+    lines.push([escapeCSV('Supplier Liabilities'), escapeCSV('Rs ' + report.totalSupplierDebt.toFixed(2))].join(','));
     
     if (report.orderCount > 0) {
-      lines.push('Revenue per Order,₹' + (report.totalSales / report.orderCount).toFixed(2));
+      lines.push([escapeCSV('Revenue per Order'), escapeCSV('Rs ' + (report.totalSales / report.orderCount).toFixed(2))].join(','));
     }
     
     lines.push('');
     
     // Customer analysis
     if (report.customers && report.customers.length > 0) {
-      lines.push('TOP CUSTOMERS BY PENDING AMOUNT');
-      lines.push('Customer Name,Pending Amount (₹),Customer Type');
+      lines.push(escapeCSV('TOP CUSTOMERS BY PENDING AMOUNT'));
+      const customerAnalyticsHeaders = ['Customer Name', 'Pending Amount', 'Customer Type'];
+      lines.push(customerAnalyticsHeaders.map(escapeCSV).join(','));
       
       const sortedCustomers = [...report.customers]
         .sort((a, b) => (b.pendingAmount || 0) - (a.pendingAmount || 0))
@@ -229,7 +230,7 @@ export default function ReportGenerator({
       sortedCustomers.forEach((customer: any) => {
         const row = [
           customer.name,
-          (customer.pendingAmount || 0).toFixed(2),
+          'Rs ' + (customer.pendingAmount || 0).toFixed(2),
           customer.type
         ];
         lines.push(row.map(escapeCSV).join(','));
@@ -237,7 +238,7 @@ export default function ReportGenerator({
     }
     
     lines.push('');
-    lines.push('Report generated by Bismi Chicken Shop Management System');
+    lines.push(escapeCSV('Report generated by Bismi Chicken Shop Management System'));
     
     return lines.join('\n');
   };
@@ -283,12 +284,12 @@ export default function ReportGenerator({
 
   const exportSummary = () => {
     const lines: string[] = [];
-    lines.push('BISMI CHICKEN SHOP - EXECUTIVE SUMMARY');
-    lines.push('Report Period,' + dateRangeText);
-    lines.push('Total Revenue,₹' + report.totalSales.toFixed(2));
-    lines.push('Total Orders,' + report.orderCount);
-    lines.push('Customer Receivables,₹' + report.totalCustomerPending.toFixed(2));
-    lines.push('Supplier Payables,₹' + report.totalSupplierDebt.toFixed(2));
+    lines.push(escapeCSV('BISMI CHICKEN SHOP - EXECUTIVE SUMMARY'));
+    lines.push([escapeCSV('Report Period'), escapeCSV(dateRangeText)].join(','));
+    lines.push([escapeCSV('Total Revenue'), escapeCSV('Rs ' + report.totalSales.toFixed(2))].join(','));
+    lines.push([escapeCSV('Total Orders'), escapeCSV(report.orderCount.toString())].join(','));
+    lines.push([escapeCSV('Customer Receivables'), escapeCSV('Rs ' + report.totalCustomerPending.toFixed(2))].join(','));
+    lines.push([escapeCSV('Supplier Payables'), escapeCSV('Rs ' + report.totalSupplierDebt.toFixed(2))].join(','));
     
     const content = lines.join('\n');
     const filename = `bismi-summary-${timestamp}.csv`;

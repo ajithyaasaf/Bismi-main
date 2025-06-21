@@ -37,6 +37,7 @@ const insertOrderSchema = z.object({
     details: z.string().optional()
   })),
   totalAmount: z.number().min(0),
+  paidAmount: z.number().min(0).optional(),
   paymentStatus: z.string().min(1),
   orderStatus: z.string().min(1)
 });
@@ -541,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/customers/:id/payment", async (req: Request, res: Response) => {
     try {
-      const { amount, description } = req.body;
+      const { amount, description, targetOrderId } = req.body;
       
       if (!amount || isNaN(parseFloat(amount))) {
         return res.status(400).json({ message: "Valid amount is required" });
@@ -555,11 +556,12 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      // Process payment with proper order status updates
+      // Process payment with order-specific partial payment tracking
       const paymentResult = await pendingCalculator.processCustomerPayment(
         req.params.id,
         parseFloat(amount),
-        description || `Payment from customer: ${customer.name}`
+        description || `Payment from customer: ${customer.name}`,
+        targetOrderId
       );
 
       res.status(201).json({

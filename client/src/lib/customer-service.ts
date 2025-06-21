@@ -49,11 +49,12 @@ export async function recalculateCustomerPendingAmount(customerId: string) {
 }
 
 // Process customer payment with comprehensive cache invalidation
-export async function processCustomerPayment(customerId: string, amount: number, description?: string) {
+export async function processCustomerPayment(customerId: string, amount: number, description?: string, targetOrderId?: string) {
   try {
     const response = await apiRequest('POST', `/api/customers/${customerId}/payment`, {
       amount,
-      description
+      description,
+      targetOrderId
     });
     
     const result = await safeJsonResponse(response);

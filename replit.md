@@ -143,6 +143,7 @@ This is a full-stack web application for managing a chicken shop business. The s
 - June 21, 2025. Fixed custom date range timezone issue - normalized custom date picker to use local timezone with proper start/end of day handling, ensuring accurate date filtering for reports
 - June 21, 2025. Enterprise CSV export system implementation - rebuilt ReportGenerator with professional multi-format export options (detailed reports, business analytics, executive summaries), added proper CSV escaping, comprehensive data validation, progress indicators, and timestamped file naming for audit compliance
 - June 21, 2025. Fixed WhatsApp pending amount display bug - WhatsApp messages now show the same pending amount as customer page (stored amount) instead of calculated real-time amount, ensuring consistency across the application
+- June 21, 2025. Implemented order-specific partial payment tracking system - Added paidAmount field to Order model, enhanced payment status with 'partially_paid', updated OrdersList component with detailed payment information display, created OrderPaymentModal for order-specific payments, modified PendingAmountCalculator to handle partial payments per order, updated Firestore storage layer for proper payment tracking
 
 ## User Preferences
 

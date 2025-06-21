@@ -91,6 +91,7 @@ export interface Order {
   customerId: string;
   items: OrderItem[];
   totalAmount: number;
+  paidAmount: number; // Track how much has been paid for this specific order
   paymentStatus: string;
   orderStatus: string;
   createdAt: Date;
@@ -100,6 +101,7 @@ export interface InsertOrder {
   customerId: string;
   items: OrderItem[];
   totalAmount: number;
+  paidAmount?: number; // Optional, defaults to 0 for new orders
   paymentStatus: string;
   orderStatus: string;
 }

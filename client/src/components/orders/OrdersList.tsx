@@ -11,11 +11,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { safeDateTimeFormat } from "@/utils/date-utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createOrderWhatsAppMessage } from "@/lib/whatsapp-service";
+import OrderPaymentModal from "@/components/modals/OrderPaymentModal";
+import { processCustomerPayment } from "@/lib/customer-service";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrdersListProps {
   orders: Order[];
@@ -26,6 +30,8 @@ interface OrdersListProps {
 
 export default function OrdersList({ orders, customers, onUpdateStatus, onDeleteOrder }: OrdersListProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
+  const { toast } = useToast();
   
   // Sort orders by date (newest first) - Enterprise level timestamp handling
   const sortedOrders = [...orders].sort((a, b) => {
@@ -46,6 +52,37 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
   const getCustomerName = (customerId: string) => {
     const customer = getCustomer(customerId);
     return customer ? customer.name : 'Unknown Customer';
+  };
+
+  // Get payment status badge
+  const getPaymentStatusBadge = (order: Order) => {
+    const paidAmount = order.paidAmount || 0;
+    const totalAmount = order.totalAmount || 0;
+    const remainingBalance = totalAmount - paidAmount;
+
+    if (order.paymentStatus === 'paid' || remainingBalance <= 0) {
+      return <Badge variant="default" className="bg-green-500">Paid</Badge>;
+    } else if (order.paymentStatus === 'partially_paid' && paidAmount > 0) {
+      return <Badge variant="secondary">Partially Paid</Badge>;
+    } else {
+      return <Badge variant="destructive">Pending</Badge>;
+    }
+  };
+
+  // Handle payment submission
+  const handlePaymentSubmit = async (amount: number, orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    const customer = getCustomer(order.customerId);
+    if (!customer) return;
+
+    await processCustomerPayment(
+      customer.id,
+      amount,
+      `Payment for order #${orderId}`,
+      orderId // Target specific order
+    );
   };
   
   // Format items for display
@@ -95,8 +132,8 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                 <TableHead>Date</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Items</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Amount Details</TableHead>
+                <TableHead>Payment Status</TableHead>
                 <TableHead className="text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -145,16 +182,25 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                   <TableCell>
                     {formatItems(order.items as OrderItem[])}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    ₹{(order.totalAmount || 0).toFixed(2)}
+                  <TableCell className="text-right">
+                    <div className="space-y-1">
+                      <div className="font-medium">
+                        Total: ₹{(order.totalAmount || 0).toFixed(2)}
+                      </div>
+                      {(order.paidAmount || 0) > 0 && (
+                        <div className="text-sm text-green-600">
+                          Paid: ₹{(order.paidAmount || 0).toFixed(2)}
+                        </div>
+                      )}
+                      {((order.totalAmount || 0) - (order.paidAmount || 0)) > 0 && (
+                        <div className="text-sm text-red-600">
+                          Balance: ₹{((order.totalAmount || 0) - (order.paidAmount || 0)).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <span className={`px-2 py-1 text-xs rounded-full font-medium 
-                      ${order.paymentStatus === 'paid' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'}`}>
-                      {order.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
-                    </span>
+                    {getPaymentStatusBadge(order)}
                   </TableCell>
                   <TableCell>
                     <div className="flex justify-center gap-2">
@@ -165,6 +211,16 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       >
                         <i className="fas fa-eye"></i>
                       </Button>
+                      {order.paymentStatus !== 'paid' && (
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-blue-600"
+                          onClick={() => setPaymentOrder(order)}
+                        >
+                          <i className="fas fa-rupee-sign"></i>
+                        </Button>
+                      )}
                       <Button 
                         variant="outline" 
                         size="sm" 
@@ -242,10 +298,8 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Status</p>
-                  <p className={`font-medium ${selectedOrder.paymentStatus === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>
-                    {selectedOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}
-                  </p>
+                  <p className="text-sm text-gray-500">Payment Status</p>
+                  {getPaymentStatusBadge(selectedOrder)}
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Type</p>
@@ -282,9 +336,51 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Payment Summary for Selected Order */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h4 className="font-medium mb-2">Payment Summary</h4>
+                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Order Total:</span>
+                    <span className="font-medium">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Paid Amount:</span>
+                    <span className="font-medium text-green-600">₹{(selectedOrder.paidAmount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm border-t pt-2">
+                    <span className="text-gray-900 font-medium">Remaining Balance:</span>
+                    <span className="font-bold text-red-600">₹{((selectedOrder.totalAmount || 0) - (selectedOrder.paidAmount || 0)).toFixed(2)}</span>
+                  </div>
+                </div>
+                {selectedOrder.paymentStatus !== 'paid' && (
+                  <Button 
+                    className="mt-3 w-full"
+                    onClick={() => {
+                      setPaymentOrder(selectedOrder);
+                      setSelectedOrder(null);
+                    }}
+                  >
+                    <i className="fas fa-rupee-sign mr-2"></i>
+                    Record Payment
+                  </Button>
+                )}
+              </div>
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Order Payment Modal */}
+      {paymentOrder && (
+        <OrderPaymentModal
+          isOpen={Boolean(paymentOrder)}
+          onClose={() => setPaymentOrder(null)}
+          onSubmit={handlePaymentSubmit}
+          order={paymentOrder}
+          customerName={getCustomerName(paymentOrder.customerId)}
+        />
       )}
     </>
   );

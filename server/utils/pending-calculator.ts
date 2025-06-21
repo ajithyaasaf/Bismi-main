@@ -9,15 +9,18 @@ export class PendingAmountCalculator {
 
   /**
    * Calculate customer's actual pending amount from their orders
-   * Formula: Sum of all orders where paymentStatus === 'pending'
+   * Formula: Sum of (totalAmount - paidAmount) for all non-fully-paid orders
    */
   async calculateCustomerPendingAmount(customerId: string): Promise<number> {
     try {
       const orders = await this.storage.getOrdersByCustomer(customerId);
       
       const pendingAmount = orders
-        .filter(order => order.paymentStatus === 'pending')
-        .reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+        .filter(order => order.paymentStatus !== 'paid') // Include pending and partially_paid
+        .reduce((sum, order) => {
+          const orderBalance = (order.totalAmount || 0) - (order.paidAmount || 0);
+          return sum + Math.max(0, orderBalance); // Ensure no negative order balances
+        }, 0);
       
       return Math.max(0, pendingAmount); // No negative pending amounts
     } catch (error) {
@@ -121,42 +124,63 @@ export class PendingAmountCalculator {
   }
 
   /**
-   * Process customer payment with proper order status updates
+   * Process customer payment with order-specific partial payment tracking
    * Handles partial payments, overpayments, and multi-order payments
    */
-  async processCustomerPayment(customerId: string, paymentAmount: number, description?: string): Promise<{
+  async processCustomerPayment(customerId: string, paymentAmount: number, description?: string, targetOrderId?: string): Promise<{
     appliedAmount: number;
     remainingCredit: number;
     updatedOrders: string[];
   }> {
     try {
-      // Get all pending orders for the customer
+      // Get all orders for the customer
       const orders = await this.storage.getOrdersByCustomer(customerId);
-      const pendingOrders = orders
-        .filter(order => order.paymentStatus === 'pending')
-        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()); // Pay oldest first
+      
+      let ordersToProcess;
+      if (targetOrderId) {
+        // Payment for specific order
+        ordersToProcess = orders.filter(order => order.id === targetOrderId && order.paymentStatus !== 'paid');
+      } else {
+        // General payment - apply to unpaid orders (oldest first)
+        ordersToProcess = orders
+          .filter(order => order.paymentStatus !== 'paid')
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      }
 
       let remainingPayment = paymentAmount;
       let appliedAmount = 0;
       const updatedOrders: string[] = [];
 
-      // Apply payment to orders (oldest first)
-      for (const order of pendingOrders) {
+      // Apply payment to orders
+      for (const order of ordersToProcess) {
         if (remainingPayment <= 0) break;
 
-        const orderAmount = order.totalAmount || 0;
+        const currentPaid = order.paidAmount || 0;
+        const totalAmount = order.totalAmount || 0;
+        const remainingBalance = totalAmount - currentPaid;
         
-        if (remainingPayment >= orderAmount) {
-          // Full payment for this order
-          await this.storage.updateOrder(order.id, { paymentStatus: 'paid' });
-          remainingPayment -= orderAmount;
-          appliedAmount += orderAmount;
+        if (remainingBalance <= 0) continue; // Skip fully paid orders
+
+        if (remainingPayment >= remainingBalance) {
+          // Full payment for remaining balance
+          const newPaidAmount = totalAmount;
+          await this.storage.updateOrder(order.id, { 
+            paidAmount: newPaidAmount,
+            paymentStatus: 'paid' 
+          });
+          remainingPayment -= remainingBalance;
+          appliedAmount += remainingBalance;
           updatedOrders.push(order.id);
         } else {
-          // Partial payment - keep order as pending but record partial payment
-          // Note: This could be enhanced with partial payment tracking if needed
+          // Partial payment - update paidAmount and set status to partially_paid
+          const newPaidAmount = currentPaid + remainingPayment;
+          await this.storage.updateOrder(order.id, { 
+            paidAmount: newPaidAmount,
+            paymentStatus: 'partially_paid' 
+          });
           appliedAmount += remainingPayment;
           remainingPayment = 0;
+          updatedOrders.push(order.id);
         }
       }
 
@@ -166,7 +190,7 @@ export class PendingAmountCalculator {
         entityType: 'customer',
         type: 'payment',
         amount: paymentAmount,
-        description: description || `Payment from customer`
+        description: description || `Payment from customer${targetOrderId ? ` for order #${targetOrderId}` : ''}`
       });
 
       // Sync the customer's pending amount

@@ -457,6 +457,7 @@ export class FirestoreStorage implements IStorage {
           customerId: data.customerId || '',
           items: data.items || [],
           totalAmount: data.totalAmount || 0,
+          paidAmount: data.paidAmount || 0,
           paymentStatus: data.paymentStatus || 'pending',
           orderStatus: data.orderStatus || 'pending',
           createdAt: this.convertTimestamp(data.createdAt),
@@ -478,6 +479,7 @@ export class FirestoreStorage implements IStorage {
           customerId: data.customerId || '',
           items: data.items || [],
           totalAmount: data.totalAmount || 0,
+          paidAmount: data.paidAmount || 0,
           paymentStatus: data.paymentStatus || 'pending',
           orderStatus: data.orderStatus || 'pending',
           createdAt: this.convertTimestamp(data.createdAt),
@@ -500,6 +502,7 @@ export class FirestoreStorage implements IStorage {
         customerId: data?.customerId || '',
         items: data?.items || [],
         totalAmount: data?.totalAmount || 0,
+        paidAmount: data?.paidAmount || 0,
         paymentStatus: data?.paymentStatus || 'pending',
         orderStatus: data?.orderStatus || 'pending',
         createdAt: this.convertTimestamp(data?.createdAt),
@@ -516,16 +519,18 @@ export class FirestoreStorage implements IStorage {
         customerId: order.customerId,
         items: order.items,
         totalAmount: order.totalAmount,
+        paidAmount: order.paidAmount || 0,
         paymentStatus: order.paymentStatus,
         orderStatus: order.orderStatus,
         createdAt: order.createdAt || new Date(),
       });
 
-      // Update customer pending amount if payment is pending
-      if (order.paymentStatus === 'pending') {
+      // Update customer pending amount based on payment status
+      if (order.paymentStatus === 'pending' || order.paymentStatus === 'partially_paid') {
         const customer = await this.getCustomer(order.customerId);
         if (customer) {
-          const newPendingAmount = (customer.pendingAmount || 0) + order.totalAmount;
+          const orderBalance = order.totalAmount - (order.paidAmount || 0);
+          const newPendingAmount = (customer.pendingAmount || 0) + orderBalance;
           await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
         }
       }
@@ -555,6 +560,7 @@ export class FirestoreStorage implements IStorage {
         customerId: order.customerId,
         items: order.items,
         totalAmount: order.totalAmount,
+        paidAmount: order.paidAmount || 0,
         paymentStatus: order.paymentStatus,
         orderStatus: order.orderStatus,
         createdAt: order.createdAt || new Date(),
@@ -572,23 +578,19 @@ export class FirestoreStorage implements IStorage {
       
       await this.db.collection('orders').doc(id).update(order);
       
-      // Handle payment status changes
-      if (existingOrder && order.paymentStatus && order.paymentStatus !== existingOrder.paymentStatus) {
+      // Handle payment amount and status changes
+      if (existingOrder) {
         const customer = await this.getCustomer(existingOrder.customerId);
         if (customer) {
-          let pendingAmountChange = 0;
+          // Calculate old and new balances
+          const oldBalance = (existingOrder.totalAmount || 0) - (existingOrder.paidAmount || 0);
+          const newPaidAmount = order.paidAmount !== undefined ? order.paidAmount : existingOrder.paidAmount || 0;
+          const newBalance = (existingOrder.totalAmount || 0) - newPaidAmount;
           
-          // Calculate pending amount change based on status transition
-          if (existingOrder.paymentStatus === 'pending' && order.paymentStatus === 'paid') {
-            // Order was paid - reduce customer pending amount
-            pendingAmountChange = -existingOrder.totalAmount;
-          } else if (existingOrder.paymentStatus === 'paid' && order.paymentStatus === 'pending') {
-            // Order was unpaid - increase customer pending amount
-            pendingAmountChange = existingOrder.totalAmount;
-          }
-          
-          if (pendingAmountChange !== 0) {
-            const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) + pendingAmountChange);
+          // Update customer pending amount based on balance change
+          const balanceChange = newBalance - oldBalance;
+          if (balanceChange !== 0) {
+            const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) + balanceChange);
             await this.updateCustomer(existingOrder.customerId, { pendingAmount: newPendingAmount });
           }
         }
@@ -618,11 +620,12 @@ export class FirestoreStorage implements IStorage {
         }
       }
 
-      // Reverse customer pending amount if order was pending
-      if (order.paymentStatus === 'pending') {
+      // Reverse customer pending amount for any unpaid balance
+      if (order.paymentStatus !== 'paid') {
         const customer = await this.getCustomer(order.customerId);
         if (customer) {
-          const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) - order.totalAmount);
+          const orderBalance = order.totalAmount - (order.paidAmount || 0);
+          const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) - orderBalance);
           await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
         }
       }

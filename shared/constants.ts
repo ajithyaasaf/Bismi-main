@@ -35,6 +35,7 @@ export const CUSTOMER_TYPES = [
 
 export const PAYMENT_STATUS = [
   { value: 'paid', label: 'Paid' },
+  { value: 'partially_paid', label: 'Partially Paid' },
   { value: 'pending', label: 'Pending' }
 ] as const;
 

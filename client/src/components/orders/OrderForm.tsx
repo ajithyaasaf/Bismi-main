@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as React from 'react';
 import { useQueryClient } from "@tanstack/react-query";
 import { Customer, Inventory } from "@shared/types";
 import { ITEM_TYPES, CUSTOMER_TYPES, PAYMENT_STATUS } from "@shared/constants";
@@ -36,7 +37,8 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
     rate: string;
     details?: string;
   }[]>([{ id: '1', type: 'chicken', quantity: '', rate: '', details: '' }]);
-  const [paymentStatus, setPaymentStatus] = useState('paid');
+  const [paymentStatus, setPaymentStatus] = useState('pending');
+  const [paidAmount, setPaidAmount] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
@@ -56,6 +58,18 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       return total + (quantity * rate);
     }, 0);
   };
+
+  // Calculate payment status based on paid amount
+  const totalAmount = calculateTotal();
+  React.useEffect(() => {
+    if (paidAmount >= totalAmount && totalAmount > 0) {
+      setPaymentStatus('paid');
+    } else if (paidAmount > 0) {
+      setPaymentStatus('partially_paid');
+    } else {
+      setPaymentStatus('pending');
+    }
+  }, [paidAmount, totalAmount]);
   
   // Add item to order
   const addItem = () => {
@@ -102,7 +116,8 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
     setCustomerName('');
     setCustomerPhone('');
     setItems([{ id: '1', type: itemTypes.length > 0 ? itemTypes[0].value : 'chicken', quantity: '', rate: '', details: '' }]);
-    setPaymentStatus('paid');
+    setPaymentStatus('pending');
+    setPaidAmount(0);
   };
   
   // Handle form submission
@@ -222,6 +237,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         customerId: orderCustomerId,
         items: validItems,
         totalAmount: total,
+        paidAmount: paidAmount,
         paymentStatus: paymentStatus,
         orderStatus: 'pending'
       });
@@ -425,22 +441,63 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
               </div>
             </div>
             
-            <div className="mt-4">
-              <Label htmlFor="payment-status" className="block text-sm font-medium mb-1">
-                Payment Status
-              </Label>
-              <Select 
-                value={paymentStatus} 
-                onValueChange={setPaymentStatus}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select payment status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Payment Section - Enhanced with Partial Payment */}
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="text-sm font-medium text-blue-800 mb-3">Payment Information</h4>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs font-medium text-gray-600 mb-1 block">Payment Amount (₹)</Label>
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={paidAmount || ''}
+                    onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                    className="h-9"
+                    min="0"
+                    max={totalAmount}
+                    step="0.01"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Max: ₹{totalAmount.toFixed(2)}
+                  </p>
+                </div>
+                
+                <div>
+                  <Label className="text-xs font-medium text-gray-600 mb-1 block">Payment Status</Label>
+                  <div className="h-9 px-3 py-2 border rounded-md bg-white flex items-center">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      paymentStatus === 'paid' ? 'bg-green-100 text-green-800' :
+                      paymentStatus === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {paymentStatus === 'paid' && 'Fully Paid'}
+                      {paymentStatus === 'partially_paid' && 'Partially Paid'}
+                      {paymentStatus === 'pending' && 'Pending'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Summary */}
+              {totalAmount > 0 && (
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Order Total:</span>
+                    <span className="font-medium">₹{totalAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Payment Amount:</span>
+                    <span className="font-medium text-green-600">₹{paidAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium border-t pt-1">
+                    <span>Remaining Balance:</span>
+                    <span className={`${(totalAmount - paidAmount) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      ₹{(totalAmount - paidAmount).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

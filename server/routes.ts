@@ -897,12 +897,19 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  // Simple reports endpoint without balance validation
+  // Enterprise reports endpoint with real-time calculations and date filtering
   apiRouter.get("/reports", async (req: Request, res: Response) => {
     try {
       res.setHeader('Content-Type', 'application/json');
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
       
+      // Parse query parameters
+      const { type = 'sales', startDate, endDate } = req.query;
+      
+      console.log(`[REPORTS API] Generating ${type} report for ${startDate} to ${endDate}`);
+      
+      // Get all data
       const [suppliers, customers, orders, transactions] = await Promise.all([
         storage.getAllSuppliers(),
         storage.getAllCustomers(),
@@ -910,35 +917,107 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         storage.getAllTransactions()
       ]);
 
-      // Serialize all dates to ISO strings to prevent JSON issues
+      // Filter orders by date range if provided
+      let filteredOrders = orders;
+      if (startDate && endDate) {
+        const start = new Date(startDate as string);
+        const end = new Date(endDate as string);
+        end.setHours(23, 59, 59, 999); // Include full end date
+        
+        filteredOrders = orders.filter(order => {
+          const orderDate = new Date(order.createdAt);
+          return orderDate >= start && orderDate <= end;
+        });
+      }
+
+      // Serialize dates safely
       const serializeDate = (obj: any) => ({
         ...obj,
         createdAt: obj.createdAt instanceof Date 
           ? obj.createdAt.toISOString() 
-          : new Date(obj.createdAt).toISOString()
+          : new Date(obj.createdAt || Date.now()).toISOString()
       });
 
+      // Get customer names for orders
+      const enrichedOrders = await Promise.all(
+        filteredOrders.map(async (order) => {
+          const customer = customers.find(c => c.id === order.customerId);
+          return {
+            ...serializeDate(order),
+            customerName: customer?.name || order.customerId
+          };
+        })
+      );
+
+      // Calculate real-time pending amounts using the calculator
+      const enrichedCustomers = await Promise.all(
+        customers.map(async (customer) => {
+          const realTimePending = await pendingCalculator.calculateCustomerPendingAmount(customer.id);
+          return {
+            ...serializeDate(customer),
+            pendingAmount: realTimePending
+          };
+        })
+      );
+
+      const enrichedSuppliers = await Promise.all(
+        suppliers.map(async (supplier) => {
+          const realTimePending = await pendingCalculator.calculateSupplierPendingAmount(supplier.id);
+          return {
+            ...serializeDate(supplier),
+            pendingAmount: realTimePending
+          };
+        })
+      );
+
+      // Calculate metrics based on filtered data
+      const totalSales = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+      const orderCount = filteredOrders.length;
+      const totalSupplierDebt = enrichedSuppliers.reduce((sum, supplier) => sum + (supplier.pendingAmount || 0), 0);
+      const totalCustomerPending = enrichedCustomers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
+
+      // Filter customers and suppliers with non-zero pending amounts for debt reports
+      const customersWithPending = enrichedCustomers.filter(customer => customer.pendingAmount > 0);
+      const suppliersWithDebt = enrichedSuppliers.filter(supplier => supplier.pendingAmount > 0);
+
       const report = {
+        // Metrics for the frontend
+        totalSales,
+        orderCount,
+        totalSupplierDebt,
+        totalCustomerPending,
+        averageOrderValue: orderCount > 0 ? totalSales / orderCount : 0,
+        
+        // Data arrays
+        orders: enrichedOrders,
+        customers: customersWithPending,
+        suppliers: suppliersWithDebt,
+        transactions: transactions.map(serializeDate),
+        
+        // Summary for comprehensive reporting
         summary: {
+          dateRange: startDate && endDate ? `${startDate} to ${endDate}` : 'All time',
+          reportType: type,
           totalSuppliers: suppliers.length,
           totalCustomers: customers.length,
           totalOrders: orders.length,
+          filteredOrders: filteredOrders.length,
           totalTransactions: transactions.length,
-          totalRevenue: orders.reduce((sum, order) => sum + order.totalAmount, 0),
-          totalSupplierDebt: suppliers.reduce((sum, supplier) => sum + supplier.pendingAmount, 0),
-          totalCustomerDebt: customers.reduce((sum, customer) => sum + customer.pendingAmount, 0)
-        },
-        suppliers: suppliers.map(serializeDate),
-        customers: customers.map(serializeDate),
-        orders: orders.map(serializeDate),
-        transactions: transactions.map(serializeDate)
+          generatedAt: new Date().toISOString()
+        }
       };
 
+      console.log(`[REPORTS API] Report generated: ${orderCount} orders, ₹${totalSales} total sales`);
       res.json(report);
+      
     } catch (error) {
       console.error("Failed to generate reports:", error);
       res.setHeader('Content-Type', 'application/json');
-      res.status(500).json({ message: "Failed to generate reports" });
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to generate reports",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

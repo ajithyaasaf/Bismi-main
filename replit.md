@@ -140,6 +140,7 @@ This is a full-stack web application for managing a chicken shop business. The s
 - June 18, 2025. Comprehensive Google-standard bug fixes - Fixed property name inconsistencies (rate vs price), implemented standardized date handling utilities, added null safety checks throughout, improved transaction type validation, enhanced inventory management logic, added React error boundary, standardized API response format, improved WhatsApp link generation with smart country code detection
 - June 21, 2025. Fixed critical pending amount calculation bug - corrected property name mismatch in customer service (order.status vs order.paymentStatus, order.total vs order.totalAmount) causing incorrect pending amount displays
 - June 21, 2025. Enterprise reports system implementation - rebuilt reports page with real-time data calculation using PendingAmountCalculator, added responsive date range picker with popover UI, implemented auto-refresh functionality, enhanced UX with gradient cards and loading skeletons, added comprehensive error handling and data validation
+- June 21, 2025. Fixed custom date range timezone issue - normalized custom date picker to use local timezone with proper start/end of day handling, ensuring accurate date filtering for reports
 
 ## User Preferences
 

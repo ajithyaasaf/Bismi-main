@@ -48,8 +48,14 @@ export default function ReportsPage() {
           to: endOfMonth(today) 
         };
       case "custom":
-        if (customDateRange?.from && customDateRange?.to) {
-          return { from: customDateRange.from, to: customDateRange.to };
+        if (customDateRange?.from) {
+          const startDate = new Date(customDateRange.from);
+          startDate.setHours(0, 0, 0, 0); // Start of day
+          
+          const endDate = customDateRange.to ? new Date(customDateRange.to) : new Date(customDateRange.from);
+          endDate.setHours(23, 59, 59, 999); // End of day
+          
+          return { from: startDate, to: endDate };
         }
         return { from: today, to: new Date(today) };
       default:

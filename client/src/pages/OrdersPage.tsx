@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Order, Customer, Inventory } from "@shared/types";
 import { Button } from "@/components/ui/button";
 import OrdersList from "@/components/orders/OrdersList";
-import NewOrderModal from "@/components/modals/NewOrderModal";
+import NewOrderModalV2 from "@/components/modals/NewOrderModalV2";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";

@@ -49,11 +49,11 @@ export default function ReportsPage() {
         };
       case "custom":
         if (customDateRange?.from) {
-          const startDate = new Date(customDateRange.from);
-          startDate.setHours(0, 0, 0, 0); // Start of day
+          // Create new dates in local timezone to avoid UTC conversion issues
+          const startDate = new Date(customDateRange.from.getFullYear(), customDateRange.from.getMonth(), customDateRange.from.getDate(), 0, 0, 0, 0);
           
-          const endDate = customDateRange.to ? new Date(customDateRange.to) : new Date(customDateRange.from);
-          endDate.setHours(23, 59, 59, 999); // End of day
+          const endDateSource = customDateRange.to || customDateRange.from;
+          const endDate = new Date(endDateSource.getFullYear(), endDateSource.getMonth(), endDateSource.getDate(), 23, 59, 59, 999);
           
           return { from: startDate, to: endDate };
         }

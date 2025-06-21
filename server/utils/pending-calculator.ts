@@ -191,8 +191,9 @@ export class PendingAmountCalculator {
       const customer = await this.storage.getCustomer(customerId);
       if (!customer) return null;
 
-      // Calculate real-time pending amount
-      const realTimePendingAmount = await this.calculateCustomerPendingAmount(customerId);
+      // Use the stored pending amount instead of real-time calculation
+      // to match what user sees on the customer page
+      const displayPendingAmount = customer.pendingAmount || 0;
       
       // Get recent orders for WhatsApp message
       const orders = await this.storage.getOrdersByCustomer(customerId);
@@ -202,7 +203,7 @@ export class PendingAmountCalculator {
 
       return {
         ...customer,
-        pendingAmount: realTimePendingAmount, // Use calculated amount, not stored amount
+        pendingAmount: displayPendingAmount, // Use stored amount to match UI display
         recentOrders
       };
     } catch (error) {

@@ -461,21 +461,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.get("/customers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      const pendingCalculator = await getPendingCalculator();
       
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
       
-      // Calculate real-time pending amount for accuracy
-      const realTimePendingAmount = await pendingCalculator.calculateCustomerPendingAmount(req.params.id);
-      
-      res.json({
-        ...customer,
-        pendingAmount: realTimePendingAmount,
-        _storedPendingAmount: customer.pendingAmount // For debugging purposes
-      });
+      // Return stored pending amount to match UI display
+      res.json(customer);
     } catch (error) {
       console.error("Failed to get customer:", error);
       res.status(500).json({ message: "Failed to get customer" });

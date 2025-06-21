@@ -26,16 +26,17 @@ export default function ReportsPage() {
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [autoRefresh, setAutoRefresh] = useState(false);
   
-  // Calculate date range
+  // Calculate date range with proper validation
   const getDateRange = () => {
     const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
     
     switch (dateRange) {
       case "today":
-        return { from: today, to: today };
+        return { from: today, to: new Date(today) };
       case "yesterday":
         const yesterday = subDays(today, 1);
-        return { from: yesterday, to: yesterday };
+        return { from: yesterday, to: new Date(yesterday) };
       case "thisWeek":
         return { 
           from: startOfWeek(today, { weekStartsOn: 1 }), 
@@ -47,13 +48,17 @@ export default function ReportsPage() {
           to: endOfMonth(today) 
         };
       case "custom":
-        return customDateRange || { from: today, to: today };
+        if (customDateRange?.from && customDateRange?.to) {
+          return { from: customDateRange.from, to: customDateRange.to };
+        }
+        return { from: today, to: new Date(today) };
       default:
-        return { from: today, to: today };
+        return { from: today, to: new Date(today) };
     }
   };
 
-  const { from: startDate, to: endDate } = getDateRange();
+  const currentDateRange = getDateRange();
+  const { from: startDate, to: endDate } = currentDateRange;
 
   // Auto-refresh for real-time data
   useEffect(() => {
@@ -72,14 +77,13 @@ export default function ReportsPage() {
   const { data: report, isLoading, refetch, isError, error } = useQuery({
     queryKey: ['/api/reports', reportType, startDate?.toISOString(), endDate?.toISOString()],
     queryFn: async () => {
-      const { from, to } = getDateRange();
-      if (!from || !to) {
+      if (!startDate || !endDate) {
         throw new Error('Date range is required');
       }
       
       try {
-        const startDateStr = format(from, 'yyyy-MM-dd');
-        const endDateStr = format(to, 'yyyy-MM-dd');
+        const startDateStr = format(startDate, 'yyyy-MM-dd');
+        const endDateStr = format(endDate, 'yyyy-MM-dd');
         
         console.log(`Generating ${reportType} report from ${startDateStr} to ${endDateStr}`);
         
@@ -120,27 +124,29 @@ export default function ReportsPage() {
   
   // Generate report with validation
   const generateReport = () => {
-    const { from, to } = getDateRange();
-    if (!from || !to) {
-      console.error('Cannot generate report: missing date range');
+    console.log('Current dateRange:', dateRange);
+    console.log('Current customDateRange:', customDateRange);
+    
+    if (!startDate || !endDate) {
+      console.error('Cannot generate report: missing date range', { startDate, endDate, dateRange });
       return;
     }
-    console.log(`Generating report from ${from.toISOString()} to ${to.toISOString()}`);
+    
+    console.log(`Generating ${reportType} report from ${startDate.toISOString()} to ${endDate.toISOString()}`);
     refetch();
   };
 
   // Format date range for display
   const formatDateRange = () => {
-    const { from, to } = getDateRange();
-    if (!from || !to) return '';
+    if (!startDate || !endDate) return '';
     
-    if (from.toDateString() === to.toDateString()) {
-      if (isToday(from)) return 'Today';
-      if (isYesterday(from)) return 'Yesterday';
-      return format(from, 'MMM dd, yyyy');
+    if (startDate.toDateString() === endDate.toDateString()) {
+      if (isToday(startDate)) return 'Today';
+      if (isYesterday(startDate)) return 'Yesterday';
+      return format(startDate, 'MMM dd, yyyy');
     }
     
-    return `${format(from, 'MMM dd')} - ${format(to, 'MMM dd, yyyy')}`;
+    return `${format(startDate, 'MMM dd')} - ${format(endDate, 'MMM dd, yyyy')}`;
   };
 
   // Render loading skeleton
@@ -564,8 +570,8 @@ export default function ReportsPage() {
                 <ReportGenerator 
                   report={report} 
                   reportType={reportType} 
-                  startDate={getDateRange().from || new Date()} 
-                  endDate={getDateRange().to || new Date()} 
+                  startDate={startDate || new Date()} 
+                  endDate={endDate || new Date()} 
                 />
               )}
             </div>

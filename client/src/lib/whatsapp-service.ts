@@ -50,8 +50,22 @@ export async function createCustomerWhatsAppMessage(customerId: string, includeO
       
       message += `\n\n*Recent Order:*`;
       message += `\n📅 Date: ${formattedDate}`;
-      message += `\n💰 Amount: ₹${(latestOrder.totalAmount || 0).toFixed(2)}`;
-      message += `\n📦 Status: ${latestOrder.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
+      message += `\n💰 Total Amount: ₹${(latestOrder.totalAmount || 0).toFixed(2)}`;
+      
+      // Enhanced payment status display for recent orders
+      const paidAmount = latestOrder.paidAmount || 0;
+      const totalAmount = latestOrder.totalAmount || 0;
+      const remainingAmount = totalAmount - paidAmount;
+      
+      if (latestOrder.paymentStatus === 'paid') {
+        message += `\n✅ Payment Status: Fully Paid`;
+      } else if (latestOrder.paymentStatus === 'partially_paid') {
+        message += `\n🟡 Payment Status: Partially Paid`;
+        message += `\n💵 Paid: ₹${paidAmount.toFixed(2)} | Remaining: ₹${remainingAmount.toFixed(2)}`;
+      } else {
+        message += `\n🔴 Payment Status: Pending`;
+        message += `\n💸 Amount Due: ₹${totalAmount.toFixed(2)}`;
+      }
       
       if (latestOrder.items && latestOrder.items.length > 0) {
         message += `\n\n*Items Purchased:*`;
@@ -64,14 +78,17 @@ export async function createCustomerWhatsAppMessage(customerId: string, includeO
       }
     }
     
-    // Add appropriate closing message
+    // Add appropriate closing message with enhanced payment reminders
     if (customerData.pendingAmount && customerData.pendingAmount > 0) {
-      message += `\n\nThis is a friendly reminder about your pending payment. Please settle at your earliest convenience.`;
+      message += `\n\n*Payment Reminder:*`;
+      message += `\nKindly settle your pending amount of ₹${customerData.pendingAmount.toFixed(2)} at your earliest convenience.`;
+      message += `\n\nYou can make partial payments as well. Every payment helps!`;
     } else {
-      message += `\n\nThank you for your business with us.`;
+      message += `\n\nThank you for your business with us! Your account is up to date.`;
     }
     
-    message += `\n\nFor any queries, please contact us.`;
+    message += `\n\n📞 For any queries or to make a payment, please contact us.`;
+    message += `\n\n*BISMI CHICKEN SHOP*\n_Fresh Quality, Every Day_`;
     
     // Create the WhatsApp URL
     const whatsappUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
@@ -119,25 +136,53 @@ export async function createOrderWhatsAppMessage(customerId: string, orderId: st
       message += `\n\n*Current Pending Amount: ₹${customerData.pendingAmount.toFixed(2)}*`;
     }
     
-    // Add specific order details
+    // Add specific order details with enhanced payment information
     message += `\n\n*Order Details:*`;
     const orderDate = new Date(orderData.createdAt);
     message += `\n📅 Date: ${orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-    message += `\n💰 Amount: ₹${(orderData.totalAmount || 0).toFixed(2)}`;
-    message += `\n📦 Status: ${orderData.paymentStatus === 'paid' ? 'Paid' : 'Pending'}`;
+    message += `\n💰 Total Amount: ₹${(orderData.totalAmount || 0).toFixed(2)}`;
+    
+    // Enhanced payment status display with partial payment details
+    const paidAmount = orderData.paidAmount || 0;
+    const totalAmount = orderData.totalAmount || 0;
+    const remainingAmount = totalAmount - paidAmount;
+    
+    if (orderData.paymentStatus === 'paid') {
+      message += `\n✅ Payment Status: Fully Paid`;
+    } else if (orderData.paymentStatus === 'partially_paid') {
+      message += `\n🟡 Payment Status: Partially Paid`;
+      message += `\n💵 Paid: ₹${paidAmount.toFixed(2)} | Remaining: ₹${remainingAmount.toFixed(2)}`;
+    } else {
+      message += `\n🔴 Payment Status: Pending`;
+      message += `\n💸 Amount Due: ₹${totalAmount.toFixed(2)}`;
+    }
     
     // Add order items
     if (orderData.items && orderData.items.length > 0) {
       message += `\n\n*Items Purchased:*`;
       orderData.items.forEach((item: any) => {
         const itemDetails = item.details ? ` - ${item.details}` : '';
+        const itemTotal = ((item.quantity || 0) * (item.rate || 0)).toFixed(2);
         message += `\n• ${(item.quantity || 0).toFixed(2)} kg ${item.type}${itemDetails}`;
-        message += `\n  Rate: ₹${(item.rate || 0).toFixed(2)}/kg`;
+        message += `\n  Rate: ₹${(item.rate || 0).toFixed(2)}/kg | Total: ₹${itemTotal}`;
       });
     }
     
-    message += `\n\nThank you for your business with us.`;
-    message += `\n\nFor any queries, please contact us.`;
+    // Enhanced closing message for order-specific WhatsApp
+    if (orderData.paymentStatus === 'partially_paid') {
+      const remainingAmount = (orderData.totalAmount || 0) - (orderData.paidAmount || 0);
+      message += `\n\n*Payment Reminder:*`;
+      message += `\nRemaining balance for this order: ₹${remainingAmount.toFixed(2)}`;
+      message += `\nYou can make payment at your convenience.`;
+    } else if (orderData.paymentStatus === 'pending') {
+      message += `\n\n*Payment Reminder:*`;
+      message += `\nKindly settle the payment for this order when convenient.`;
+    } else {
+      message += `\n\nThank you for your prompt payment!`;
+    }
+    
+    message += `\n\n📞 For any queries or to make a payment, please contact us.`;
+    message += `\n\n*BISMI CHICKEN SHOP*\n_Fresh Quality, Every Day_`;
     
     const whatsappUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
     

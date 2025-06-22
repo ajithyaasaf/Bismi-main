@@ -15,7 +15,6 @@ interface InvoiceTemplateProps {
     name: string;
     address: string[];
     phone: string;
-    gstin: string;
     email: string;
   };
   paymentInfo?: {
@@ -39,13 +38,12 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
     name: "Bismi Broiler's",
     address: ["Near Busstand, Hayarnisha Hospital", "Mudukulathur"],
     phone: "+91 8681087082",
-    gstin: "33AADCB1234F1Z5",
     email: "bismi.broilers@gmail.com"
   },
   paymentInfo = {
-    upiId: "9514499968@ybl",
+    upiId: "barakathnisha004@okicici",
     phone: "+91 9514499968",
-    accountName: "Bismi Broiler's",
+    accountName: "Barakath Nisha",
     terms: [
       "Payment is due within 15 days of invoice date",
       "Late payments may be subject to 2% monthly interest charges",
@@ -147,7 +145,6 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
             <p key={index} className="text-xs sm:text-sm text-gray-600 mb-1">{line}</p>
           ))}
           <p className="text-xs sm:text-sm text-gray-600">Phone: {businessInfo.phone}</p>
-          <p className="text-xs sm:text-sm text-gray-600">GSTIN: {businessInfo.gstin}</p>
           <p className="text-xs sm:text-sm text-gray-600">Email: {businessInfo.email}</p>
         </div>
         <div className="invoice-info text-left sm:text-right">

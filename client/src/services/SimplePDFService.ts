@@ -20,7 +20,6 @@ export interface InvoiceData {
     name: string;
     address: string[];
     phone: string;
-    gstin: string;
     email: string;
   };
   paymentInfo?: {
@@ -207,13 +206,12 @@ export class SimplePDFService {
         name: "Bismi Broiler's",
         address: ["Near Busstand, Hayarnisha Hospital", "Mudukulathur"],
         phone: "+91 8681087082",
-        gstin: "33AADCB1234F1Z5",
         email: "bismi.broilers@gmail.com"
       },
       paymentInfo = {
-        upiId: "9514499968@ybl",
+        upiId: "barakathnisha004@okicici",
         phone: "+91 9514499968",
-        accountName: "Bismi Broiler's",
+        accountName: "Barakath Nisha",
         terms: [
           "Payment is due within 15 days of invoice date",
           "Late payments may be subject to 2% monthly interest charges",
@@ -635,7 +633,6 @@ export class SimplePDFService {
                 <h1>${businessInfo.name}</h1>
                 ${businessInfo.address.map(line => `<p>${line}</p>`).join('')}
                 <p>Phone: ${businessInfo.phone}</p>
-                <p>GSTIN: ${businessInfo.gstin}</p>
                 <p>Email: ${businessInfo.email}</p>
             </div>
             <div class="invoice-info">
@@ -725,10 +722,24 @@ export class SimplePDFService {
             <h3>Payment Information</h3>
             <div class="payment-grid">
                 <div>
-                    <h4>Payment Methods:</h4>
-                    <p>UPI ID: <span style="font-family: monospace;">${paymentInfo.upiId}</span></p>
-                    <p>Phone: <span style="font-family: monospace;">${paymentInfo.phone}</span></p>
-                    <p>Account Name: ${paymentInfo.accountName}</p>
+                    <h4>UPI Payment Details:</h4>
+                    <div style="display: flex; align-items: center; gap: 20px; margin: 16px 0;">
+                        <div style="flex: 1;">
+                            <p style="margin: 4px 0; font-size: 14px;"><strong>UPI ID:</strong> <span style="font-family: monospace; color: #1e40af; font-weight: 600;">${paymentInfo.upiId}</span></p>
+                            <p style="margin: 4px 0; font-size: 13px;"><strong>Account Name:</strong> ${paymentInfo.accountName}</p>
+                            <p style="margin: 4px 0; font-size: 13px;"><strong>Phone:</strong> <span style="font-family: monospace;">${paymentInfo.phone}</span></p>
+                        </div>
+                        <div style="flex-shrink: 0;">
+                            <div style="width: 120px; height: 120px; border: 2px solid #e5e7eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f9fafb;">
+                                <div style="text-align: center; color: #6b7280; font-size: 11px; line-height: 1.3;">
+                                    <div style="margin-bottom: 6px; font-size: 24px;">📱</div>
+                                    <div style="font-weight: 600;">Scan QR Code</div>
+                                    <div>for UPI Payment</div>
+                                    <div style="margin-top: 4px; font-size: 10px;">${paymentInfo.upiId}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <h4>Terms & Conditions:</h4>

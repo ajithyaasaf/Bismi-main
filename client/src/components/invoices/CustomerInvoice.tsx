@@ -31,7 +31,6 @@ interface InvoiceSettings {
     name: string;
     address: string[];
     phone: string;
-    gstin: string;
     email: string;
   };
   paymentInfo: {
@@ -64,13 +63,12 @@ export function CustomerInvoice({
       name: "Bismi Broiler's",
       address: ["Near Busstand, Hayarnisha Hospital", "Mudukulathur"],
       phone: "+91 8681087082",
-      gstin: "33AADCB1234F1Z5",
       email: "bismi.broilers@gmail.com"
     },
     paymentInfo: {
-      upiId: "9514499968@ybl",
+      upiId: "barakathnisha004@okicici",
       phone: "+91 9514499968",
-      accountName: "Bismi Broiler's",
+      accountName: "Barakath Nisha",
       terms: [
         "Payment is due within 15 days of invoice date",
         "Late payments may be subject to 2% monthly interest charges",
@@ -118,7 +116,12 @@ export function CustomerInvoice({
         showPaid: settings.showPaid,
         overdueThresholdDays: settings.overdueThresholdDays,
         payments: transactions,
-        businessInfo: settings.businessInfo,
+        businessInfo: {
+          name: settings.businessInfo.name,
+          address: settings.businessInfo.address,
+          phone: settings.businessInfo.phone,
+          email: settings.businessInfo.email
+        },
         paymentInfo: settings.paymentInfo
       };
 
@@ -396,15 +399,7 @@ export function CustomerInvoice({
                     />
                   </div>
 
-                  <div className="space-y-1 sm:space-y-2">
-                    <Label htmlFor="businessGstin" className="text-xs sm:text-sm">GSTIN</Label>
-                    <Input
-                      id="businessGstin"
-                      value={settings.businessInfo.gstin}
-                      onChange={(e) => updateBusinessInfo('gstin', e.target.value)}
-                      className="text-xs sm:text-sm h-8 sm:h-10"
-                    />
-                  </div>
+
 
                   <div className="space-y-1 sm:space-y-2">
                     <Label htmlFor="businessEmail" className="text-xs sm:text-sm">Email</Label>

@@ -58,7 +58,7 @@ export class SimplePDFService {
       const invoiceHTML = this.createInvoiceHTML(data, isMobile);
       
       if (isMobile) {
-        // Mobile-optimized approach: direct print in same window
+        // Mobile-optimized approach: new window with mobile settings
         this.handleMobilePrint(invoiceHTML);
       } else {
         // Desktop approach: open in new window
@@ -77,37 +77,87 @@ export class SimplePDFService {
    * Handle PDF generation for mobile devices
    */
   private handleMobilePrint(invoiceHTML: string): void {
-    // Save current page content
-    const originalContent = document.body.innerHTML;
-    const originalTitle = document.title;
+    // Create a new window for mobile as well, but with different settings
+    const printWindow = window.open('', '_blank', 'width=device-width,initial-scale=1.0');
+    
+    if (!printWindow) {
+      // Fallback: try in-page printing
+      this.fallbackMobilePrint(invoiceHTML);
+      return;
+    }
 
-    // Replace page content with invoice
-    document.body.innerHTML = invoiceHTML;
-    document.title = 'Invoice';
+    // Write the invoice content to the print window
+    printWindow.document.write(invoiceHTML);
+    printWindow.document.close();
 
-    // Add mobile-specific styles
-    const mobileStyles = document.createElement('style');
-    mobileStyles.textContent = `
+    // Wait for content to load, then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        
+        // For mobile, keep window open longer so user can save
+        printWindow.onafterprint = () => {
+          setTimeout(() => {
+            printWindow.close();
+          }, 2000);
+        };
+      }, 1000);
+    };
+  }
+
+  /**
+   * Fallback method for mobile when popup is blocked
+   */
+  private fallbackMobilePrint(invoiceHTML: string): void {
+    // Create a temporary container
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = invoiceHTML;
+    tempDiv.style.cssText = `
+      position: fixed;
+      top: -10000px;
+      left: -10000px;
+      width: 100vw;
+      height: 100vh;
+      background: white;
+      z-index: 9999;
+    `;
+    
+    document.body.appendChild(tempDiv);
+
+    // Add print styles
+    const printStyles = document.createElement('style');
+    printStyles.id = 'mobile-print-styles';
+    printStyles.textContent = `
       @media print {
-        * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
-        body { margin: 0 !important; padding: 10px !important; }
-        .container { max-width: none !important; }
+        body * { visibility: hidden; }
+        #mobile-invoice-container, #mobile-invoice-container * { visibility: visible; }
+        #mobile-invoice-container {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          height: auto !important;
+        }
       }
     `;
-    document.head.appendChild(mobileStyles);
+    document.head.appendChild(printStyles);
+    
+    tempDiv.id = 'mobile-invoice-container';
+    tempDiv.style.position = 'static';
+    tempDiv.style.top = '0';
+    tempDiv.style.left = '0';
 
     // Trigger print
     setTimeout(() => {
       window.print();
       
-      // Restore original content after print dialog
+      // Clean up after print
       setTimeout(() => {
-        document.body.innerHTML = originalContent;
-        document.title = originalTitle;
-        document.head.removeChild(mobileStyles);
-        
-        // Trigger page reload to restore React functionality
-        window.location.reload();
+        document.body.removeChild(tempDiv);
+        const styleElement = document.getElementById('mobile-print-styles');
+        if (styleElement) {
+          document.head.removeChild(styleElement);
+        }
       }, 1000);
     }, 500);
   }
@@ -556,6 +606,23 @@ export class SimplePDFService {
             }
             .details-section h3 {
                 font-size: 14px !important;
+            }
+        }
+        
+        /* Print-specific styles */
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                color-adjust: exact !important;
+            }
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+            }
+            .container {
+                max-width: none !important;
+                box-shadow: none !important;
             }
         }
     </style>

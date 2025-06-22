@@ -81,8 +81,8 @@ export function CustomerInvoice({
 
   // Calculate invoice statistics
   const relevantOrders = orders.filter(order => order.customerId === customer.id);
-  const unpaidOrders = relevantOrders.filter(order => order.status !== 'paid');
-  const totalAmount = relevantOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+  const unpaidOrders = relevantOrders.filter(order => order.paymentStatus !== 'paid');
+  const totalAmount = relevantOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
   const pendingAmount = customer.pendingAmount || 0;
 
   // Progress simulation for better UX

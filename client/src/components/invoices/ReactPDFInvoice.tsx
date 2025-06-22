@@ -1,40 +1,23 @@
-// React PDF component for invoice generation
+import { simplePDFService } from '@/services/SimplePDFService';
+import type { InvoiceData } from '@/services/SimplePDFService';
 
-import { Customer, Order, Transaction } from '@shared/types';
+// Re-export InvoiceData from SimplePDFService
+export type { InvoiceData } from '@/services/SimplePDFService';
 
-export interface InvoiceData {
-  customer: Customer;
-  orders: Order[];
-  currentDate: string;
-  invoiceNumber: string;
-  dueDate: string;
-  showPaid?: boolean;
-  overdueThresholdDays?: number;
-  payments?: Transaction[];
-  businessInfo?: {
-    name: string;
-    address: string[];
-    phone: string;
-    gstin: string;
-    email: string;
-  };
-  paymentInfo?: {
-    upiId: string;
-    phone: string;
-    accountName: string;
-    terms: string[];
-  };
-}
-
-// PDF component for invoice generation
-export const InvoicePDFDocument = ({ data }: { data: InvoiceData }) => {
-  return null; // Component disabled
+/**
+ * Enterprise-level PDF generation for customer invoices
+ * Uses browser's native print functionality for maximum reliability
+ */
+export const generateCustomerInvoicePDF = async (data: InvoiceData): Promise<void> => {
+  console.log('Starting simplified PDF generation for:', data.customer.name);
+  
+  try {
+    // Use simplified PDF service with browser print functionality
+    await simplePDFService.generateInvoicePDF(data);
+    console.log('PDF generation completed successfully');
+  } catch (error) {
+    console.error('PDF generation failed:', error);
+    throw new Error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 };
 
-// PDF generation function
-export const generateCustomerInvoicePDF = async (data: InvoiceData): Promise<Blob | null> => {
-  console.warn('PDF generation disabled - React PDF configuration needed');
-  return null;
-};
-
-export default InvoicePDFDocument;

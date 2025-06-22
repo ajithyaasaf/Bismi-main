@@ -63,8 +63,8 @@ export async function createCustomerWhatsAppMessage(customerId: string, includeO
         message += `\n🟡 Payment Status: Partially Paid`;
         message += `\n💵 Paid: ₹${paidAmount.toFixed(2)} | Remaining: ₹${remainingAmount.toFixed(2)}`;
       } else {
-        message += `\n🔴 Payment Status: Pending`;
-        message += `\n💸 Amount Due: ₹${totalAmount.toFixed(2)}`;
+        message += `\n🔴 Payment Status: Pending Payment`;
+        message += `\n💸 Full Amount Due: ₹${totalAmount.toFixed(2)}`;
       }
       
       if (latestOrder.items && latestOrder.items.length > 0) {
@@ -176,7 +176,8 @@ export async function createOrderWhatsAppMessage(customerId: string, orderId: st
       message += `\nYou can make payment at your convenience.`;
     } else if (orderData.paymentStatus === 'pending') {
       message += `\n\n*Payment Reminder:*`;
-      message += `\nKindly settle the payment for this order when convenient.`;
+      message += `\nTotal amount of ₹${totalAmount.toFixed(2)} is pending for this order.`;
+      message += `\nKindly settle the payment when convenient. You can also make partial payments if preferred.`;
     } else {
       message += `\n\nThank you for your prompt payment!`;
     }

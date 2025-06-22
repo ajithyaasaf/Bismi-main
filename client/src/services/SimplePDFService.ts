@@ -45,36 +45,25 @@ export class SimplePDFService {
 
   /**
    * Generate PDF using browser's native print functionality
-   * This is the most reliable cross-browser solution
+   * Optimized for both desktop and mobile devices
    */
   async generateInvoicePDF(data: InvoiceData): Promise<void> {
     console.log('Starting simplified PDF generation for:', data.customer.name);
     
     try {
+      // Detect if user is on mobile device
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       // Create the invoice HTML content
-      const invoiceHTML = this.createInvoiceHTML(data);
+      const invoiceHTML = this.createInvoiceHTML(data, isMobile);
       
-      // Open print window with the invoice
-      const printWindow = window.open('', '_blank', 'width=800,height=600');
-      
-      if (!printWindow) {
-        throw new Error('Could not open print window. Please check browser popup settings.');
+      if (isMobile) {
+        // Mobile-optimized approach: direct print in same window
+        this.handleMobilePrint(invoiceHTML);
+      } else {
+        // Desktop approach: open in new window
+        this.handleDesktopPrint(invoiceHTML);
       }
-
-      // Write the invoice content to the print window
-      printWindow.document.write(invoiceHTML);
-      printWindow.document.close();
-
-      // Wait for content to load, then trigger print
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-          // Close window after printing (user can cancel)
-          printWindow.onafterprint = () => {
-            printWindow.close();
-          };
-        }, 500);
-      };
 
       console.log('PDF generation initiated successfully');
       
@@ -85,9 +74,76 @@ export class SimplePDFService {
   }
 
   /**
-   * Generate complete HTML for the invoice with embedded CSS
+   * Handle PDF generation for mobile devices
    */
-  private createInvoiceHTML(data: InvoiceData): string {
+  private handleMobilePrint(invoiceHTML: string): void {
+    // Save current page content
+    const originalContent = document.body.innerHTML;
+    const originalTitle = document.title;
+
+    // Replace page content with invoice
+    document.body.innerHTML = invoiceHTML;
+    document.title = 'Invoice';
+
+    // Add mobile-specific styles
+    const mobileStyles = document.createElement('style');
+    mobileStyles.textContent = `
+      @media print {
+        * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+        body { margin: 0 !important; padding: 10px !important; }
+        .container { max-width: none !important; }
+      }
+    `;
+    document.head.appendChild(mobileStyles);
+
+    // Trigger print
+    setTimeout(() => {
+      window.print();
+      
+      // Restore original content after print dialog
+      setTimeout(() => {
+        document.body.innerHTML = originalContent;
+        document.title = originalTitle;
+        document.head.removeChild(mobileStyles);
+        
+        // Trigger page reload to restore React functionality
+        window.location.reload();
+      }, 1000);
+    }, 500);
+  }
+
+  /**
+   * Handle PDF generation for desktop devices
+   */
+  private handleDesktopPrint(invoiceHTML: string): void {
+    // Open print window with the invoice
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+      throw new Error('Could not open print window. Please check browser popup settings.');
+    }
+
+    // Write the invoice content to the print window
+    printWindow.document.write(invoiceHTML);
+    printWindow.document.close();
+
+    // Wait for content to load, then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        // Close window after printing (user can cancel)
+        printWindow.onafterprint = () => {
+          printWindow.close();
+        };
+      }, 500);
+    };
+  }
+
+  /**
+   * Generate complete HTML for the invoice with embedded CSS
+   * Optimized for mobile and desktop viewing
+   */
+  private createInvoiceHTML(data: InvoiceData, isMobile: boolean = false): string {
     const {
       customer,
       orders,
@@ -213,20 +269,30 @@ export class SimplePDFService {
         }
         
         .container {
-            max-width: 800px;
+            max-width: ${isMobile ? '100%' : '800px'};
             margin: 0 auto;
-            padding: 40px;
+            padding: ${isMobile ? '20px 15px' : '40px'};
             background: white;
         }
         
         .header {
-            display: flex;
+            display: ${isMobile ? 'block' : 'flex'};
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 40px;
-            padding-bottom: 20px;
+            margin-bottom: ${isMobile ? '30px' : '40px'};
+            padding-bottom: ${isMobile ? '15px' : '20px'};
             border-bottom: 2px solid #e5e7eb;
         }
+        
+        ${isMobile ? `
+        .invoice-info {
+            margin-top: 20px;
+            text-align: left !important;
+        }
+        .invoice-info h2 {
+            font-size: 24px !important;
+        }
+        ` : ''}
         
         .business-info h1 {
             font-size: 28px;
@@ -258,11 +324,18 @@ export class SimplePDFService {
         }
         
         .details-section {
-            display: flex;
+            display: ${isMobile ? 'block' : 'flex'};
             justify-content: space-between;
-            margin-bottom: 40px;
-            gap: 40px;
+            margin-bottom: ${isMobile ? '30px' : '40px'};
+            gap: ${isMobile ? '20px' : '40px'};
         }
+        
+        ${isMobile ? `
+        .invoice-meta {
+            margin-top: 20px;
+            max-width: none !important;
+        }
+        ` : ''}
         
         .bill-to {
             flex: 1;
@@ -314,7 +387,21 @@ export class SimplePDFService {
             width: 100%;
             border-collapse: collapse;
             border: 1px solid #d1d5db;
+            ${isMobile ? 'font-size: 12px;' : ''}
         }
+        
+        ${isMobile ? `
+        .orders-table th,
+        .orders-table td {
+            padding: 8px 4px !important;
+            font-size: 11px !important;
+        }
+        .orders-table th:nth-child(3),
+        .orders-table td:nth-child(3) {
+            max-width: 120px;
+            word-wrap: break-word;
+        }
+        ` : ''}
         
         .orders-table th {
             border: 1px solid #d1d5db;
@@ -379,9 +466,15 @@ export class SimplePDFService {
         }
         
         .payment-grid {
-            display: flex;
-            gap: 40px;
+            display: ${isMobile ? 'block' : 'flex'};
+            gap: ${isMobile ? '20px' : '40px'};
         }
+        
+        ${isMobile ? `
+        .payment-grid > div:first-child {
+            margin-bottom: 20px;
+        }
+        ` : ''}
         
         .payment-grid > div {
             flex: 1;
@@ -447,7 +540,23 @@ export class SimplePDFService {
         
         @page {
             size: A4;
-            margin: 1cm;
+            margin: ${isMobile ? '0.5cm' : '1cm'};
+        }
+        
+        /* Mobile-specific print optimizations */
+        @media screen and (max-width: 768px) {
+            .container {
+                padding: 15px !important;
+            }
+            .header h1 {
+                font-size: 22px !important;
+            }
+            .invoice-info h2 {
+                font-size: 22px !important;
+            }
+            .details-section h3 {
+                font-size: 14px !important;
+            }
         }
     </style>
 </head>

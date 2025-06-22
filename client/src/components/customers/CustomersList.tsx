@@ -139,11 +139,12 @@ export default function CustomersList({
                 
                 <Button 
                   variant="outline"
-                  className="w-full justify-center text-blue-600 border-blue-200 hover:bg-blue-50" 
+                  className="w-full justify-center text-blue-600 border-blue-200 hover:bg-blue-50 touch-target-lg" 
                   onClick={() => onGenerateInvoice(customer)}
+                  size="lg"
                 >
                   <i className="fas fa-file-invoice mr-2"></i>
-                  Generate Invoice
+                  Generate PDF Invoice
                 </Button>
               </div>
             </CardContent>
@@ -230,14 +231,14 @@ export default function CustomersList({
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              className="text-blue-600" 
+                              className="text-blue-600 min-w-[44px] min-h-[44px] touch-target" 
                               onClick={() => onGenerateInvoice(customer)}
                             >
                               <i className="fas fa-file-invoice"></i>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Generate Invoice</p>
+                            <p>Generate PDF Invoice</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>

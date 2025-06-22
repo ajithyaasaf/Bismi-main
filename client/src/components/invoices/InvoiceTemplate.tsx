@@ -49,26 +49,29 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
     ]
   }
 }, ref) => {
+  // Ensure orders is an array
+  const ordersArray = Array.isArray(orders) ? orders : [];
+  
   // Filter orders based on customer and payment status
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = ordersArray.filter(order => {
     if (order.customerId !== customer.id) return false;
-    return showPaid ? true : order.status !== 'paid';
+    return showPaid ? true : order.paymentStatus !== 'paid';
   });
 
   // Calculate totals
   const totalPending = typeof customer.pendingAmount === 'number' ? customer.pendingAmount : 
     filteredOrders.reduce((sum, order) => {
-      if (order.status === 'paid') return sum;
-      return sum + (typeof order.total === 'number' ? order.total : 0);
+      if (order.paymentStatus === 'paid') return sum;
+      return sum + (typeof order.totalAmount === 'number' ? order.totalAmount : 0);
     }, 0);
 
   const totalPaid = filteredOrders.reduce((sum, order) => {
-    if (order.status !== 'paid') return sum;
-    return sum + (typeof order.total === 'number' ? order.total : 0);
+    if (order.paymentStatus !== 'paid') return sum;
+    return sum + (typeof order.totalAmount === 'number' ? order.totalAmount : 0);
   }, 0);
 
   const ordersGrandTotal = filteredOrders.reduce((sum, order) => {
-    return sum + (typeof order.total === 'number' ? order.total : 0);
+    return sum + (typeof order.totalAmount === 'number' ? order.totalAmount : 0);
   }, 0);
 
   const paidThroughRecordedPayments = Math.max(0, ordersGrandTotal - totalPending - totalPaid);
@@ -78,13 +81,13 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
 
   // Check for overdue orders
   const overdueOrders = filteredOrders.filter(order => {
-    if (order.status === 'paid') return false;
+    if (order.paymentStatus === 'paid') return false;
     
     let orderDate: Date;
-    if (typeof order.date === 'string') {
-      orderDate = parseISO(order.date);
-    } else if (order.date instanceof Date) {
-      orderDate = order.date;
+    if (typeof order.createdAt === 'string') {
+      orderDate = parseISO(order.createdAt);
+    } else if (order.createdAt instanceof Date) {
+      orderDate = order.createdAt;
     } else {
       orderDate = new Date();
     }
@@ -200,10 +203,8 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
               ) : (
                 filteredOrders.map((order, index) => {
                   const isOverdue = overdueOrders.some(o => o.id === order.id);
-                  const orderWithTimestamp = order as any;
-                  const timestamp = orderWithTimestamp.createdAt || order.date;
-                  const orderDate = typeof timestamp === 'string' ? parseISO(timestamp) : 
-                                   timestamp instanceof Date ? timestamp : new Date();
+                  const orderDate = typeof order.createdAt === 'string' ? parseISO(order.createdAt) : 
+                                   order.createdAt instanceof Date ? order.createdAt : new Date();
                   
                   return (
                     <tr key={order.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
@@ -219,17 +220,17 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
                         {formatOrderItems(Array.isArray(order.items) ? order.items : [])}
                       </td>
                       <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">
-                        {formatCurrency(typeof order.total === 'number' ? order.total : 0)}
+                        {formatCurrency(order.totalAmount || 0)}
                       </td>
                       <td className="border border-gray-300 p-2 lg:p-3 text-center">
                         <span className={`px-2 py-1 rounded text-xs font-bold ${
-                          order.status === 'paid' 
+                          order.paymentStatus === 'paid' 
                             ? 'bg-green-100 text-green-800' 
                             : isOverdue 
                               ? 'bg-red-100 text-red-800' 
                               : 'bg-yellow-100 text-yellow-800'
                         }`}>
-                          {order.status === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                          {order.paymentStatus === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
                         </span>
                       </td>
                     </tr>
@@ -283,9 +284,11 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
           </div>
           <div>
             <h4 className="font-semibold mb-2 text-sm lg:text-base">Terms & Conditions:</h4>
-            {paymentInfo.terms.map((term, index) => (
+            {Array.isArray(paymentInfo.terms) ? paymentInfo.terms.map((term, index) => (
               <p key={index} className="text-xs text-gray-600 mb-1">• {term}</p>
-            ))}
+            )) : (
+              <p className="text-xs text-gray-600 mb-1">• {paymentInfo.terms}</p>
+            )}
           </div>
         </div>
       </div>

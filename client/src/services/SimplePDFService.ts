@@ -213,9 +213,7 @@ export class SimplePDFService {
         phone: "+91 9514499968",
         accountName: "Barakath Nisha",
         terms: [
-          "Payment is due within 15 days of invoice date",
-          "Late payments may be subject to 2% monthly interest charges",
-          "For queries regarding this invoice, please contact our accounts department"
+          "For queries regarding this invoice, please contact us"
         ]
       }
     } = data;
@@ -730,12 +728,14 @@ export class SimplePDFService {
                             <p style="margin: 4px 0; font-size: 13px;"><strong>Phone:</strong> <span style="font-family: monospace;">${paymentInfo.phone}</span></p>
                         </div>
                         <div style="flex-shrink: 0;">
-                            <div style="width: 120px; height: 120px; border: 2px solid #e5e7eb; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: #f9fafb;">
-                                <div style="text-align: center; color: #6b7280; font-size: 11px; line-height: 1.3;">
-                                    <div style="margin-bottom: 6px; font-size: 24px;">📱</div>
-                                    <div style="font-weight: 600;">Scan QR Code</div>
-                                    <div>for UPI Payment</div>
-                                    <div style="margin-top: 4px; font-size: 10px;">${paymentInfo.upiId}</div>
+                            <div style="width: 120px; height: 120px; border: 2px solid #e5e7eb; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f9fafb; padding: 8px;">
+                                <div style="width: 40px; height: 40px; background: #6366f1; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                                    <div style="color: white; font-size: 20px;">📱</div>
+                                </div>
+                                <div style="text-align: center; color: #374151; font-size: 11px; line-height: 1.2;">
+                                    <div style="font-weight: 600; margin-bottom: 2px;">Scan QR Code</div>
+                                    <div style="color: #6b7280;">for UPI Payment</div>
+                                    <div style="margin-top: 4px; font-size: 9px; color: #6366f1; font-weight: 500;">${paymentInfo.upiId}</div>
                                 </div>
                             </div>
                         </div>

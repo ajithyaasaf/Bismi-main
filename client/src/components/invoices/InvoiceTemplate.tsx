@@ -45,9 +45,7 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
     phone: "+91 9514499968",
     accountName: "Barakath Nisha",
     terms: [
-      "Payment is due within 15 days of invoice date",
-      "Late payments may be subject to 2% monthly interest charges",
-      "For queries regarding this invoice, please contact our accounts department"
+      "For queries regarding this invoice, please contact us"
     ]
   }
 }, ref) => {

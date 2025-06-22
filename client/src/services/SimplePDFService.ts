@@ -219,11 +219,21 @@ export class SimplePDFService {
       }
     } = data;
 
+    // Debug logging for order filtering
+    console.log('PDF Generation Debug:', {
+      customerId: customer.id,
+      totalOrders: orders.length,
+      orders: orders.map(o => ({ id: o.id, customerId: o.customerId, totalAmount: o.totalAmount })),
+      showPaid
+    });
+
     // Filter orders based on customer and payment status
     const filteredOrders = orders.filter(order => {
       if (order.customerId !== customer.id) return false;
       return showPaid ? true : order.paymentStatus !== 'paid';
     });
+
+    console.log('Filtered orders:', filteredOrders.length, filteredOrders);
 
     // Calculate totals
     const totalPending = customer.pendingAmount || 0;

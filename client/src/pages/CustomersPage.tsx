@@ -96,8 +96,15 @@ export default function CustomersPage() {
   };
 
   const handleMakePayment = (customer: {id: string, name: string, pendingAmount: number}) => {
+    console.log(`[CustomersPage] handleMakePayment called:`, {
+      customerId: customer.id,
+      customerName: customer.name,
+      pendingAmount: customer.pendingAmount,
+      timestamp: new Date().toISOString()
+    });
     setPaymentCustomer(customer);
     setPaymentModalOpen(true);
+    console.log(`[CustomersPage] Payment modal opened for customer ${customer.name}`);
   };
 
   const closePaymentModal = () => {
@@ -135,12 +142,18 @@ export default function CustomersPage() {
         onEdit={handleEditCustomer}
         onDelete={handleDeleteCustomer}
         onPayment={(customerId, customerName) => {
+          console.log(`[CustomersPage] onPayment called:`, { customerId, customerName });
           const customer = customers.find(c => c.id === customerId);
-          if (customer) handleMakePayment({
-            id: customer.id,
-            name: customer.name,
-            pendingAmount: customer.pendingAmount
-          });
+          console.log(`[CustomersPage] Found customer:`, customer);
+          if (customer) {
+            handleMakePayment({
+              id: customer.id,
+              name: customer.name,
+              pendingAmount: customer.pendingAmount
+            });
+          } else {
+            console.error(`[CustomersPage] Customer not found with ID: ${customerId}`);
+          }
         }}
         onGenerateInvoice={handleGenerateInvoice}
       />
@@ -167,21 +180,32 @@ export default function CustomersPage() {
           isOpen={paymentModalOpen}
           onClose={closePaymentModal}
           onSubmit={async (amount) => {
+            console.log(`[CustomersPage] Payment submission started:`, {
+              customerId: paymentCustomer.id,
+              customerName: paymentCustomer.name,
+              amount: amount,
+              timestamp: new Date().toISOString()
+            });
+            
             try {
-              await processCustomerPayment(
+              console.log(`[CustomersPage] Calling processCustomerPayment...`);
+              const result = await processCustomerPayment(
                 paymentCustomer.id,
                 amount,
                 `Payment from ${paymentCustomer.name}`
               );
+              
+              console.log(`[CustomersPage] Payment successful:`, result);
 
               toast({
                 title: "Payment recorded",
                 description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${paymentCustomer.name}.`,
               });
             } catch (error) {
+              console.error(`[CustomersPage] Payment failed:`, error);
               toast({
                 title: "Error",
-                description: "Failed to record the payment. Please try again.",
+                description: error instanceof Error ? error.message : "Failed to record the payment. Please try again.",
                 variant: "destructive",
               });
               throw error;

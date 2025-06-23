@@ -74,8 +74,11 @@ export async function processCustomerPayment(customerId: string, amount: number,
       targetOrderId
     });
     
+    console.log(`[CustomerService] Response status: ${response.status}, URL: ${response.url}`);
+    
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error(`[CustomerService] Payment failed:`, errorData);
       throw new Error(errorData.message || `Payment failed with status ${response.status}`);
     }
     

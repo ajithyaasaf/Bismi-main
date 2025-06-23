@@ -14,14 +14,18 @@ export class PendingAmountCalculator {
   async calculateCustomerPendingAmount(customerId: string): Promise<number> {
     try {
       const orders = await this.storage.getOrdersByCustomer(customerId);
+      console.log(`Calculate pending - Found ${orders.length} orders for customer ${customerId}`);
       
-      const pendingAmount = orders
-        .filter(order => order.paymentStatus !== 'paid') // Include pending and partially_paid
-        .reduce((sum, order) => {
+      const unpaidOrders = orders.filter(order => order.paymentStatus !== 'paid');
+      console.log(`Unpaid orders: ${unpaidOrders.length}`);
+      
+      const pendingAmount = unpaidOrders.reduce((sum, order) => {
           const orderBalance = (order.totalAmount || 0) - (order.paidAmount || 0);
+          console.log(`Order ${order.id}: Total=₹${order.totalAmount}, Paid=₹${order.paidAmount || 0}, Balance=₹${orderBalance}, Status=${order.paymentStatus}`);
           return sum + Math.max(0, orderBalance); // Ensure no negative order balances
         }, 0);
       
+      console.log(`Total calculated pending amount: ₹${pendingAmount}`);
       return Math.max(0, pendingAmount); // No negative pending amounts
     } catch (error) {
       console.error(`Error calculating pending amount for customer ${customerId}:`, error);
@@ -99,8 +103,14 @@ export class PendingAmountCalculator {
    */
   async syncCustomerPendingAmount(customerId: string): Promise<number> {
     try {
+      console.log(`\n--- SYNC PENDING AMOUNT START ---`);
       const calculatedAmount = await this.calculateCustomerPendingAmount(customerId);
+      console.log(`Calculated pending amount: ₹${calculatedAmount}`);
+      
       await this.storage.updateCustomer(customerId, { pendingAmount: calculatedAmount });
+      console.log(`Updated customer pending amount to: ₹${calculatedAmount}`);
+      console.log(`--- SYNC PENDING AMOUNT END ---\n`);
+      
       return calculatedAmount;
     } catch (error) {
       console.error(`Error syncing pending amount for customer ${customerId}:`, error);
@@ -133,8 +143,19 @@ export class PendingAmountCalculator {
     updatedOrders: string[];
   }> {
     try {
+      console.log(`\n=== PAYMENT PROCESSING START ===`);
+      console.log(`Customer: ${customerId}, Payment: ₹${paymentAmount}`);
+      
+      // Get customer's current state before payment
+      const customerBefore = await this.storage.getCustomer(customerId);
+      console.log(`Customer pending before payment: ₹${customerBefore?.pendingAmount || 0}`);
+      
       // Get all orders for the customer
       const orders = await this.storage.getOrdersByCustomer(customerId);
+      console.log(`Found ${orders.length} orders for customer`);
+      orders.forEach(order => {
+        console.log(`Order ${order.id}: Total=₹${order.totalAmount}, Paid=₹${order.paidAmount || 0}, Status=${order.paymentStatus}`);
+      });
       
       let ordersToProcess;
       if (targetOrderId) {
@@ -194,7 +215,10 @@ export class PendingAmountCalculator {
       });
 
       // Sync the customer's pending amount
-      await this.syncCustomerPendingAmount(customerId);
+      console.log(`Before sync - Applied: ₹${appliedAmount}, Remaining: ₹${remainingPayment}`);
+      const newPendingAmount = await this.syncCustomerPendingAmount(customerId);
+      console.log(`After sync - Customer pending amount: ₹${newPendingAmount}`);
+      console.log(`=== PAYMENT PROCESSING END ===\n`);
 
       return {
         appliedAmount,

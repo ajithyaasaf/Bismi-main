@@ -67,7 +67,7 @@ export class PendingAmountCalculator {
       
       // Calculate total payments (reduces debt)
       const payments = transactions
-        .filter(t => t.type === 'payment')
+        .filter(t => t.type === 'supplier_payment')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
       // If no initial_debt transaction exists but there are other transactions,
@@ -314,7 +314,7 @@ export class PendingAmountCalculator {
       await this.storage.createTransaction({
         entityId: customerId,
         entityType: 'customer',
-        type: 'payment',
+        type: 'customer_payment',
         amount: sanitizedPayment,
         description: description || `Payment from customer${targetOrderId ? ` for order #${targetOrderId}` : ''}`
       });

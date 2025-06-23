@@ -24,15 +24,9 @@ export async function addOrder(orderData: any) {
     const response = await apiRequest('POST', '/api/orders', orderData);
     const result = await safeJsonResponse(response);
     
-    // Invalidate related cache keys for dynamic updates
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/customers', orderData.customerId] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
-      queryClient.invalidateQueries({ queryKey: [`/api/customers/${orderData.customerId}/whatsapp`] })
-    ]);
+    // Use optimized cache invalidation
+    const { optimizedCacheInvalidation } = await import('./cache-strategy');
+    await optimizedCacheInvalidation.order(result.id, 'create');
     
     return result;
   } catch (error) {
@@ -47,14 +41,9 @@ export async function updateOrder(id: string, orderData: any) {
     const response = await apiRequest('PUT', `/api/orders/${id}`, orderData);
     const result = await safeJsonResponse(response);
     
-    // Invalidate related cache keys for dynamic updates
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/orders', id] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-    ]);
+    // Use optimized cache invalidation
+    const { optimizedCacheInvalidation } = await import('./cache-strategy');
+    await optimizedCacheInvalidation.order(id, 'update');
     
     return result;
   } catch (error) {
@@ -70,13 +59,9 @@ export async function deleteOrder(id: string) {
     const success = response.ok;
     
     if (success) {
-      // Invalidate related cache keys for dynamic updates
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-      ]);
+      // Use optimized cache invalidation
+      const { optimizedCacheInvalidation } = await import('./cache-strategy');
+      await optimizedCacheInvalidation.order(id, 'delete');
     }
     
     return success;

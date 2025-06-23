@@ -58,10 +58,15 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     }, 0);
   };
 
-  // Calculate payment status based on paid amount
+  // Calculate payment status based on paid amount with validation
   const totalAmount = calculateTotal();
   React.useEffect(() => {
-    if (paidAmount >= totalAmount && totalAmount > 0) {
+    if (totalAmount <= 0) {
+      setPaymentStatus('pending');
+      return;
+    }
+    
+    if (paidAmount >= totalAmount) {
       setPaymentStatus('paid');
     } else if (paidAmount > 0) {
       setPaymentStatus('partially_paid');

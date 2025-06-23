@@ -90,16 +90,9 @@ export async function processCustomerPayment(customerId: string, amount: number,
       updatedOrders: result.updatedOrders?.length || 0
     });
     
-    // Invalidate all related cache keys for dynamic updates
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
-      queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] })
-    ]);
+    // Use optimized cache invalidation
+    const { optimizedCacheInvalidation } = await import('./cache-strategy');
+    await optimizedCacheInvalidation.payment(customerId, 'customer');
     
     return result;
   } catch (error) {

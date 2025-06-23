@@ -58,7 +58,7 @@ export async function processSupplierPayment(supplierId: string, amount: number,
     
     const response = await apiRequest('POST', `/api/suppliers/${supplierId}/payment`, {
       amount: roundedAmount,
-      description
+      description: description || `Payment to supplier`
     });
     
     if (!response.ok) {
@@ -73,14 +73,9 @@ export async function processSupplierPayment(supplierId: string, amount: number,
       transactionId: result.transaction?.id
     });
     
-    // Invalidate all related cache keys for dynamic updates
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/suppliers', supplierId] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
-    ]);
+    // Use optimized cache invalidation
+    const { optimizedCacheInvalidation } = await import('./cache-strategy');
+    await optimizedCacheInvalidation.payment(supplierId, 'supplier');
     
     return result;
   } catch (error) {

@@ -36,18 +36,44 @@ export async function makeSupplierPayment(id: string, paymentData: any) {
   return safeJsonResponse(response);
 }
 
-// Process supplier payment with comprehensive cache invalidation
+// Process supplier payment with comprehensive cache invalidation and enhanced error handling
 export async function processSupplierPayment(supplierId: string, amount: number, description?: string) {
+  // Validate payment amount on frontend
+  if (!amount || amount <= 0) {
+    throw new Error('Payment amount must be greater than ₹0');
+  }
+  
+  if (amount > 1000000) {
+    throw new Error('Payment amount cannot exceed ₹10,00,000');
+  }
+  
+  // Round to 2 decimal places for precision
+  const roundedAmount = Math.round(amount * 100) / 100;
+  if (roundedAmount !== amount) {
+    throw new Error('Payment amount can only have up to 2 decimal places');
+  }
+
   try {
+    console.log(`[SupplierService] Processing payment of ₹${roundedAmount} for supplier ${supplierId}`);
+    
     const response = await apiRequest('POST', `/api/suppliers/${supplierId}/payment`, {
-      amount,
+      amount: roundedAmount,
       description
     });
     
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Payment failed with status ${response.status}`);
+    }
+    
     const result = await safeJsonResponse(response);
     
+    console.log(`[SupplierService] Payment successful:`, {
+      updatedPendingAmount: result.updatedPendingAmount,
+      transactionId: result.transaction?.id
+    });
+    
     // Invalidate all related cache keys for dynamic updates
-    console.log(`[Payment] Invalidating cache for supplier ${supplierId} after payment of ${amount}`);
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers', supplierId] }),
@@ -55,11 +81,13 @@ export async function processSupplierPayment(supplierId: string, amount: number,
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
     ]);
-    console.log(`[Payment] Cache invalidation completed for supplier ${supplierId}`);
     
     return result;
   } catch (error) {
     console.error('Supplier payment processing failed:', error);
-    throw error;
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Payment processing failed. Please try again.');
   }
 }

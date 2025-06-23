@@ -2,6 +2,7 @@ import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager";
 import { createPendingCalculator } from "./utils/pending-calculator";
+import { DataRepairService } from "./utils/data-repair";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 
@@ -97,6 +98,11 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   async function getPendingCalculator() {
     const storage = await getStorage();
     return createPendingCalculator(storage);
+  }
+
+  async function getDataRepairService() {
+    const storage = await getStorage();
+    return new DataRepairService(storage);
   }
 
   // Batch endpoint for multiple requests
@@ -252,8 +258,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const { amount, description } = req.body;
       
-      if (!amount || isNaN(parseFloat(amount))) {
-        return res.status(400).json({ message: "Valid amount is required" });
+      // Enhanced validation for supplier payments
+      const numAmount = parseFloat(amount);
+      if (!amount || isNaN(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ message: "Valid payment amount greater than 0 is required" });
+      }
+      
+      if (numAmount > 1000000) {
+        return res.status(400).json({ message: "Payment amount cannot exceed ₹10,00,000" });
       }
 
       const storage = await getStorage();
@@ -264,10 +276,13 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         return res.status(404).json({ message: "Supplier not found" });
       }
 
-      // Create transaction record
+      // Precision handling for supplier payments
+      const sanitizedAmount = Math.round(numAmount * 100) / 100;
+
+      // Create transaction record with enhanced data
       const transactionData = {
         type: "payment",
-        amount: parseFloat(amount),
+        amount: sanitizedAmount,
         entityId: req.params.id,
         entityType: "supplier",
         description: description || `Payment to supplier: ${supplier.name}`
@@ -279,11 +294,21 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       const newPendingAmount = await pendingCalculator.syncSupplierPendingAmount(req.params.id);
 
       res.status(201).json({
+        message: "Supplier payment processed successfully",
         transaction,
         updatedPendingAmount: newPendingAmount
       });
     } catch (error) {
       console.error("Failed to process supplier payment:", error);
+      
+      // Enhanced error response
+      if (error instanceof Error) {
+        return res.status(400).json({ 
+          message: error.message.includes('Payment amount') ? error.message : "Failed to process payment",
+          error: error.message
+        });
+      }
+      
       res.status(500).json({ message: "Failed to process payment" });
     }
   });
@@ -544,22 +569,35 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const { amount, description, targetOrderId } = req.body;
       
-      if (!amount || isNaN(parseFloat(amount))) {
-        return res.status(400).json({ message: "Valid amount is required" });
+      // Enhanced validation
+      const numAmount = parseFloat(amount);
+      if (!amount || isNaN(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ message: "Valid payment amount greater than 0 is required" });
+      }
+      
+      if (numAmount > 1000000) {
+        return res.status(400).json({ message: "Payment amount cannot exceed ₹10,00,000" });
       }
 
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
+      const dataRepair = await getDataRepairService();
       const customer = await storage.getCustomer(req.params.id);
       
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      // Process payment with order-specific partial payment tracking
+      // Validate and repair data integrity before processing payment
+      const integrityCheck = await dataRepair.validateFinancialIntegrity(req.params.id);
+      if (!integrityCheck.isValid && integrityCheck.issues.length > 0) {
+        console.warn(`Data integrity issues found for customer ${req.params.id}:`, integrityCheck.issues);
+      }
+
+      // Process payment with enhanced error handling
       const paymentResult = await pendingCalculator.processCustomerPayment(
         req.params.id,
-        parseFloat(amount),
+        numAmount,
         description || `Payment from customer: ${customer.name}`,
         targetOrderId
       );
@@ -573,6 +611,15 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       });
     } catch (error) {
       console.error("Failed to process customer payment:", error);
+      
+      // Enhanced error response
+      if (error instanceof Error) {
+        return res.status(400).json({ 
+          message: error.message.includes('Invalid payment amount') ? error.message : "Failed to process payment",
+          error: error.message
+        });
+      }
+      
       res.status(500).json({ message: "Failed to process payment" });
     }
   });
@@ -893,6 +940,42 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   });
 
   // Enterprise reports endpoint with real-time calculations and date filtering
+  // Data repair endpoints for admin use
+  apiRouter.post("/admin/repair-customer/:id", async (req: Request, res: Response) => {
+    try {
+      const dataRepair = await getDataRepairService();
+      const repairResult = await dataRepair.validateFinancialIntegrity(req.params.id);
+      
+      res.json({
+        customerId: req.params.id,
+        isValid: repairResult.isValid,
+        issues: repairResult.issues,
+        repairs: repairResult.repairs,
+        message: repairResult.isValid ? "Data integrity validated successfully" : "Data issues found and repairs attempted"
+      });
+    } catch (error) {
+      console.error("Failed to repair customer data:", error);
+      res.status(500).json({ message: "Failed to repair customer data" });
+    }
+  });
+
+  apiRouter.post("/admin/repair-order/:id", async (req: Request, res: Response) => {
+    try {
+      const dataRepair = await getDataRepairService();
+      const repairResult = await dataRepair.repairOrder(req.params.id);
+      
+      res.json({
+        orderId: req.params.id,
+        wasCorrupted: repairResult.wasCorrupted,
+        repairs: repairResult.repairs,
+        message: repairResult.wasCorrupted ? "Order data repaired successfully" : "Order data is valid"
+      });
+    } catch (error) {
+      console.error("Failed to repair order data:", error);
+      res.status(500).json({ message: "Failed to repair order data" });
+    }
+  });
+
   apiRouter.get("/reports", async (req: Request, res: Response) => {
     try {
       res.setHeader('Content-Type', 'application/json');

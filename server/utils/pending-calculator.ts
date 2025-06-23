@@ -16,17 +16,34 @@ export class PendingAmountCalculator {
       const orders = await this.storage.getOrdersByCustomer(customerId);
       console.log(`Calculate pending - Found ${orders.length} orders for customer ${customerId}`);
       
+      // CRITICAL BUG FIX: Check if orders array is empty or malformed
+      if (!orders || orders.length === 0) {
+        console.log(`No orders found for customer ${customerId} - returning 0 pending amount`);
+        return 0;
+      }
+      
       const unpaidOrders = orders.filter(order => order.paymentStatus !== 'paid');
       console.log(`Unpaid orders: ${unpaidOrders.length}`);
       
-      const pendingAmount = unpaidOrders.reduce((sum, order) => {
-          const orderBalance = (order.totalAmount || 0) - (order.paidAmount || 0);
-          console.log(`Order ${order.id}: Total=₹${order.totalAmount}, Paid=₹${order.paidAmount || 0}, Balance=₹${orderBalance}, Status=${order.paymentStatus}`);
-          return sum + Math.max(0, orderBalance); // Ensure no negative order balances
-        }, 0);
+      let totalPending = 0;
+      for (const order of unpaidOrders) {
+        const totalAmount = Math.max(0, order.totalAmount || 0);
+        const paidAmount = Math.max(0, order.paidAmount || 0);
+        const orderBalance = Math.max(0, totalAmount - paidAmount);
+        
+        console.log(`Order ${order.id}: Total=₹${totalAmount}, Paid=₹${paidAmount}, Balance=₹${orderBalance}, Status=${order.paymentStatus}`);
+        
+        // Validate order data
+        if (totalAmount <= 0) {
+          console.warn(`Order ${order.id} has invalid totalAmount: ${order.totalAmount}`);
+          continue;
+        }
+        
+        totalPending += orderBalance;
+      }
       
-      console.log(`Total calculated pending amount: ₹${pendingAmount}`);
-      return Math.max(0, pendingAmount); // No negative pending amounts
+      console.log(`Total calculated pending amount: ₹${totalPending}`);
+      return Math.max(0, totalPending);
     } catch (error) {
       console.error(`Error calculating pending amount for customer ${customerId}:`, error);
       return 0;
@@ -104,8 +121,37 @@ export class PendingAmountCalculator {
   async syncCustomerPendingAmount(customerId: string): Promise<number> {
     try {
       console.log(`\n--- SYNC PENDING AMOUNT START ---`);
+      
+      // Get current stored amount before calculation
+      const customer = await this.storage.getCustomer(customerId);
+      const currentStoredAmount = customer?.pendingAmount || 0;
+      console.log(`Current stored pending amount: ₹${currentStoredAmount}`);
+      
       const calculatedAmount = await this.calculateCustomerPendingAmount(customerId);
       console.log(`Calculated pending amount: ₹${calculatedAmount}`);
+      
+      // CRITICAL BUG FIX: Prevent erroneous zero amounts
+      if (currentStoredAmount > 0 && calculatedAmount === 0) {
+        const orders = await this.storage.getOrdersByCustomer(customerId);
+        console.log(`WARNING: Calculated amount is 0 but stored amount was ₹${currentStoredAmount}`);
+        console.log(`Customer has ${orders.length} orders total`);
+        
+        // If there are no orders but customer had pending amount, preserve it
+        if (orders.length === 0) {
+          console.log(`No orders found - preserving stored pending amount of ₹${currentStoredAmount}`);
+          return currentStoredAmount;
+        }
+        
+        // If orders exist but calculation shows 0, investigate further
+        const unpaidOrders = orders.filter(o => o.paymentStatus !== 'paid');
+        console.log(`Found ${unpaidOrders.length} unpaid orders`);
+        
+        if (unpaidOrders.length > 0) {
+          console.log(`ERROR: Orders exist but calculation shows 0 - this indicates a data inconsistency`);
+          console.log(`Preserving stored amount of ₹${currentStoredAmount} to prevent data loss`);
+          return currentStoredAmount;
+        }
+      }
       
       await this.storage.updateCustomer(customerId, { pendingAmount: calculatedAmount });
       console.log(`Updated customer pending amount to: ₹${calculatedAmount}`);
@@ -176,15 +222,21 @@ export class PendingAmountCalculator {
       for (const order of ordersToProcess) {
         if (remainingPayment <= 0) break;
 
-        const currentPaid = order.paidAmount || 0;
-        const totalAmount = order.totalAmount || 0;
-        const remainingBalance = totalAmount - currentPaid;
+        const currentPaid = Math.max(0, order.paidAmount || 0);
+        const totalAmount = Math.max(0, order.totalAmount || 0);
+        const remainingBalance = Math.max(0, totalAmount - currentPaid);
         
-        if (remainingBalance <= 0) continue; // Skip fully paid orders
+        console.log(`Processing order ${order.id}: currentPaid=₹${currentPaid}, totalAmount=₹${totalAmount}, remainingBalance=₹${remainingBalance}, paymentLeft=₹${remainingPayment}`);
+        
+        if (remainingBalance <= 0) {
+          console.log(`Skipping order ${order.id} - already fully paid`);
+          continue; // Skip fully paid orders
+        }
 
         if (remainingPayment >= remainingBalance) {
           // Full payment for remaining balance
           const newPaidAmount = totalAmount;
+          console.log(`Full payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}`);
           await this.storage.updateOrder(order.id, { 
             paidAmount: newPaidAmount,
             paymentStatus: 'paid' 
@@ -195,6 +247,7 @@ export class PendingAmountCalculator {
         } else {
           // Partial payment - update paidAmount and set status to partially_paid
           const newPaidAmount = currentPaid + remainingPayment;
+          console.log(`Partial payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}`);
           await this.storage.updateOrder(order.id, { 
             paidAmount: newPaidAmount,
             paymentStatus: 'partially_paid' 

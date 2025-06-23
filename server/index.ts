@@ -58,7 +58,7 @@ app.use(compression({
 
 // Development note: Frontend configured to use Render backend directly
 if (process.env.NODE_ENV === 'development') {
-  log('Development mode: Frontend configured to use local backend');
+  log('Frontend configured to connect directly to Render backend: https://bismi-main.onrender.com');
 }
 
 app.use((req, res, next) => {

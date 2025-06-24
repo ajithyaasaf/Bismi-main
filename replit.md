@@ -150,6 +150,7 @@ This is a full-stack web application for managing a chicken shop business. The s
 - June 22, 2025. Updated invoice templates with correct business information - Removed GST number field from all invoice templates and forms, updated UPI payment details to use correct UPI ID (barakathnisha004@okicici) and account name (Barakath Nisha), enhanced payment section with QR code placeholder for better mobile payment experience
 - June 22, 2025. Fixed invoice generation JavaScript errors - Resolved "e.map is not a function" error by fixing property name mismatches in InvoiceTemplate (order.status→paymentStatus, order.total→totalAmount, order.date→createdAt), added array safety checks, simplified terms to single line "For queries regarding this invoice, please contact us", updated QR code placeholder design with styled blue phone icon
 - June 24, 2025. Fixed production authentication error - Added API key support to frontend configuration and request handlers to resolve "401 Unauthorized" errors when accessing production backend on Render, configured automatic API key injection for production requests while maintaining development mode flexibility
+- June 24, 2025. Fixed CORS policy for Vercel deployment - Added x-api-key header to allowedHeaders in CORS configuration to resolve "Request header field x-api-key is not allowed" error when frontend deployed on Vercel accesses Render backend
 
 ## User Preferences
 

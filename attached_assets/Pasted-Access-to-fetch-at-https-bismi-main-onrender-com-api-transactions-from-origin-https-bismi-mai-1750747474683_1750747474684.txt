@@ -1,0 +1,78 @@
+Access to fetch at 'https://bismi-main.onrender.com/api/transactions' from origin 'https://bismi-main.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+index-ipB2--Eg.js:48 
+            
+            
+           GET https://bismi-main.onrender.com/api/transactions net::ERR_FAILED
+(anonymous) @ index-ipB2--Eg.js:48
+await in (anonymous)
+i @ index-ipB2--Eg.js:48
+b @ index-ipB2--Eg.js:48
+(anonymous) @ index-ipB2--Eg.js:48
+Promise.then
+(anonymous) @ index-ipB2--Eg.js:48
+Promise.catch
+b @ index-ipB2--Eg.js:48
+start @ index-ipB2--Eg.js:48
+fetch @ index-ipB2--Eg.js:48
+_a @ index-ipB2--Eg.js:48
+onSubscribe @ index-ipB2--Eg.js:48
+subscribe @ index-ipB2--Eg.js:48
+(anonymous) @ index-ipB2--Eg.js:48
+z1 @ index-ipB2--Eg.js:38
+Ad @ index-ipB2--Eg.js:40
+lo @ index-ipB2--Eg.js:40
+(anonymous) @ index-ipB2--Eg.js:40
+N @ index-ipB2--Eg.js:25
+O @ index-ipB2--Eg.js:25
+bismi-main.vercel.app/:1 Access to fetch at 'https://bismi-main.onrender.com/api/suppliers' from origin 'https://bismi-main.vercel.app' has been blocked by CORS policy: Request header field x-api-key is not allowed by Access-Control-Allow-Headers in preflight response.
+index-ipB2--Eg.js:48 
+            
+            
+           GET https://bismi-main.onrender.com/api/suppliers net::ERR_FAILED
+(anonymous) @ index-ipB2--Eg.js:48
+await in (anonymous)
+i @ index-ipB2--Eg.js:48
+b @ index-ipB2--Eg.js:48
+(anonymous) @ index-ipB2--Eg.js:48
+Promise.then
+(anonymous) @ index-ipB2--Eg.js:48
+Promise.catch
+b @ index-ipB2--Eg.js:48
+start @ index-ipB2--Eg.js:48
+fetch @ index-ipB2--Eg.js:48
+_a @ index-ipB2--Eg.js:48
+onSubscribe @ index-ipB2--Eg.js:48
+subscribe @ index-ipB2--Eg.js:48
+(anonymous) @ index-ipB2--Eg.js:48
+z1 @ index-ipB2--Eg.js:38
+Ad @ index-ipB2--Eg.js:40
+lo @ index-ipB2--Eg.js:40
+(anonymous) @ index-ipB2--Eg.js:40
+N @ index-ipB2--Eg.js:25
+O @ index-ipB2--Eg.js:25
+bismi-main.vercel.app/:1 Access to fetch at 'https://bismi-main.onrender.com/api/orders' from origin 'https://bismi-main.vercel.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+index-ipB2--Eg.js:48 
+            
+            
+           GET https://bismi-main.onrender.com/api/orders net::ERR_FAILED
+(anonymous) @ index-ipB2--Eg.js:48
+await in (anonymous)
+i @ index-ipB2--Eg.js:48
+b @ index-ipB2--Eg.js:48
+(anonymous) @ index-ipB2--Eg.js:48
+Promise.then
+(anonymous) @ index-ipB2--Eg.js:48
+Promise.catch
+b @ index-ipB2--Eg.js:48
+start @ index-ipB2--Eg.js:48
+fetch @ index-ipB2--Eg.js:48
+_a @ index-ipB2--Eg.js:48
+onSubscribe @ index-ipB2--Eg.js:48
+subscribe @ index-ipB2--Eg.js:48
+(anonymous) @ index-ipB2--Eg.js:48
+z1 @ index-ipB2--Eg.js:38
+Ad @ index-ipB2--Eg.js:40
+lo @ index-ipB2--Eg.js:40
+(anonymous) @ index-ipB2--Eg.js:40
+N @ index-ipB2--Eg.js:25
+O @ index-ipB2--Eg.js:25

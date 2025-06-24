@@ -44,13 +44,13 @@ export default function SmartPaymentModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Filter and prepare unpaid orders
-  const unpaidOrders = orders.filter(order => 
-    order.customerId === customer.id && order.paymentStatus !== 'paid'
+  // Filter and prepare unpaid orders with safety checks
+  const unpaidOrders = (orders || []).filter(order => 
+    order && order.customerId === customer?.id && order.paymentStatus !== 'paid'
   ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && unpaidOrders) {
       // Initialize order entries with remaining balances
       const entries = unpaidOrders.map(order => ({
         order,
@@ -125,17 +125,17 @@ export default function SmartPaymentModal({
     setTotalPaymentAmount(newTotal.toString());
   };
 
-  // Calculate totals
-  const allocatedAmount = orderEntries.reduce((sum, entry) => sum + entry.requestedAmount, 0);
-  const totalPending = unpaidOrders.reduce((sum, order) => 
+  // Calculate totals with safety checks
+  const allocatedAmount = (orderEntries || []).reduce((sum, entry) => sum + (entry.requestedAmount || 0), 0);
+  const totalPending = (unpaidOrders || []).reduce((sum, order) => 
     sum + ((order.totalAmount || 0) - (order.paidAmount || 0)), 0
   );
 
   // Format order items for display
   const formatOrderItems = (items: any[]) => {
-    if (!items || items.length === 0) return 'No items';
+    if (!items || !Array.isArray(items) || items.length === 0) return 'No items';
     return items.slice(0, 2).map(item => 
-      `${item.quantity}kg ${getItemLabel(item.type)}`
+      `${item?.quantity || 0}kg ${getItemLabel(item?.type || '')}`
     ).join(', ') + (items.length > 2 ? '...' : '');
   };
 
@@ -143,8 +143,8 @@ export default function SmartPaymentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const selectedPayments = orderEntries
-      .filter(entry => entry.selected && entry.requestedAmount > 0)
+    const selectedPayments = (orderEntries || [])
+      .filter(entry => entry && entry.selected && entry.requestedAmount > 0)
       .map(entry => ({
         orderId: entry.order.id,
         amount: entry.requestedAmount,
@@ -266,7 +266,7 @@ export default function SmartPaymentModal({
               </div>
             ) : (
               <div className="space-y-3 max-h-60 overflow-y-auto">
-                {orderEntries.map((entry) => (
+                {(orderEntries || []).map((entry) => (
                   <Card key={entry.order.id} className={`transition-all ${entry.selected ? 'ring-2 ring-blue-500' : ''}`}>
                     <CardContent className="p-4">
                       <div className="flex items-center space-x-4">
@@ -345,7 +345,7 @@ export default function SmartPaymentModal({
                 variant="secondary"
                 onClick={() => {
                   // Select all orders
-                  const updatedEntries = orderEntries.map(entry => ({ ...entry, selected: true }));
+                  const updatedEntries = (orderEntries || []).map(entry => ({ ...entry, selected: true }));
                   setOrderEntries(updatedEntries);
                   const amount = parseFloat(totalPaymentAmount) || 0;
                   setTimeout(() => distributePayment(amount), 0);

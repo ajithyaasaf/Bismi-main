@@ -188,34 +188,13 @@ export default function CustomersPage() {
         variant="destructive"
       />
 
-      {paymentModalOpen && paymentCustomer && (
-        <PaymentModal
-          isOpen={paymentModalOpen}
-          onClose={closePaymentModal}
-          onSubmit={async (amount) => {
-            try {
-              await processCustomerPayment(
-                paymentCustomer.id,
-                amount,
-                `Payment from ${paymentCustomer.name}`
-              );
-
-              toast({
-                title: "Payment recorded",
-                description: `Payment of ₹${amount.toFixed(2)} has been recorded for ${paymentCustomer.name}.`,
-              });
-            } catch (error) {
-              toast({
-                title: "Error",
-                description: "Failed to record the payment. Please try again.",
-                variant: "destructive",
-              });
-              throw error;
-            }
-          }}
-          entityType="customer"
-          entityName={paymentCustomer.name}
-          currentAmount={paymentCustomer.pendingAmount}
+      {isSmartPaymentModalOpen && smartPaymentCustomer && (
+        <SmartPaymentModal
+          isOpen={isSmartPaymentModalOpen}
+          onClose={closeSmartPaymentModal}
+          onSubmit={handleSmartPaymentSubmit}
+          customer={smartPaymentCustomer}
+          orders={orders}
         />
       )}
 

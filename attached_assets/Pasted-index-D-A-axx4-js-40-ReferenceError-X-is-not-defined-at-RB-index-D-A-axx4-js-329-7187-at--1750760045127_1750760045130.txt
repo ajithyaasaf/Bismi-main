@@ -1,0 +1,54 @@
+index-D-A_axx4.js:40 ReferenceError: X is not defined
+    at RB (index-D-A_axx4.js:329:7187)
+    at ug (index-D-A_axx4.js:38:16998)
+    at CN (index-D-A_axx4.js:40:43963)
+    at NN (index-D-A_axx4.js:40:39727)
+    at DT (index-D-A_axx4.js:40:39655)
+    at nd (index-D-A_axx4.js:40:39508)
+    at Ep (index-D-A_axx4.js:40:35875)
+    at pv (index-D-A_axx4.js:40:36678)
+    at Hr (index-D-A_axx4.js:38:3274)
+    at index-D-A_axx4.js:40:34207
+xp @ index-D-A_axx4.js:40
+index-D-A_axx4.js:198 ErrorBoundary caught an error: ReferenceError: X is not defined
+    at RB (index-D-A_axx4.js:329:7187)
+    at ug (index-D-A_axx4.js:38:16998)
+    at CN (index-D-A_axx4.js:40:43963)
+    at NN (index-D-A_axx4.js:40:39727)
+    at DT (index-D-A_axx4.js:40:39655)
+    at nd (index-D-A_axx4.js:40:39508)
+    at Ep (index-D-A_axx4.js:40:35875)
+    at pv (index-D-A_axx4.js:40:36678)
+    at Hr (index-D-A_axx4.js:38:3274)
+    at index-D-A_axx4.js:40:34207 Object
+componentDidCatch @ index-D-A_axx4.js:198
+index-D-A_axx4.js:198 Production error: Object
+
+index-D-A_axx4.js:40 ReferenceError: Badge is not defined
+    at lW (index-D-A_axx4.js:896:9988)
+    at ug (index-D-A_axx4.js:38:16998)
+    at CN (index-D-A_axx4.js:40:43963)
+    at NN (index-D-A_axx4.js:40:39727)
+    at DT (index-D-A_axx4.js:40:39655)
+    at nd (index-D-A_axx4.js:40:39508)
+    at Ep (index-D-A_axx4.js:40:35875)
+    at pv (index-D-A_axx4.js:40:36678)
+    at Hr (index-D-A_axx4.js:38:3274)
+    at index-D-A_axx4.js:40:34207
+index-D-A_axx4.js:198 ErrorBoundary caught an error: ReferenceError: Badge is not defined
+    at lW (index-D-A_axx4.js:896:9988)
+    at ug (index-D-A_axx4.js:38:16998)
+    at CN (index-D-A_axx4.js:40:43963)
+    at NN (index-D-A_axx4.js:40:39727)
+    at DT (index-D-A_axx4.js:40:39655)
+    at nd (index-D-A_axx4.js:40:39508)
+    at Ep (index-D-A_axx4.js:40:35875)
+    at pv (index-D-A_axx4.js:40:36678)
+    at Hr (index-D-A_axx4.js:38:3274)
+    at index-D-A_axx4.js:40:34207 
+{componentStack: '\n    at lW (https://bismi-main.vercel.app/assets/i….app/assets/index-D-A_axx4.js:198:1388)\n    at l9'}
+index-D-A_axx4.js:198 Production error: 
+{error: ReferenceError: Badge is not defined
+    at lW (https://bismi-main.vercel.app/assets/index-D-A_axx4…, errorInfo: {…}}
+﻿
+

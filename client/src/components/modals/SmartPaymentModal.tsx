@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Customer, Order } from '@shared/types';
 import { format } from 'date-fns';
 import { getItemLabel } from '@shared/constants';
+import { X } from 'lucide-react';
 
 interface SmartPaymentModalProps {
   isOpen: boolean;

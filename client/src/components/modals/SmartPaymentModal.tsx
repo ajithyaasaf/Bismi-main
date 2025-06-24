@@ -233,8 +233,17 @@ export default function SmartPaymentModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="w-[95vw] max-w-4xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader className="space-y-2">
-          <DialogTitle className="text-lg sm:text-xl font-semibold leading-tight">
+        <DialogHeader className="space-y-2 relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClose}
+            className="absolute -top-2 -right-2 h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+          <DialogTitle className="text-lg sm:text-xl font-semibold leading-tight pr-8">
             Smart Payment - {customer.name}
           </DialogTitle>
           <DialogDescription className="text-sm text-gray-600">

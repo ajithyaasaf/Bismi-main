@@ -11,7 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { format, addDays, parseISO } from 'date-fns';
-import { Download, Eye, Printer, Mail, Settings, FileText, AlertTriangle } from 'lucide-react';
+import { Download, Eye, Printer, Mail, Settings, FileText, AlertTriangle, X } from 'lucide-react';
 import InvoiceTemplate from './InvoiceTemplate';
 import { generateCustomerInvoicePDF, InvoiceData } from './ReactPDFInvoice';
 
@@ -234,8 +234,17 @@ export function CustomerInvoice({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-[95vw] max-w-7xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader className="space-y-2">
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold leading-tight">
+        <DialogHeader className="space-y-2 relative">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="absolute -top-2 -right-2 h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold leading-tight pr-8">
             <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
             <span className="truncate">Invoice - {customer.name}</span>
           </DialogTitle>
@@ -244,18 +253,18 @@ export function CustomerInvoice({
 
 
         <Tabs defaultValue="preview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto mb-4">
-            <TabsTrigger value="preview" className="text-xs sm:text-sm px-2 py-3 sm:py-2">
+          <TabsList className="grid w-full grid-cols-3 h-auto mb-4 bg-gray-100 p-1 rounded-lg">
+            <TabsTrigger value="preview" className="text-xs sm:text-sm px-2 py-3 sm:py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
               <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Preview</span>
               <span className="sm:hidden">View</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs sm:text-sm px-2 py-3 sm:py-2">
+            <TabsTrigger value="settings" className="text-xs sm:text-sm px-2 py-3 sm:py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
               <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Settings</span>
               <span className="sm:hidden">Config</span>
             </TabsTrigger>
-            <TabsTrigger value="actions" className="text-xs sm:text-sm px-2 py-3 sm:py-2">
+            <TabsTrigger value="actions" className="text-xs sm:text-sm px-2 py-3 sm:py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
               <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               <span className="hidden sm:inline">Actions</span>
               <span className="sm:hidden">Export</span>
@@ -471,96 +480,119 @@ export function CustomerInvoice({
             </div>
           </TabsContent>
 
-          <TabsContent value="actions" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-              {/* Quick Actions */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm sm:text-base">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 sm:space-y-3">
-                  <Button
-                    onClick={handleGeneratePDF}
-                    disabled={isGenerating}
-                    className="w-full h-8 sm:h-10 text-xs sm:text-sm"
-                  >
-                    <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                    {isGenerating ? 'Generating...' : 'Download PDF'}
-                  </Button>
+          <TabsContent value="actions" className="mt-4 sm:mt-6 space-y-4">
+            {/* Mobile-First Action Buttons */}
+            <Card className="border-orange-200 bg-orange-50/30">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-orange-800">
+                  <Download className="h-4 w-4" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  onClick={handleGeneratePDF}
+                  disabled={isGenerating}
+                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm shadow-sm"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  {isGenerating ? 'Generating PDF...' : 'Download PDF Invoice'}
+                </Button>
 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <Button
                     onClick={handlePrint}
                     variant="outline"
-                    className="w-full h-8 sm:h-10 text-xs sm:text-sm"
+                    className="h-11 border-gray-300 hover:bg-gray-50 font-medium"
                   >
-                    <Printer className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                    <Printer className="h-4 w-4 mr-2" />
                     Print Invoice
                   </Button>
 
                   <Button
                     variant="outline"
-                    className="w-full h-8 sm:h-10 text-xs sm:text-sm"
+                    className="h-11 border-gray-300 hover:bg-gray-50 font-medium"
                     onClick={() => toast({
                       title: "Feature Coming Soon",
                       description: "Email functionality will be available in the next update."
                     })}
                   >
-                    <Mail className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                    <Mail className="h-4 w-4 mr-2" />
                     Email Invoice
                   </Button>
-                </CardContent>
-              </Card>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Invoice Information */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm sm:text-base">Invoice Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 sm:space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
-                    <span className="text-gray-600">Invoice #:</span>
-                    <span className="font-mono break-all">{invoiceNumber}</span>
-                    
-                    <span className="text-gray-600">Date:</span>
-                    <span>{format(parseISO(currentDate), 'dd/MM/yyyy')}</span>
-                    
-                    <span className="text-gray-600">Due Date:</span>
-                    <span>{format(parseISO(settings.dueDate), 'dd/MM/yyyy')}</span>
-                    
-                    <span className="text-gray-600">Customer:</span>
-                    <span className="truncate">{customer.name}</span>
-                    
-                    <span className="text-gray-600">Type:</span>
-                    <span className="capitalize">{customer.type}</span>
+            {/* Mobile-Optimized Invoice Information */}
+            <Card className="border-gray-200 bg-gray-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm sm:text-base flex items-center gap-2 text-gray-800">
+                  <FileText className="h-4 w-4" />
+                  Invoice Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="bg-white p-3 rounded-lg border">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <span className="text-gray-600 font-medium">Invoice #:</span>
+                      <span className="font-mono text-blue-800 break-all">{invoiceNumber}</span>
+                      
+                      <span className="text-gray-600 font-medium">Date:</span>
+                      <span>{format(parseISO(currentDate), 'dd/MM/yyyy')}</span>
+                      
+                      <span className="text-gray-600 font-medium">Due Date:</span>
+                      <span className="text-orange-600 font-medium">{format(parseISO(settings.dueDate), 'dd/MM/yyyy')}</span>
+                      
+                      <span className="text-gray-600 font-medium">Customer:</span>
+                      <span className="truncate font-medium">{customer.name}</span>
+                      
+                      <span className="text-gray-600 font-medium">Type:</span>
+                      <Badge variant="secondary" className="w-fit justify-self-start">
+                        {customer.type}
+                      </Badge>
+                    </div>
                   </div>
 
                   {unpaidOrders.length > 0 && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 sm:p-3">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                       <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-600" />
-                        <span className="text-xs sm:text-sm font-medium text-yellow-800">
-                          {unpaidOrders.length} unpaid order(s)
+                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                        <span className="text-sm font-medium text-yellow-800">
+                          {unpaidOrders.length} unpaid order{unpaidOrders.length > 1 ? 's' : ''} found
                         </span>
                       </div>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        These orders will be highlighted in the invoice
+                      </p>
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
 
-        <Separator />
-
-        <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
-            Close
-          </Button>
-          <Button onClick={handleGeneratePDF} disabled={isGenerating} className="w-full sm:w-auto">
-            <Download className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Generate PDF</span>
-            <span className="sm:hidden">PDF</span>
-          </Button>
+        {/* Mobile-Optimized Sticky Footer */}
+        <div className="sticky bottom-0 bg-white border-t pt-4 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-t-0 sm:pt-0 sm:static">
+          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+            <Button 
+              variant="outline" 
+              onClick={onClose} 
+              className="h-12 sm:h-10 order-2 sm:order-1 border-gray-300"
+            >
+              Close Invoice
+            </Button>
+            <Button 
+              onClick={handleGeneratePDF} 
+              disabled={isGenerating} 
+              className="h-12 sm:h-10 order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white font-medium"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              {isGenerating ? 'Generating...' : 'Generate PDF'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

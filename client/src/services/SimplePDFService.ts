@@ -239,7 +239,7 @@ export class SimplePDFService {
     const totalPending = customer.pendingAmount || 0;
     const ordersGrandTotal = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
     const paidAmount = Math.max(0, ordersGrandTotal - totalPending);
-    const taxAmount = ordersGrandTotal * 0.05;
+
 
     // Check for overdue orders
     const overdueOrders = filteredOrders.filter(order => {
@@ -707,12 +707,8 @@ export class SimplePDFService {
             <table class="totals-table">
                 <tbody>
                     <tr>
-                        <td class="label">Subtotal:</td>
-                        <td class="value">₹${(ordersGrandTotal - taxAmount).toFixed(2)}</td>
-                    </tr>
-                    <tr>
-                        <td class="label">Tax (5%):</td>
-                        <td class="value">₹${taxAmount.toFixed(2)}</td>
+                        <td class="label">Total Amount:</td>
+                        <td class="value">₹${ordersGrandTotal.toFixed(2)}</td>
                     </tr>
                     <tr>
                         <td class="label">Paid Amount:</td>

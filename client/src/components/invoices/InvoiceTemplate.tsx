@@ -77,7 +77,6 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
   const paidThroughRecordedPayments = Math.max(0, ordersGrandTotal - totalPending - totalPaid);
   const adjustedTotalPaid = totalPaid + paidThroughRecordedPayments;
   const grandTotal = totalPending + adjustedTotalPaid;
-  const taxAmount = grandTotal * 0.05;
 
   // Check for overdue orders
   const overdueOrders = filteredOrders.filter(order => {
@@ -248,12 +247,8 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
           <table className="w-full border border-gray-300">
             <tbody>
               <tr>
-                <td className="border border-gray-300 p-2 lg:p-3 text-right font-semibold text-xs lg:text-sm">Subtotal:</td>
-                <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono text-xs lg:text-sm">{formatCurrency(grandTotal - taxAmount)}</td>
-              </tr>
-              <tr>
-                <td className="border border-gray-300 p-2 lg:p-3 text-right font-semibold text-xs lg:text-sm">Tax (5%):</td>
-                <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono text-xs lg:text-sm">{formatCurrency(taxAmount)}</td>
+                <td className="border border-gray-300 p-2 lg:p-3 text-right font-semibold text-xs lg:text-sm">Total Amount:</td>
+                <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono text-xs lg:text-sm">{formatCurrency(grandTotal)}</td>
               </tr>
               <tr>
                 <td className="border border-gray-300 p-2 lg:p-3 text-right font-semibold text-xs lg:text-sm">Paid Amount:</td>

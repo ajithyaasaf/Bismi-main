@@ -711,10 +711,9 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       // Create the order
       const order = await storage.createOrder(validatedData);
       
-      // Auto-deduct inventory for confirmed orders
-      if (order.orderStatus === 'confirmed') {
-        await inventoryManager.deductStock(validatedData.items, order.id);
-      }
+      // Auto-deduct inventory for all orders (business rule: deduct stock immediately)
+      console.log(`Deducting stock for order ${order.id} with status: ${order.orderStatus}`);
+      await inventoryManager.deductStock(validatedData.items, order.id);
       
       // Update customer's pending amount if payment is pending
       if (order.paymentStatus === 'pending') {

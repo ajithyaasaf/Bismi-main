@@ -2,7 +2,7 @@ import { z } from "zod";
 
 // Base validation schemas with comprehensive sanitization
 export const sanitizeString = (str: string) => str.trim().replace(/[<>]/g, '');
-export const sanitizeNumber = (num: number) => Math.abs(Number(num)) || 0;
+export const sanitizeNumber = (num: number) => Number(num) || 0;
 export const sanitizeAmount = (amount: number) => Math.round(Math.abs(Number(amount)) * 100) / 100;
 
 // Enhanced validation schemas with sanitization
@@ -33,9 +33,8 @@ export const inventoryValidationSchema = z.object({
     .max(50, "Item type too long")
     .transform(sanitizeString),
   quantity: z.number()
-    .min(0, "Quantity cannot be negative")
-    .max(100000, "Quantity too large")
-    .transform(sanitizeNumber),
+    .min(-100000, "Quantity too low")
+    .max(100000, "Quantity too large"),
   unit: z.string()
     .max(20, "Unit too long")
     .transform(sanitizeString)

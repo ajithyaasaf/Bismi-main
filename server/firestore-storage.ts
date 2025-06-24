@@ -535,16 +535,8 @@ export class FirestoreStorage implements IStorage {
         }
       }
 
-      // Update inventory quantities for ordered items
-      for (const item of order.items) {
-        const allInventory = await this.getAllInventory();
-        const inventoryItem = allInventory.find(inv => inv.type === item.type);
-        
-        if (inventoryItem) {
-          const newQuantity = inventoryItem.quantity - item.quantity;
-          await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
-        }
-      }
+      // Note: Inventory deduction is now handled by InventoryManager in routes.ts
+      // This ensures proper validation, rollback, and transaction logging
 
       // Create transaction record for order
       await this.createTransaction({

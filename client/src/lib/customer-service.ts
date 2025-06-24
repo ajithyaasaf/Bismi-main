@@ -60,15 +60,13 @@ export async function processCustomerPayment(customerId: string, amount: number,
     const result = await safeJsonResponse(response);
     
     // Invalidate all related cache keys for dynamic updates
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
-      queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] })
-    ]);
+    queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] });
     
     return result;
   } catch (error) {

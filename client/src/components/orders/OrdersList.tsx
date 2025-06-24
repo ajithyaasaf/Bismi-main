@@ -71,18 +71,49 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
 
   // Handle payment submission
   const handlePaymentSubmit = async (amount: number, orderId: string) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
+    try {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) {
+        toast({
+          title: "Error",
+          description: "Order not found",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const customer = getCustomer(order.customerId);
-    if (!customer) return;
+      const customer = getCustomer(order.customerId);
+      if (!customer) {
+        toast({
+          title: "Error", 
+          description: "Customer not found",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    await processCustomerPayment(
-      customer.id,
-      amount,
-      `Payment for order #${orderId}`,
-      orderId // Target specific order
-    );
+      await processCustomerPayment(
+        customer.id,
+        amount,
+        `Payment for order #${orderId}`,
+        orderId // Target specific order
+      );
+
+      toast({
+        title: "Payment processed",
+        description: `Payment of ₹${amount.toFixed(2)} recorded successfully`,
+        variant: "default",
+      });
+
+      setPaymentOrder(null);
+    } catch (error) {
+      console.error('Payment submission error:', error);
+      toast({
+        title: "Payment failed",
+        description: "Failed to process payment. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
   
   // Format items for display

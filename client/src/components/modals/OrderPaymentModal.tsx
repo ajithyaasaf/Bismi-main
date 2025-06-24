@@ -56,13 +56,11 @@ export default function OrderPaymentModal({
       await onSubmit(paymentAmount, order.id);
       setAmount('');
       onClose();
-      toast({
-        title: "Payment recorded",
-        description: `Payment of ₹${paymentAmount.toFixed(2)} recorded for order.`,
-      });
+      // Note: Success toast is now handled in OrdersList component to prevent duplicates
     } catch (error) {
+      console.error('Payment modal error:', error);
       toast({
-        title: "Error",
+        title: "Payment failed",
         description: "Failed to record payment. Please try again.",
         variant: "destructive",
       });

@@ -234,125 +234,127 @@ export function CustomerInvoice({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-7xl max-h-[95vh] overflow-y-auto p-3 sm:p-6">
-        <DialogHeader className="space-y-2 relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onClose}
-            className="absolute -top-2 -right-2 h-8 w-8 p-0 hover:bg-gray-100 rounded-full"
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </Button>
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-semibold leading-tight pr-8">
-            <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
-            <span className="truncate">Invoice - {customer.name}</span>
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="w-[98vw] sm:w-[95vw] md:w-[92vw] lg:w-[90vw] xl:w-[85vw] max-w-7xl h-[98vh] sm:h-[95vh] md:h-[92vh] overflow-hidden p-0">
+        <div className="flex flex-col h-full">
+          <DialogHeader className="flex-shrink-0 p-4 sm:p-6 border-b bg-white relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 h-9 w-9 p-0 hover:bg-gray-100 rounded-full z-10"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </Button>
+            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl lg:text-2xl font-semibold leading-tight pr-12">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+              <span className="truncate">Invoice - {customer.name}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto p-4 sm:p-6">
 
 
 
-        <Tabs defaultValue="preview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto mb-4 bg-gray-100 p-1 rounded-lg">
-            <TabsTrigger value="preview" className="text-xs sm:text-sm px-2 py-3 sm:py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
-              <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Preview</span>
-              <span className="sm:hidden">View</span>
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="text-xs sm:text-sm px-2 py-3 sm:py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
-              <Settings className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Settings</span>
-              <span className="sm:hidden">Config</span>
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="text-xs sm:text-sm px-2 py-3 sm:py-2 rounded-md data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all">
-              <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Actions</span>
-              <span className="sm:hidden">Export</span>
-            </TabsTrigger>
-          </TabsList>
+              <Tabs defaultValue="preview" className="w-full h-full flex flex-col">
+                <TabsList className="grid w-full grid-cols-3 h-auto mb-4 bg-gradient-to-r from-gray-100 to-blue-50 p-1 rounded-xl shadow-sm">
+                  <TabsTrigger value="preview" className="text-xs sm:text-sm md:text-base px-2 py-3 md:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium">
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Preview</span>
+                    <span className="sm:hidden">View</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base px-2 py-3 md:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium">
+                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Settings</span>
+                    <span className="sm:hidden">Config</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="actions" className="text-xs sm:text-sm md:text-base px-2 py-3 md:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium">
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 sm:mr-2" />
+                    <span className="hidden sm:inline">Actions</span>
+                    <span className="sm:hidden">Export</span>
+                  </TabsTrigger>
+                </TabsList>
 
-          <TabsContent value="preview" className="mt-4 sm:mt-6">
-            <div className="space-y-3 sm:space-y-4">
-              {/* Mobile-Optimized Quick Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-2 sm:p-4">
-                    <div className="text-center">
-                      <div className="text-base sm:text-2xl font-bold text-blue-600">
-                        ₹{totalAmount.toFixed(2)}
-                      </div>
-                      <p className="text-xs text-gray-600">Total Value</p>
+                <TabsContent value="preview" className="flex-1 flex flex-col space-y-4 md:space-y-6 min-h-0">
+                  {/* Enhanced Quick Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                    <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-md transition-all duration-200">
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-center">
+                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-blue-600">
+                            ₹{totalAmount.toFixed(2)}
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-600 font-medium">Total Value</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100 hover:shadow-md transition-all duration-200">
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-center">
+                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-red-600">
+                            ₹{pendingAmount.toFixed(2)}
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-600 font-medium">Pending</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-md transition-all duration-200">
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-center">
+                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-green-600">
+                            {relevantOrders.length}
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-600 font-medium">Orders</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-md transition-all duration-200">
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-center">
+                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-orange-600">
+                            {unpaidOrders.length}
+                          </div>
+                          <p className="text-xs md:text-sm text-gray-600 font-medium">Unpaid</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Enhanced PDF Generation Progress */}
+                  {isGenerating && (
+                    <Card className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
+                      <CardContent className="p-4 md:p-6">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="animate-spin h-5 w-5 md:h-6 md:w-6 border-3 border-blue-600 border-t-transparent rounded-full"></div>
+                            <p className="text-sm md:text-base font-semibold text-blue-800">Generating PDF Invoice...</p>
+                            <span className="text-sm md:text-base text-blue-600 ml-auto font-bold">{Math.round(generationProgress)}%</span>
+                          </div>
+                          <Progress value={generationProgress} className="h-3 md:h-4" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Responsive Invoice Preview */}
+                  <div className="flex-1 border-2 rounded-xl overflow-hidden bg-white shadow-lg min-h-0">
+                    <div className="h-full overflow-y-auto">
+                      <InvoiceTemplate
+                        customer={customer}
+                        orders={orders}
+                        currentDate={currentDate}
+                        invoiceNumber={invoiceNumber}
+                        dueDate={settings.dueDate}
+                        showPaid={settings.showPaid}
+                        overdueThresholdDays={settings.overdueThresholdDays}
+                        payments={transactions}
+                        businessInfo={settings.businessInfo}
+                        paymentInfo={settings.paymentInfo}
+                      />
                     </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-red-200 bg-red-50">
-                  <CardContent className="p-2 sm:p-4">
-                    <div className="text-center">
-                      <div className="text-base sm:text-2xl font-bold text-red-600">
-                        ₹{pendingAmount.toFixed(2)}
-                      </div>
-                      <p className="text-xs text-gray-600">Pending</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-green-200 bg-green-50">
-                  <CardContent className="p-2 sm:p-4">
-                    <div className="text-center">
-                      <div className="text-base sm:text-2xl font-bold text-green-600">
-                        {relevantOrders.length}
-                      </div>
-                      <p className="text-xs text-gray-600">Orders</p>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-orange-200 bg-orange-50">
-                  <CardContent className="p-2 sm:p-4">
-                    <div className="text-center">
-                      <div className="text-base sm:text-2xl font-bold text-orange-600">
-                        {unpaidOrders.length}
-                      </div>
-                      <p className="text-xs text-gray-600">Unpaid</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Mobile-Optimized PDF Generation Progress */}
-              {isGenerating && (
-                <Card className="border-blue-200 bg-blue-50">
-                  <CardContent className="p-3">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                        <p className="text-sm font-medium text-blue-800">Generating PDF...</p>
-                        <span className="text-sm text-blue-600 ml-auto">{Math.round(generationProgress)}%</span>
-                      </div>
-                      <Progress value={generationProgress} className="h-2" />
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Mobile-Optimized Invoice Preview */}
-              <div className="border rounded-lg overflow-hidden bg-white">
-                <div className="max-h-[60vh] sm:max-h-[70vh] overflow-y-auto">
-                  <InvoiceTemplate
-                    customer={customer}
-                    orders={orders}
-                    currentDate={currentDate}
-                    invoiceNumber={invoiceNumber}
-                    dueDate={settings.dueDate}
-                    showPaid={settings.showPaid}
-                    overdueThresholdDays={settings.overdueThresholdDays}
-                    payments={transactions}
-                    businessInfo={settings.businessInfo}
-                    paymentInfo={settings.paymentInfo}
-                  />
-                </div>
-              </div>
-            </div>
-          </TabsContent>
+                  </div>
+                </TabsContent>
 
           <TabsContent value="settings" className="mt-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
@@ -573,26 +575,29 @@ export function CustomerInvoice({
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
-
-        {/* Mobile-Optimized Sticky Footer */}
-        <div className="sticky bottom-0 bg-white border-t pt-4 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-t-0 sm:pt-0 sm:static">
-          <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
-            <Button 
-              variant="outline" 
-              onClick={onClose} 
-              className="h-12 sm:h-10 order-2 sm:order-1 border-gray-300"
-            >
-              Close Invoice
-            </Button>
-            <Button 
-              onClick={handleGeneratePDF} 
-              disabled={isGenerating} 
-              className="h-12 sm:h-10 order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              {isGenerating ? 'Generating...' : 'Generate PDF'}
-            </Button>
+              </Tabs>
+            </div>
+          </div>
+          
+          {/* Enhanced Sticky Footer */}
+          <div className="flex-shrink-0 border-t bg-gradient-to-r from-gray-50 to-blue-50 p-4 md:p-6">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 sm:justify-end">
+              <Button 
+                variant="outline" 
+                onClick={onClose} 
+                className="h-12 md:h-14 order-2 sm:order-1 border-2 font-medium text-sm md:text-base"
+              >
+                Close Invoice
+              </Button>
+              <Button 
+                onClick={handleGeneratePDF} 
+                disabled={isGenerating} 
+                className="h-12 md:h-14 order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm md:text-base px-6 md:px-8"
+              >
+                <Download className="h-4 w-4 md:h-5 md:w-5 mr-2" />
+                {isGenerating ? 'Generating PDF...' : 'Generate PDF Invoice'}
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

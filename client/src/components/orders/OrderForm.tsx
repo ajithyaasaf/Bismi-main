@@ -216,7 +216,6 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         }
         
         validItems.push({
-          itemId: inventoryItem?.id || '', // Allow empty itemId if no inventory exists
           type: item.type,
           quantity,
           rate,

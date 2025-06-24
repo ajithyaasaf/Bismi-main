@@ -116,7 +116,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
     }
   };
   
-  // Format items for display
+  // Format items for display with proper property access
   const formatItems = (items: OrderItem[]) => {
     if (items.length === 0) return 'No items';
     

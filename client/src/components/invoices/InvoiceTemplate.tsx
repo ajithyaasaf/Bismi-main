@@ -107,9 +107,9 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
           
         const itemType = item.type || (typeof item.itemId === 'string' && item.itemId.length > 0 ? 'item' : 'product');
         
-        const rate = typeof item.price === 'number' ? 
-          item.price.toFixed(2) : 
-          (item.price || '0');
+        const rate = typeof item.rate === 'number' ? 
+          item.rate.toFixed(2) : 
+          (item.rate || '0');
           
         const details = item.details ? ` (${item.details})` : '';
         

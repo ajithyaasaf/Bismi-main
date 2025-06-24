@@ -133,7 +133,7 @@ export default function CustomersList({
                     onClick={() => onPayment(customer.id, customer.name)}
                   >
                     <i className="fas fa-money-bill-wave mr-2"></i>
-                    Record Payment
+                    Smart Payment
                   </Button>
                 )}
                 
@@ -216,14 +216,23 @@ export default function CustomersList({
                         <i className="fas fa-trash"></i>
                       </Button>
                       {customer.pendingAmount > 0 && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-green-600" 
-                          onClick={() => onPayment(customer.id, customer.name)}
-                        >
-                          <i className="fas fa-money-bill-wave"></i>
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-green-600 hover:bg-green-50" 
+                                onClick={() => onPayment(customer.id, customer.name)}
+                              >
+                                <i className="fas fa-money-bill-wave"></i>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Smart Payment Allocation</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       <TooltipProvider>
                         <Tooltip>

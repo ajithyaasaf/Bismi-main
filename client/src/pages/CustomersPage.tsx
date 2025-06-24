@@ -9,7 +9,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { processCustomerPayment } from "@/lib/customer-service";
 import CustomerForm from "@/components/customers/CustomerForm";
 import CustomersList from "@/components/customers/CustomersList";
-import PaymentModal from "@/components/modals/PaymentModal";
+import SmartPaymentModal from "@/components/modals/SmartPaymentModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { CustomerInvoice } from "@/components/invoices/CustomerInvoice";
 import { CustomersSkeleton } from "@/components/skeletons";
@@ -20,9 +20,8 @@ export default function CustomersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [paymentCustomer, setPaymentCustomer] = useState<{id: string, name: string, pendingAmount: number} | null>(null);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
+  const [smartPaymentCustomer, setSmartPaymentCustomer] = useState<Customer | null>(null);
+  const [isSmartPaymentModalOpen, setIsSmartPaymentModalOpen] = useState(false);
   const [invoiceCustomer, setInvoiceCustomer] = useState<Customer | null>(null);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
 
@@ -95,16 +94,50 @@ export default function CustomersPage() {
     queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
   };
 
-  const handleMakePayment = (customer: {id: string, name: string, pendingAmount: number}) => {
-    setPaymentCustomer(customer);
-    setPaymentModalOpen(true);
+  const handleMakePayment = (customerId: string, customerName: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    if (customer) {
+      setSmartPaymentCustomer(customer);
+      setIsSmartPaymentModalOpen(true);
+    }
   };
 
-  const closePaymentModal = () => {
-    setPaymentModalOpen(false);
-    setPaymentCustomer(null);
-    queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
-    queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+  const handleSmartPaymentSubmit = async (payments: Array<{orderId: string, amount: number, description: string}>) => {
+    if (!smartPaymentCustomer) return;
+
+    try {
+      // Process multiple order payments in sequence
+      for (const payment of payments) {
+        await processCustomerPayment(
+          smartPaymentCustomer.id, 
+          payment.amount, 
+          payment.description,
+          payment.orderId
+        );
+      }
+      
+      setIsSmartPaymentModalOpen(false);
+      setSmartPaymentCustomer(null);
+      
+      // Invalidate all related queries
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      
+    } catch (error) {
+      console.error('Smart payment failed:', error);
+      toast({
+        title: "Payment failed",
+        description: "Failed to process payment allocation. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to let modal handle the error
+    }
+  };
+
+  const closeSmartPaymentModal = () => {
+    setIsSmartPaymentModalOpen(false);
+    setSmartPaymentCustomer(null);
   };
 
   const handleGenerateInvoice = (customer: Customer) => {
@@ -134,14 +167,7 @@ export default function CustomersPage() {
         customers={customers}
         onEdit={handleEditCustomer}
         onDelete={handleDeleteCustomer}
-        onPayment={(customerId, customerName) => {
-          const customer = customers.find(c => c.id === customerId);
-          if (customer) handleMakePayment({
-            id: customer.id,
-            name: customer.name,
-            pendingAmount: customer.pendingAmount
-          });
-        }}
+        onPayment={handleMakePayment}
         onGenerateInvoice={handleGenerateInvoice}
       />
 

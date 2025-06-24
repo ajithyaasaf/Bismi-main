@@ -33,38 +33,16 @@ export default function OrderPaymentModal({
     e.preventDefault();
     
     const paymentAmount = parseFloat(amount);
-    
-    // Enhanced validation
     if (!paymentAmount || paymentAmount <= 0) {
       toast({
         title: "Invalid amount",
-        description: "Please enter a valid payment amount greater than ₹0.",
+        description: "Please enter a valid payment amount.",
         variant: "destructive",
       });
       return;
     }
 
-    if (paymentAmount > 1000000) {
-      toast({
-        title: "Amount too large",
-        description: "Payment amount cannot exceed ₹10,00,000.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Precision check
-    const roundedAmount = Math.round(paymentAmount * 100) / 100;
-    if (roundedAmount !== paymentAmount) {
-      toast({
-        title: "Invalid precision",
-        description: "Payment amount can only have up to 2 decimal places.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (roundedAmount > remainingBalance) {
+    if (paymentAmount > remainingBalance) {
       toast({
         title: "Amount exceeds balance",
         description: `Payment amount cannot exceed remaining balance of ₹${remainingBalance.toFixed(2)}.`,

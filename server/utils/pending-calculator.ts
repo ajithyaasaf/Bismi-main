@@ -1,5 +1,4 @@
 import { IStorage } from '../storage';
-import { MoneyUtils } from '../../shared/money-utils';
 
 /**
  * Mathematical utility for accurate pending amount calculations
@@ -67,7 +66,7 @@ export class PendingAmountCalculator {
       
       // Calculate total payments (reduces debt)
       const payments = transactions
-        .filter(t => t.type === 'supplier_payment')
+        .filter(t => t.type === 'payment')
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       
       // If no initial_debt transaction exists but there are other transactions,
@@ -117,7 +116,7 @@ export class PendingAmountCalculator {
 
   /**
    * Sync customer's stored pending amount with calculated amount
-   * Ensures database consistency with improved data integrity checks
+   * Ensures database consistency
    */
   async syncCustomerPendingAmount(customerId: string): Promise<number> {
     try {
@@ -131,159 +130,108 @@ export class PendingAmountCalculator {
       const calculatedAmount = await this.calculateCustomerPendingAmount(customerId);
       console.log(`Calculated pending amount: ₹${calculatedAmount}`);
       
-      // Enhanced data integrity validation
-      const orders = await this.storage.getOrdersByCustomer(customerId);
-      const unpaidOrders = orders.filter(o => o.paymentStatus !== 'paid');
-      
-      // Validate order data integrity
-      let hasCorruptedOrders = false;
-      for (const order of unpaidOrders) {
-        if (!order.totalAmount || order.totalAmount <= 0 || 
-            (order.paidAmount && order.paidAmount < 0)) {
-          console.error(`Corrupted order detected: ${order.id}`, {
-            totalAmount: order.totalAmount,
-            paidAmount: order.paidAmount,
-            paymentStatus: order.paymentStatus
-          });
-          hasCorruptedOrders = true;
+      // CRITICAL BUG FIX: Prevent erroneous zero amounts
+      if (currentStoredAmount > 0 && calculatedAmount === 0) {
+        const orders = await this.storage.getOrdersByCustomer(customerId);
+        console.log(`WARNING: Calculated amount is 0 but stored amount was ₹${currentStoredAmount}`);
+        console.log(`Customer has ${orders.length} orders total`);
+        
+        // If there are no orders but customer had pending amount, preserve it
+        if (orders.length === 0) {
+          console.log(`No orders found - preserving stored pending amount of ₹${currentStoredAmount}`);
+          return currentStoredAmount;
+        }
+        
+        // If orders exist but calculation shows 0, investigate further
+        const unpaidOrders = orders.filter(o => o.paymentStatus !== 'paid');
+        console.log(`Found ${unpaidOrders.length} unpaid orders`);
+        
+        if (unpaidOrders.length > 0) {
+          console.log(`ERROR: Orders exist but calculation shows 0 - this indicates a data inconsistency`);
+          console.log(`Preserving stored amount of ₹${currentStoredAmount} to prevent data loss`);
+          return currentStoredAmount;
         }
       }
       
-      if (hasCorruptedOrders) {
-        console.error(`Data corruption detected - manual intervention required for customer ${customerId}`);
-        // Don't update pending amount if data is corrupted
-        return currentStoredAmount;
-      }
-      
-      // Precision handling using money utilities
-      const roundedCalculatedAmount = MoneyUtils.round(calculatedAmount);
-      
-      await this.storage.updateCustomer(customerId, { pendingAmount: roundedCalculatedAmount });
-      console.log(`Updated customer pending amount to: ₹${roundedCalculatedAmount}`);
+      await this.storage.updateCustomer(customerId, { pendingAmount: calculatedAmount });
+      console.log(`Updated customer pending amount to: ₹${calculatedAmount}`);
       console.log(`--- SYNC PENDING AMOUNT END ---\n`);
       
-      return roundedCalculatedAmount;
+      return calculatedAmount;
     } catch (error) {
       console.error(`Error syncing pending amount for customer ${customerId}:`, error);
-      // Return current stored amount on error to prevent data loss
-      const customer = await this.storage.getCustomer(customerId);
-      return customer?.pendingAmount || 0;
+      return 0;
     }
   }
 
   /**
    * Sync supplier's stored pending amount with calculated amount
-   * Ensures database consistency with enhanced error handling
+   * Ensures database consistency
    */
   async syncSupplierPendingAmount(supplierId: string): Promise<number> {
     try {
-      console.log(`\n--- SUPPLIER SYNC PENDING AMOUNT START ---`);
-      
-      // Get current stored amount
-      const supplier = await this.storage.getSupplier(supplierId);
-      const currentStoredAmount = supplier?.pendingAmount || 0;
-      console.log(`Current stored pending amount: ₹${currentStoredAmount}`);
-      
       const calculatedAmount = await this.calculateSupplierPendingAmount(supplierId);
-      console.log(`Calculated pending amount: ₹${calculatedAmount}`);
-      
-      // Precision handling using money utilities
-      const roundedCalculatedAmount = MoneyUtils.round(calculatedAmount);
-      
-      await this.storage.updateSupplier(supplierId, { pendingAmount: roundedCalculatedAmount });
-      console.log(`Updated supplier pending amount to: ₹${roundedCalculatedAmount}`);
-      console.log(`--- SUPPLIER SYNC PENDING AMOUNT END ---\n`);
-      
-      return roundedCalculatedAmount;
+      await this.storage.updateSupplier(supplierId, { pendingAmount: calculatedAmount });
+      return calculatedAmount;
     } catch (error) {
       console.error(`Error syncing pending amount for supplier ${supplierId}:`, error);
-      // Return current stored amount on error to prevent data loss
-      const supplier = await this.storage.getSupplier(supplierId);
-      return supplier?.pendingAmount || 0;
+      return 0;
     }
   }
 
   /**
-   * Process customer payment with atomic transaction handling
-   * Handles partial payments, overpayments, and multi-order payments with data integrity
+   * Process customer payment with order-specific partial payment tracking
+   * Handles partial payments, overpayments, and multi-order payments
    */
   async processCustomerPayment(customerId: string, paymentAmount: number, description?: string, targetOrderId?: string): Promise<{
     appliedAmount: number;
     remainingCredit: number;
     updatedOrders: string[];
   }> {
-    // Validate payment amount using money utilities
-    const validation = MoneyUtils.validatePayment(paymentAmount);
-    if (!validation.isValid) {
-      throw new Error(`Invalid payment amount: ${validation.error}`);
-    }
-    const sanitizedPayment = MoneyUtils.round(paymentAmount);
-
-    let transactionCreated = false;
-    const orderUpdates: Array<{orderId: string, originalPaidAmount: number, originalStatus: string}> = [];
-    
     try {
       console.log(`\n=== PAYMENT PROCESSING START ===`);
-      console.log(`Customer: ${customerId}, Payment: ₹${sanitizedPayment}`);
+      console.log(`Customer: ${customerId}, Payment: ₹${paymentAmount}`);
       
-      // Verify customer exists
+      // Get customer's current state before payment
       const customerBefore = await this.storage.getCustomer(customerId);
-      if (!customerBefore) {
-        throw new Error(`Customer ${customerId} not found`);
-      }
-      console.log(`Customer pending before payment: ₹${customerBefore.pendingAmount || 0}`);
+      console.log(`Customer pending before payment: ₹${customerBefore?.pendingAmount || 0}`);
       
-      // Get and validate orders
+      // Get all orders for the customer
       const orders = await this.storage.getOrdersByCustomer(customerId);
       console.log(`Found ${orders.length} orders for customer`);
-      
-      // Data integrity check on orders
-      for (const order of orders) {
-        if (!order.totalAmount || order.totalAmount <= 0) {
-          throw new Error(`Order ${order.id} has invalid totalAmount: ${order.totalAmount}`);
-        }
-        if (order.paidAmount && order.paidAmount < 0) {
-          throw new Error(`Order ${order.id} has negative paidAmount: ${order.paidAmount}`);
-        }
-      }
+      orders.forEach(order => {
+        console.log(`Order ${order.id}: Total=₹${order.totalAmount}, Paid=₹${order.paidAmount || 0}, Status=${order.paymentStatus}`);
+      });
       
       let ordersToProcess;
       if (targetOrderId) {
+        // Payment for specific order
         ordersToProcess = orders.filter(order => order.id === targetOrderId && order.paymentStatus !== 'paid');
-        if (ordersToProcess.length === 0) {
-          throw new Error(`Target order ${targetOrderId} not found or already paid`);
-        }
       } else {
+        // General payment - apply to unpaid orders (oldest first)
         ordersToProcess = orders
           .filter(order => order.paymentStatus !== 'paid')
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       }
 
-      let remainingPayment = sanitizedPayment;
+      let remainingPayment = paymentAmount;
       let appliedAmount = 0;
       const updatedOrders: string[] = [];
 
-      // Process payment with rollback capability
+      // Apply payment to orders
       for (const order of ordersToProcess) {
         if (remainingPayment <= 0) break;
 
-        const currentPaid = MoneyUtils.round(order.paidAmount || 0);
-        const totalAmount = MoneyUtils.round(order.totalAmount);
-        const remainingBalance = MoneyUtils.subtract(totalAmount, currentPaid);
+        const currentPaid = Math.max(0, order.paidAmount || 0);
+        const totalAmount = Math.max(0, order.totalAmount || 0);
+        const remainingBalance = Math.max(0, totalAmount - currentPaid);
         
-        console.log(`Processing order ${order.id}: currentPaid=₹${currentPaid}, totalAmount=₹${totalAmount}, remainingBalance=₹${remainingBalance}`);
+        console.log(`Processing order ${order.id}: currentPaid=₹${currentPaid}, totalAmount=₹${totalAmount}, remainingBalance=₹${remainingBalance}, paymentLeft=₹${remainingPayment}`);
         
         if (remainingBalance <= 0) {
           console.log(`Skipping order ${order.id} - already fully paid`);
-          continue;
+          continue; // Skip fully paid orders
         }
-
-        // Store original values for potential rollback
-        orderUpdates.push({
-          orderId: order.id,
-          originalPaidAmount: currentPaid,
-          originalStatus: order.paymentStatus
-        });
 
         if (remainingPayment >= remainingBalance) {
           // Full payment for remaining balance
@@ -293,36 +241,36 @@ export class PendingAmountCalculator {
             paidAmount: newPaidAmount,
             paymentStatus: 'paid' 
           });
-          remainingPayment = MoneyUtils.subtract(remainingPayment, remainingBalance);
-          appliedAmount = MoneyUtils.add(appliedAmount, remainingBalance);
+          remainingPayment -= remainingBalance;
+          appliedAmount += remainingBalance;
           updatedOrders.push(order.id);
         } else {
-          // Partial payment
-          const newPaidAmount = MoneyUtils.add(currentPaid, remainingPayment);
+          // Partial payment - update paidAmount and set status to partially_paid
+          const newPaidAmount = currentPaid + remainingPayment;
           console.log(`Partial payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}`);
           await this.storage.updateOrder(order.id, { 
             paidAmount: newPaidAmount,
             paymentStatus: 'partially_paid' 
           });
-          appliedAmount = MoneyUtils.add(appliedAmount, remainingPayment);
+          appliedAmount += remainingPayment;
           remainingPayment = 0;
           updatedOrders.push(order.id);
         }
       }
 
-      // Create transaction record (after successful order updates)
+      // Create transaction record
       await this.storage.createTransaction({
         entityId: customerId,
         entityType: 'customer',
-        type: 'customer_payment',
-        amount: sanitizedPayment,
+        type: 'payment',
+        amount: paymentAmount,
         description: description || `Payment from customer${targetOrderId ? ` for order #${targetOrderId}` : ''}`
       });
-      transactionCreated = true;
 
       // Sync the customer's pending amount
+      console.log(`Before sync - Applied: ₹${appliedAmount}, Remaining: ₹${remainingPayment}`);
       const newPendingAmount = await this.syncCustomerPendingAmount(customerId);
-      console.log(`Payment processed successfully - Applied: ₹${appliedAmount}, Remaining: ₹${remainingPayment}`);
+      console.log(`After sync - Customer pending amount: ₹${newPendingAmount}`);
       console.log(`=== PAYMENT PROCESSING END ===\n`);
 
       return {
@@ -332,22 +280,6 @@ export class PendingAmountCalculator {
       };
     } catch (error) {
       console.error(`Error processing payment for customer ${customerId}:`, error);
-      
-      // Rollback order updates if they were made
-      if (orderUpdates.length > 0) {
-        console.log(`Rolling back ${orderUpdates.length} order updates`);
-        for (const update of orderUpdates) {
-          try {
-            await this.storage.updateOrder(update.orderId, {
-              paidAmount: update.originalPaidAmount,
-              paymentStatus: update.originalStatus
-            });
-          } catch (rollbackError) {
-            console.error(`Failed to rollback order ${update.orderId}:`, rollbackError);
-          }
-        }
-      }
-      
       throw error;
     }
   }

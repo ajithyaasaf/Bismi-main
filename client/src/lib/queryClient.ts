@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getApiUrl, API_CONFIG } from "./config";
+import { getApiUrl } from "./config";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -44,11 +44,6 @@ export async function apiRequest(
     "Keep-Alive": "timeout=5, max=1000", // Connection reuse
     "Connection": "keep-alive"
   };
-
-  // Add API key for production authentication
-  if (API_CONFIG.IS_PRODUCTION || !API_CONFIG.IS_DEVELOPMENT) {
-    headers["x-api-key"] = API_CONFIG.API_KEY;
-  }
 
   // Enable compression
   if (!headers["Accept-Encoding"]) {
@@ -110,19 +105,12 @@ export const getQueryFn: <T>(options: {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const queryHeaders: Record<string, string> = {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        };
-
-        // Add API key for production authentication
-        if (API_CONFIG.IS_PRODUCTION || !API_CONFIG.IS_DEVELOPMENT) {
-          queryHeaders["x-api-key"] = API_CONFIG.API_KEY;
-        }
-
         const res = await fetch(url, {
           credentials: "include",
-          headers: queryHeaders,
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+          },
           mode: "cors",
           signal: controller.signal,
         });

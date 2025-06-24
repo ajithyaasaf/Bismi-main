@@ -40,19 +40,16 @@ export const PAYMENT_STATUS = [
 ] as const;
 
 export const ORDER_STATUS = [
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' }
+  { value: 'paid', label: 'Paid' },
+  { value: 'pending', label: 'Pending' }
 ] as const;
 
 export const TRANSACTION_TYPES = [
-  { value: 'customer_payment', label: 'Customer Payment' },
-  { value: 'supplier_payment', label: 'Supplier Payment' },
+  { value: 'payment', label: 'Payment' },
+  { value: 'receipt', label: 'Receipt' },
   { value: 'expense', label: 'Expense' },
   { value: 'purchase', label: 'Purchase' },
-  { value: 'initial_debt', label: 'Initial Debt' },
-  { value: 'stock_adjustment', label: 'Stock Adjustment' }
+  { value: 'initial_debt', label: 'Initial Debt' }
 ] as const;
 
 export const ENTITY_TYPES = [

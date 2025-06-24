@@ -21,7 +21,7 @@ const corsOptions = {
     : ['http://localhost:5000', 'http://127.0.0.1:5000', /\.replit\.dev$/],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-api-key'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   optionsSuccessStatus: 200
 };
 

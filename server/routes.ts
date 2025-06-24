@@ -2,61 +2,57 @@ import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager";
 import { createPendingCalculator } from "./utils/pending-calculator";
-import { DataRepairService } from "./utils/data-repair";
-import { createInventoryManager } from "./utils/inventory-manager";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
-import { 
-  supplierValidationSchema, 
-  inventoryValidationSchema, 
-  customerValidationSchema, 
-  orderValidationSchema, 
-  transactionValidationSchema,
-  paymentValidationSchema,
-  validateAndSanitizeInput,
-  validateStockAvailability,
-  validateBusinessRules,
-  createValidationError
-} from "../shared/validation";
-import { authenticateApiKey, rateLimiter, requestLogger } from "./middleware/auth";
 
-// Enhanced error handling middleware
-function handleValidationError(error: any, res: Response) {
-  if (error instanceof z.ZodError) {
-    const messages = error.errors.map(err => `${err.path.join('.')}: ${err.message}`).join(', ');
-    return res.status(400).json({ 
-      success: false,
-      message: "Validation failed", 
-      errors: messages,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  if (error.name === 'ValidationError') {
-    return res.status(400).json({ 
-      success: false,
-      message: error.message,
-      field: error.field,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  console.error("Unexpected error:", error);
-  return res.status(500).json({ 
-    success: false,
-    message: "Internal server error",
-    timestamp: new Date().toISOString()
-  });
-}
+// Validation schemas
+const insertSupplierSchema = z.object({
+  name: z.string().min(1),
+  contact: z.string().min(1),
+  pendingAmount: z.number().optional().default(0)
+});
+
+const insertInventorySchema = z.object({
+  name: z.string().optional(),
+  type: z.string().min(1),
+  quantity: z.number().min(0),
+  unit: z.string().optional().default("kg"),
+  price: z.number().min(0),
+  supplierId: z.string().optional().default("")
+});
+
+const insertCustomerSchema = z.object({
+  name: z.string().min(1),
+  contact: z.string().min(1),
+  type: z.string().min(1),
+  pendingAmount: z.number().optional().default(0)
+});
+
+const insertOrderSchema = z.object({
+  customerId: z.string().min(1),
+  items: z.array(z.object({
+    type: z.string().min(1),
+    quantity: z.number().min(1),
+    rate: z.number().min(0),
+    details: z.string().optional()
+  })),
+  totalAmount: z.number().min(0),
+  paidAmount: z.number().min(0).optional(),
+  paymentStatus: z.string().min(1),
+  orderStatus: z.string().min(1)
+});
+
+const insertTransactionSchema = z.object({
+  entityId: z.string().min(1),
+  entityType: z.string().min(1),
+  type: z.string().min(1),
+  amount: z.number(),
+  description: z.string().min(1)
+});
 
 // Use enterprise storage with Firestore exclusively
 
 export async function registerRoutes(app: Express): Promise<Server | void> {
-  // Add security and logging middleware
-  app.use('/api', requestLogger);
-  app.use('/api', rateLimiter(200, 60000)); // 200 requests per minute
-  app.use('/api', authenticateApiKey);
-  
   // Add middleware to ensure all API responses are JSON with standardized format
   app.use('/api', (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
@@ -101,16 +97,6 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   async function getPendingCalculator() {
     const storage = await getStorage();
     return createPendingCalculator(storage);
-  }
-
-  async function getInventoryManager() {
-    const storage = await getStorage();
-    return createInventoryManager(storage);
-  }
-
-  async function getDataRepairService() {
-    const storage = await getStorage();
-    return new DataRepairService(storage);
   }
 
   // Batch endpoint for multiple requests
@@ -217,39 +203,34 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/suppliers", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(supplierValidationSchema, req.body);
-      validateBusinessRules(validatedData, 'stock');
-      
+      const validatedData = insertSupplierSchema.parse(req.body);
       const storage = await getStorage();
       const supplier = await storage.createSupplier(validatedData);
-      
-      console.log(`Supplier created successfully: ${supplier.name} (ID: ${supplier.id})`);
       res.status(201).json(supplier);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to create supplier:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create supplier" });
     }
   });
 
   apiRouter.put("/suppliers/:id", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(supplierValidationSchema.partial(), req.body);
+      const validatedData = insertSupplierSchema.partial().parse(req.body);
       const storage = await getStorage();
-      
-      // Verify supplier exists
-      const existingSupplier = await storage.getSupplier(req.params.id);
-      if (!existingSupplier) {
-        return res.status(404).json({ 
-          success: false,
-          message: "Supplier not found",
-          timestamp: new Date().toISOString()
-        });
-      }
-      
       const supplier = await storage.updateSupplier(req.params.id, validatedData);
-      console.log(`Supplier updated successfully: ${supplier?.name} (ID: ${req.params.id})`);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
       res.json(supplier);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to update supplier:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update supplier" });
     }
   });
 
@@ -269,41 +250,41 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/suppliers/:id/payment", async (req: Request, res: Response) => {
     try {
-      const validatedPayment = validateAndSanitizeInput(paymentValidationSchema, req.body);
-      validateBusinessRules(validatedPayment, 'payment');
+      const { amount, description } = req.body;
       
+      if (!amount || isNaN(parseFloat(amount))) {
+        return res.status(400).json({ message: "Valid amount is required" });
+      }
+
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
       const supplier = await storage.getSupplier(req.params.id);
       
       if (!supplier) {
-        return res.status(404).json({ 
-          success: false,
-          message: "Supplier not found",
-          timestamp: new Date().toISOString()
-        });
+        return res.status(404).json({ message: "Supplier not found" });
       }
 
-      // Create supplier payment transaction with correct type
-      const transaction = await storage.createTransaction({
+      // Create transaction record
+      const transactionData = {
+        type: "payment",
+        amount: parseFloat(amount),
         entityId: req.params.id,
         entityType: "supplier",
-        type: "supplier_payment",
-        amount: validatedPayment.amount,
-        description: validatedPayment.description || `Payment to supplier: ${supplier.name}`
-      });
+        description: description || `Payment to supplier: ${supplier.name}`
+      };
 
-      // Update supplier pending amount
-      const pendingCalculator = await getPendingCalculator();
+      const transaction = await storage.createTransaction(transactionData);
+
+      // Recalculate and sync supplier pending amount
       const newPendingAmount = await pendingCalculator.syncSupplierPendingAmount(req.params.id);
 
-      console.log(`Supplier payment processed: ${supplier.name} - ₹${validatedPayment.amount}`);
       res.status(201).json({
-        message: "Payment processed successfully",
         transaction,
         updatedPendingAmount: newPendingAmount
       });
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to process supplier payment:", error);
+      res.status(500).json({ message: "Failed to process payment" });
     }
   });
 
@@ -335,55 +316,34 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/inventory", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(inventoryValidationSchema, req.body);
-      validateBusinessRules(validatedData, 'stock');
-      
+      const validatedData = insertInventorySchema.parse(req.body);
       const storage = await getStorage();
-      
-      // Validate supplier exists if provided
-      if (validatedData.supplierId) {
-        const supplier = await storage.getSupplier(validatedData.supplierId);
-        if (!supplier) {
-          throw createValidationError("Supplier not found", "supplierId");
-        }
-      }
-      
       const item = await storage.createInventoryItem(validatedData);
-      console.log(`Inventory item created: ${item.name} - ${item.quantity}${item.unit}`);
       res.status(201).json(item);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to create inventory item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create inventory item" });
     }
   });
 
   apiRouter.put("/inventory/:id", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(inventoryValidationSchema.partial(), req.body);
+      const validatedData = insertInventorySchema.partial().parse(req.body);
       const storage = await getStorage();
-      
-      // Verify item exists
-      const existingItem = await storage.getInventoryItem(req.params.id);
-      if (!existingItem) {
-        return res.status(404).json({ 
-          success: false,
-          message: "Inventory item not found",
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Validate supplier exists if being updated
-      if (validatedData.supplierId) {
-        const supplier = await storage.getSupplier(validatedData.supplierId);
-        if (!supplier) {
-          throw createValidationError("Supplier not found", "supplierId");
-        }
-      }
-      
       const item = await storage.updateInventoryItem(req.params.id, validatedData);
-      console.log(`Inventory item updated: ${item?.name} (ID: ${req.params.id})`);
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
       res.json(item);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to update inventory item:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update inventory item" });
     }
   });
 
@@ -535,37 +495,34 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/customers", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(customerValidationSchema, req.body);
+      const validatedData = insertCustomerSchema.parse(req.body);
       const storage = await getStorage();
       const customer = await storage.createCustomer(validatedData);
-      
-      console.log(`Customer created successfully: ${customer.name} (${customer.type}) - ID: ${customer.id}`);
       res.status(201).json(customer);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to create customer:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create customer" });
     }
   });
 
   apiRouter.put("/customers/:id", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(customerValidationSchema.partial(), req.body);
+      const validatedData = insertCustomerSchema.partial().parse(req.body);
       const storage = await getStorage();
-      
-      // Verify customer exists
-      const existingCustomer = await storage.getCustomer(req.params.id);
-      if (!existingCustomer) {
-        return res.status(404).json({ 
-          success: false,
-          message: "Customer not found",
-          timestamp: new Date().toISOString()
-        });
-      }
-      
       const customer = await storage.updateCustomer(req.params.id, validatedData);
-      console.log(`Customer updated successfully: ${customer?.name} (ID: ${req.params.id})`);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
       res.json(customer);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to update customer:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update customer" });
     }
   });
 
@@ -587,35 +544,22 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const { amount, description, targetOrderId } = req.body;
       
-      // Enhanced validation
-      const numAmount = parseFloat(amount);
-      if (!amount || isNaN(numAmount) || numAmount <= 0) {
-        return res.status(400).json({ message: "Valid payment amount greater than 0 is required" });
-      }
-      
-      if (numAmount > 1000000) {
-        return res.status(400).json({ message: "Payment amount cannot exceed ₹10,00,000" });
+      if (!amount || isNaN(parseFloat(amount))) {
+        return res.status(400).json({ message: "Valid amount is required" });
       }
 
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
-      const dataRepair = await getDataRepairService();
       const customer = await storage.getCustomer(req.params.id);
       
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      // Validate and repair data integrity before processing payment
-      const integrityCheck = await dataRepair.validateFinancialIntegrity(req.params.id);
-      if (!integrityCheck.isValid && integrityCheck.issues.length > 0) {
-        console.warn(`Data integrity issues found for customer ${req.params.id}:`, integrityCheck.issues);
-      }
-
-      // Process payment with enhanced error handling
+      // Process payment with order-specific partial payment tracking
       const paymentResult = await pendingCalculator.processCustomerPayment(
         req.params.id,
-        numAmount,
+        parseFloat(amount),
         description || `Payment from customer: ${customer.name}`,
         targetOrderId
       );
@@ -629,15 +573,6 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       });
     } catch (error) {
       console.error("Failed to process customer payment:", error);
-      
-      // Enhanced error response
-      if (error instanceof Error) {
-        return res.status(400).json({ 
-          message: error.message.includes('Invalid payment amount') ? error.message : "Failed to process payment",
-          error: error.message
-        });
-      }
-      
       res.status(500).json({ message: "Failed to process payment" });
     }
   });
@@ -692,109 +627,58 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/orders", async (req: Request, res: Response) => {
     try {
-      const validatedData = validateAndSanitizeInput(orderValidationSchema, req.body);
-      validateBusinessRules(validatedData, 'order');
-      
+      const validatedData = insertOrderSchema.parse(req.body);
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
-      
-      // Verify customer exists
-      const customer = await storage.getCustomer(validatedData.customerId);
-      if (!customer) {
-        throw createValidationError("Customer not found", "customerId");
-      }
-      
-      // Validate inventory availability using inventory manager
-      const inventoryManager = await getInventoryManager();
-      await inventoryManager.validateStockAvailability(validatedData.items);
       
       // Create the order
       const order = await storage.createOrder(validatedData);
       
-      // Auto-deduct inventory for all orders (business rule: deduct stock immediately)
-      console.log(`Deducting stock for order ${order.id} with status: ${order.orderStatus}`);
-      await inventoryManager.deductStock(validatedData.items, order.id);
-      
-      // Update customer's pending amount if payment is pending
+      // If order is pending, update customer's pending amount
       if (order.paymentStatus === 'pending') {
         await pendingCalculator.syncCustomerPendingAmount(order.customerId);
       }
       
-      console.log(`Order created successfully: ${order.id} for customer ${customer.name}`);
       res.status(201).json(order);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to create order:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create order" });
     }
   });
 
   apiRouter.put("/orders/:id", async (req: Request, res: Response) => {
     try {
-      // Define partial order schema locally with type safety
-      const partialOrderSchema = z.object({
-        customerId: z.string().min(1).max(100).optional(),
-        items: z.array(z.object({
-          type: z.string().min(1).max(50),
-          quantity: z.number().min(0.001).max(10000),
-          rate: z.number().min(0).max(100000),
-          details: z.string().max(200).optional()
-        })).min(1).max(50).optional(),
-        totalAmount: z.number().min(0.01).max(10000000).optional(),
-        paidAmount: z.number().min(0).max(10000000).optional(),
-        paymentStatus: z.enum(['paid', 'partially_paid', 'pending']).optional(),
-        orderStatus: z.enum(['confirmed', 'processing', 'completed', 'cancelled']).optional()
-      });
-      
-      const validatedData = partialOrderSchema.parse(req.body);
-      type ValidatedOrderUpdate = z.infer<typeof partialOrderSchema>;
+      const validatedData = insertOrderSchema.partial().parse(req.body);
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
       
-      // Get original order to track changes
+      // Get original order to track payment status changes
       const originalOrder = await storage.getOrder(req.params.id);
       if (!originalOrder) {
-        return res.status(404).json({ 
-          success: false,
-          message: "Order not found",
-          timestamp: new Date().toISOString()
-        });
+        return res.status(404).json({ message: "Order not found" });
       }
       
-      // Validate customer exists if being updated
-      if (validatedData.customerId) {
-        const customer = await storage.getCustomer(validatedData.customerId);
-        if (!customer) {
-          throw createValidationError("Customer not found", "customerId");
-        }
+      // Update the order
+      const order = await storage.updateOrder(req.params.id, validatedData);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
       }
-      
-      // Handle inventory adjustments for status changes using inventory manager
-      if (validatedData.orderStatus && validatedData.orderStatus !== originalOrder.orderStatus) {
-        const inventoryManager = await getInventoryManager();
-        
-        // If changing from confirmed to cancelled, restore inventory
-        if (originalOrder.orderStatus === 'confirmed' && validatedData.orderStatus === 'cancelled') {
-          await inventoryManager.restoreStock(originalOrder.items, originalOrder.id);
-        }
-        
-        // If changing to confirmed, deduct inventory
-        if (validatedData.orderStatus === 'confirmed' && originalOrder.orderStatus !== 'confirmed') {
-          await inventoryManager.validateStockAvailability(originalOrder.items);
-          await inventoryManager.deductStock(originalOrder.items, originalOrder.id);
-        }
-      }
-      
-      // Update the order with proper type casting
-      const order = await storage.updateOrder(req.params.id, validatedData as any);
       
       // If payment status changed, recalculate customer pending amount
       if (validatedData.paymentStatus && validatedData.paymentStatus !== originalOrder.paymentStatus) {
-        await pendingCalculator.syncCustomerPendingAmount(order!.customerId);
+        await pendingCalculator.syncCustomerPendingAmount(order.customerId);
       }
       
-      console.log(`Order updated successfully: ${req.params.id}`);
       res.json(order);
     } catch (error) {
-      return handleValidationError(error, res);
+      console.error("Failed to update order:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update order" });
     }
   });
 
@@ -936,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       console.log("[TRANSACTIONS API] POST /api/transactions", req.body);
       
       // Validate request data
-      const validatedData = validateAndSanitizeInput(transactionValidationSchema, req.body);
+      const validatedData = insertTransactionSchema.parse(req.body);
       
       const storage = await getStorage();
       const transaction = await storage.createTransaction(validatedData);
@@ -1009,42 +893,6 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   });
 
   // Enterprise reports endpoint with real-time calculations and date filtering
-  // Data repair endpoints for admin use
-  apiRouter.post("/admin/repair-customer/:id", async (req: Request, res: Response) => {
-    try {
-      const dataRepair = await getDataRepairService();
-      const repairResult = await dataRepair.validateFinancialIntegrity(req.params.id);
-      
-      res.json({
-        customerId: req.params.id,
-        isValid: repairResult.isValid,
-        issues: repairResult.issues,
-        repairs: repairResult.repairs,
-        message: repairResult.isValid ? "Data integrity validated successfully" : "Data issues found and repairs attempted"
-      });
-    } catch (error) {
-      console.error("Failed to repair customer data:", error);
-      res.status(500).json({ message: "Failed to repair customer data" });
-    }
-  });
-
-  apiRouter.post("/admin/repair-order/:id", async (req: Request, res: Response) => {
-    try {
-      const dataRepair = await getDataRepairService();
-      const repairResult = await dataRepair.repairOrder(req.params.id);
-      
-      res.json({
-        orderId: req.params.id,
-        wasCorrupted: repairResult.wasCorrupted,
-        repairs: repairResult.repairs,
-        message: repairResult.wasCorrupted ? "Order data repaired successfully" : "Order data is valid"
-      });
-    } catch (error) {
-      console.error("Failed to repair order data:", error);
-      res.status(500).json({ message: "Failed to repair order data" });
-    }
-  });
-
   apiRouter.get("/reports", async (req: Request, res: Response) => {
     try {
       res.setHeader('Content-Type', 'application/json');

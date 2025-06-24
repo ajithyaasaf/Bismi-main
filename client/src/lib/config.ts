@@ -1,10 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
-  // Use local server in development, external in production
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? '' : 'https://bismi-main.onrender.com'),
-  
-  // API Key for production authentication
-  API_KEY: import.meta.env.VITE_API_KEY || 'bismi_admin_key_2025',
+  // Always use Render backend URL since it's working
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://bismi-main.onrender.com',
   
   // Environment detection
   IS_PRODUCTION: import.meta.env.PROD,

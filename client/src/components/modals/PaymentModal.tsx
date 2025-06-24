@@ -43,36 +43,20 @@ export default function PaymentModal({
     e.preventDefault();
     const numAmount = parseFloat(amount);
     
-    // Enhanced validation with specific error handling
     if (isNaN(numAmount) || numAmount <= 0) {
-      alert('Please enter a valid payment amount greater than ₹0');
-      return;
-    }
-    
-    // Set reasonable maximum limit to prevent errors
-    if (numAmount > 1000000) {
-      alert('Payment amount cannot exceed ₹10,00,000');
-      return;
-    }
-    
-    // Limit decimal places to 2 for currency precision
-    const roundedAmount = Math.round(numAmount * 100) / 100;
-    if (roundedAmount !== numAmount) {
-      alert('Payment amount can only have up to 2 decimal places');
-      return;
+      return; // Form validation will handle this
     }
     
     setIsSubmitting(true);
     try {
-      console.log(`[PaymentModal] Submitting payment of ₹${roundedAmount} for ${entityName}`);
-      await onSubmit(roundedAmount);
+      console.log(`[PaymentModal] Submitting payment of ₹${numAmount} for ${entityName}`);
+      await onSubmit(numAmount);
       console.log(`[PaymentModal] Payment submission successful, closing modal`);
       // Reset form and close modal on success
       setAmount('');
       onClose();
     } catch (error) {
       console.error('[PaymentModal] Payment submission error:', error);
-      alert('Failed to process payment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -105,7 +89,6 @@ export default function PaymentModal({
                   type="number"
                   inputMode="decimal"
                   min="0.01"
-                  max="1000000"
                   step="0.01"
                   required
                   className="pl-7 h-11 text-base"

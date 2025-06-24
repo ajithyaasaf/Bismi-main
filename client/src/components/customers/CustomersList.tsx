@@ -220,15 +220,7 @@ export default function CustomersList({
                           variant="outline" 
                           size="sm" 
                           className="text-green-600" 
-                          onClick={() => {
-                            console.log(`[PaymentButton] Clicked for customer:`, {
-                              id: customer.id,
-                              name: customer.name,
-                              pendingAmount: customer.pendingAmount,
-                              timestamp: new Date().toISOString()
-                            });
-                            onPayment(customer.id, customer.name);
-                          }}
+                          onClick={() => onPayment(customer.id, customer.name)}
                         >
                           <i className="fas fa-money-bill-wave"></i>
                         </Button>

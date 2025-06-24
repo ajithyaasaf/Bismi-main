@@ -63,65 +63,100 @@ export default function SmartPaymentModal({
     }
   }, [isOpen, unpaidOrders.length]);
 
-  // Auto-distribute payment amount across selected orders
+  // Smart payment distribution with priority logic (oldest orders first)
   const distributePayment = (amount: number) => {
-    const selectedEntries = orderEntries.filter(entry => entry.selected);
-    if (selectedEntries.length === 0) return;
+    if (amount <= 0) {
+      // Clear all amounts when total is 0
+      const clearedEntries = orderEntries.map(entry => ({
+        ...entry,
+        requestedAmount: 0,
+        selected: false
+      }));
+      setOrderEntries(clearedEntries);
+      return;
+    }
 
     let remainingAmount = amount;
-    const updatedEntries = orderEntries.map(entry => {
-      if (!entry.selected || remainingAmount <= 0) {
-        return { ...entry, requestedAmount: 0 };
-      }
+    const updatedEntries = [...orderEntries]
+      .sort((a, b) => new Date(a.order.createdAt).getTime() - new Date(b.order.createdAt).getTime()) // Prioritize older orders
+      .map(entry => {
+        if (remainingAmount <= 0) {
+          return { ...entry, requestedAmount: 0, selected: false };
+        }
 
-      const allocation = Math.min(remainingAmount, entry.remainingBalance);
-      remainingAmount -= allocation;
-      
-      return { ...entry, requestedAmount: allocation };
+        const allocation = Math.min(remainingAmount, entry.remainingBalance);
+        remainingAmount -= allocation;
+        
+        return { 
+          ...entry, 
+          requestedAmount: allocation,
+          selected: allocation > 0
+        };
+      });
+
+    // Restore original order
+    const finalEntries = orderEntries.map(originalEntry => {
+      const updatedEntry = updatedEntries.find(entry => entry.order.id === originalEntry.order.id);
+      return updatedEntry || originalEntry;
     });
 
-    setOrderEntries(updatedEntries);
+    setOrderEntries(finalEntries);
   };
 
-  // Handle total payment amount change
+  // Handle total payment amount change with smart distribution
   const handleTotalAmountChange = (value: string) => {
     setTotalPaymentAmount(value);
     const amount = parseFloat(value) || 0;
-    distributePayment(amount);
+    
+    // Only auto-distribute if user hasn't manually selected specific orders
+    const hasManualSelections = orderEntries.some(entry => entry.selected && entry.requestedAmount > 0);
+    
+    if (!hasManualSelections || amount === 0) {
+      distributePayment(amount);
+    }
   };
 
-  // Toggle order selection
+  // Toggle order selection with smart logic
   const toggleOrderSelection = (orderId: string, selected: boolean) => {
-    const updatedEntries = orderEntries.map(entry => {
-      if (entry.order.id === orderId) {
-        return { ...entry, selected };
-      }
-      return entry;
-    });
-    setOrderEntries(updatedEntries);
-
-    // Redistribute payment
-    const amount = parseFloat(totalPaymentAmount) || 0;
-    setTimeout(() => distributePayment(amount), 0);
-  };
-
-  // Handle individual order amount change
-  const handleOrderAmountChange = (orderId: string, amount: string) => {
-    const numAmount = parseFloat(amount) || 0;
     const updatedEntries = orderEntries.map(entry => {
       if (entry.order.id === orderId) {
         return { 
           ...entry, 
-          requestedAmount: Math.min(numAmount, entry.remainingBalance),
-          selected: numAmount > 0
+          selected,
+          requestedAmount: selected ? entry.requestedAmount : 0 // Clear amount when unchecked
         };
       }
       return entry;
     });
     setOrderEntries(updatedEntries);
 
-    // Update total amount
-    const newTotal = updatedEntries.reduce((sum, entry) => sum + entry.requestedAmount, 0);
+    // Recalculate total payment amount based on selected entries
+    const newTotal = updatedEntries
+      .filter(entry => entry.selected)
+      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
+    setTotalPaymentAmount(newTotal.toString());
+  };
+
+  // Handle individual order amount change with smart selection
+  const handleOrderAmountChange = (orderId: string, amount: string) => {
+    const numAmount = parseFloat(amount) || 0;
+    const updatedEntries = orderEntries.map(entry => {
+      if (entry.order.id === orderId) {
+        const cappedAmount = Math.min(numAmount, entry.remainingBalance);
+        return { 
+          ...entry, 
+          requestedAmount: cappedAmount,
+          selected: cappedAmount > 0 // Auto-select when amount > 0, auto-unselect when 0
+        };
+      }
+      return entry;
+    });
+    setOrderEntries(updatedEntries);
+
+    // Update total amount based on all selected entries
+    const newTotal = updatedEntries
+      .filter(entry => entry.selected)
+      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
     setTotalPaymentAmount(newTotal.toString());
   };
 
@@ -236,25 +271,62 @@ export default function SmartPaymentModal({
             </Card>
           </div>
 
-          {/* Total Payment Input */}
+          {/* Total Payment Input with Smart Suggestions */}
           <div>
             <Label htmlFor="total-amount" className="block text-sm font-medium mb-2">
               Total Payment Amount (₹)
             </Label>
-            <Input
-              id="total-amount"
-              type="number"
-              placeholder="Enter total payment amount"
-              value={totalPaymentAmount}
-              onChange={(e) => handleTotalAmountChange(e.target.value)}
-              className="text-lg"
-              min="0"
-              step="0.01"
-              max={totalPending}
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Maximum: ₹{totalPending.toFixed(2)}
-            </p>
+            <div className="space-y-2">
+              <Input
+                id="total-amount"
+                type="number"
+                placeholder="Enter total payment amount"
+                value={totalPaymentAmount}
+                onChange={(e) => handleTotalAmountChange(e.target.value)}
+                className="text-lg"
+                min="0"
+                step="0.01"
+                max={totalPending}
+              />
+              <div className="flex gap-2 flex-wrap">
+                {totalPending > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTotalAmountChange(totalPending.toString())}
+                    disabled={isSubmitting}
+                  >
+                    Pay All (₹{totalPending.toFixed(2)})
+                  </Button>
+                )}
+                {totalPending > 100 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTotalAmountChange('100')}
+                    disabled={isSubmitting}
+                  >
+                    ₹100
+                  </Button>
+                )}
+                {totalPending > 500 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleTotalAmountChange('500')}
+                    disabled={isSubmitting}
+                  >
+                    ₹500
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                Maximum: ₹{totalPending.toFixed(2)} | Selected: ₹{allocatedAmount.toFixed(2)}
+              </p>
+            </div>
           </div>
 
           {/* Orders List */}
@@ -273,7 +345,7 @@ export default function SmartPaymentModal({
                         <Checkbox
                           checked={entry.selected}
                           onCheckedChange={(checked) => 
-                            toggleOrderSelection(entry.order.id, checked as boolean)
+                            toggleOrderSelection(entry.order.id, !!checked)
                           }
                         />
                         
@@ -313,17 +385,29 @@ export default function SmartPaymentModal({
                           
                           <div>
                             <Label className="text-xs text-gray-600">Payment Amount (₹)</Label>
-                            <Input
-                              type="number"
-                              placeholder="0.00"
-                              value={entry.requestedAmount || ''}
-                              onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
-                              className="mt-1"
-                              min="0"
-                              max={entry.remainingBalance}
-                              step="0.01"
-                              disabled={!entry.selected}
-                            />
+                            <div className="space-y-1">
+                              <Input
+                                type="number"
+                                placeholder="0.00"
+                                value={entry.requestedAmount || ''}
+                                onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
+                                className="mt-1"
+                                min="0"
+                                max={entry.remainingBalance}
+                                step="0.01"
+                              />
+                              {entry.remainingBalance !== entry.requestedAmount && entry.remainingBalance > 0 && (
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto p-0 text-xs text-blue-600"
+                                  onClick={() => handleOrderAmountChange(entry.order.id, entry.remainingBalance.toString())}
+                                >
+                                  Pay Full (₹{entry.remainingBalance.toFixed(2)})
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -344,15 +428,26 @@ export default function SmartPaymentModal({
                 type="button"
                 variant="secondary"
                 onClick={() => {
-                  // Select all orders
-                  const updatedEntries = (orderEntries || []).map(entry => ({ ...entry, selected: true }));
-                  setOrderEntries(updatedEntries);
-                  const amount = parseFloat(totalPaymentAmount) || 0;
-                  setTimeout(() => distributePayment(amount), 0);
+                  const allSelected = orderEntries.every(entry => entry.selected);
+                  if (allSelected) {
+                    // Unselect all
+                    const clearedEntries = orderEntries.map(entry => ({ 
+                      ...entry, 
+                      selected: false, 
+                      requestedAmount: 0 
+                    }));
+                    setOrderEntries(clearedEntries);
+                    setTotalPaymentAmount('0');
+                  } else {
+                    // Select all and distribute current amount
+                    const amount = parseFloat(totalPaymentAmount) || totalPending;
+                    setTotalPaymentAmount(amount.toString());
+                    distributePayment(amount);
+                  }
                 }}
                 disabled={isSubmitting}
               >
-                Select All
+                {orderEntries.every(entry => entry.selected) ? 'Unselect All' : 'Select All'}
               </Button>
               <Button 
                 type="submit" 

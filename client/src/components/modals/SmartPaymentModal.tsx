@@ -1,16 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { Customer, Order } from '../../types/index';
 import { useToast } from "@/hooks/use-toast";
-import { Customer, Order } from '@shared/types';
 import { format } from 'date-fns';
-import { getItemLabel } from '@shared/constants';
-import { X } from 'lucide-react';
 
 interface SmartPaymentModalProps {
   isOpen: boolean;
@@ -28,178 +25,137 @@ interface PaymentAllocation {
 
 interface OrderPaymentEntry {
   order: Order;
-  requestedAmount: number;
-  remainingBalance: number;
+  paymentAmount: number;
   selected: boolean;
+  remainingBalance: number;
 }
 
 export default function SmartPaymentModal({ 
   isOpen, 
   onClose, 
   onSubmit, 
-  customer,
+  customer, 
   orders 
 }: SmartPaymentModalProps) {
-  const [totalPaymentAmount, setTotalPaymentAmount] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [orderEntries, setOrderEntries] = useState<OrderPaymentEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  // Filter and prepare unpaid orders with safety checks
-  const unpaidOrders = (orders || []).filter(order => 
+  // Filter unpaid orders and calculate totals
+  const unpaidOrders = orders.filter(order => 
     order && order.customerId === customer?.id && order.paymentStatus !== 'paid'
-  ).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  );
+
+  const totalPending = unpaidOrders.reduce((sum, order) => {
+    const remaining = (order.totalAmount || 0) - (order.paidAmount || 0);
+    return sum + remaining;
+  }, 0);
+
+  const totalAllocated = orderEntries.reduce((sum, entry) => 
+    entry.selected ? sum + entry.paymentAmount : sum, 0
+  );
 
   useEffect(() => {
-    if (isOpen && unpaidOrders) {
-      // Initialize order entries with remaining balances
+    if (isOpen && unpaidOrders.length > 0) {
       const entries = unpaidOrders.map(order => ({
         order,
-        requestedAmount: 0,
-        remainingBalance: (order.totalAmount || 0) - (order.paidAmount || 0),
-        selected: false
+        paymentAmount: 0,
+        selected: false,
+        remainingBalance: (order.totalAmount || 0) - (order.paidAmount || 0)
       }));
       setOrderEntries(entries);
-      setTotalPaymentAmount('');
+      setPaymentAmount('');
     }
   }, [isOpen, unpaidOrders.length]);
 
-  // Smart payment distribution with priority logic (oldest orders first)
-  const distributePayment = (amount: number) => {
-    if (amount <= 0) {
-      // Clear all amounts when total is 0
-      const clearedEntries = orderEntries.map(entry => ({
+  const handlePaymentAmountChange = (value: string) => {
+    setPaymentAmount(value);
+    const amount = parseFloat(value) || 0;
+    
+    if (amount === 0) {
+      // Clear all selections
+      setOrderEntries(entries => entries.map(entry => ({
         ...entry,
-        requestedAmount: 0,
+        paymentAmount: 0,
         selected: false
-      }));
-      setOrderEntries(clearedEntries);
+      })));
       return;
     }
 
-    let remainingAmount = amount;
+    // Auto-distribute payment (oldest orders first)
+    let remaining = amount;
     const updatedEntries = [...orderEntries]
-      .sort((a, b) => new Date(a.order.createdAt).getTime() - new Date(b.order.createdAt).getTime()) // Prioritize older orders
+      .sort((a, b) => new Date(a.order.createdAt).getTime() - new Date(b.order.createdAt).getTime())
       .map(entry => {
-        if (remainingAmount <= 0) {
-          return { ...entry, requestedAmount: 0, selected: false };
+        if (remaining <= 0) {
+          return { ...entry, paymentAmount: 0, selected: false };
         }
-
-        const allocation = Math.min(remainingAmount, entry.remainingBalance);
-        remainingAmount -= allocation;
         
-        return { 
-          ...entry, 
-          requestedAmount: allocation,
+        const allocation = Math.min(remaining, entry.remainingBalance);
+        remaining -= allocation;
+        
+        return {
+          ...entry,
+          paymentAmount: allocation,
           selected: allocation > 0
         };
       });
 
     // Restore original order
     const finalEntries = orderEntries.map(originalEntry => {
-      const updatedEntry = updatedEntries.find(entry => entry.order.id === originalEntry.order.id);
-      return updatedEntry || originalEntry;
+      const updated = updatedEntries.find(entry => entry.order.id === originalEntry.order.id);
+      return updated || originalEntry;
     });
 
     setOrderEntries(finalEntries);
   };
 
-  // Handle total payment amount change with smart distribution
-  const handleTotalAmountChange = (value: string) => {
-    setTotalPaymentAmount(value);
-    const amount = parseFloat(value) || 0;
-    
-    // Only auto-distribute if user hasn't manually selected specific orders
-    const hasManualSelections = orderEntries.some(entry => entry.selected && entry.requestedAmount > 0);
-    
-    if (!hasManualSelections || amount === 0) {
-      distributePayment(amount);
-    }
-  };
-
-  // Toggle order selection with smart logic
-  const toggleOrderSelection = (orderId: string, selected: boolean) => {
-    const updatedEntries = orderEntries.map(entry => {
+  const handleOrderSelection = (orderId: string, selected: boolean) => {
+    setOrderEntries(entries => entries.map(entry => {
       if (entry.order.id === orderId) {
-        return { 
-          ...entry, 
+        return {
+          ...entry,
           selected,
-          requestedAmount: selected ? entry.requestedAmount : 0 // Clear amount when unchecked
+          paymentAmount: selected ? entry.remainingBalance : 0
         };
       }
       return entry;
-    });
-    setOrderEntries(updatedEntries);
-
-    // Recalculate total payment amount based on selected entries
-    const newTotal = updatedEntries
-      .filter(entry => entry.selected)
-      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
-    setTotalPaymentAmount(newTotal.toString());
+    }));
   };
 
-  // Handle individual order amount change with smart selection
   const handleOrderAmountChange = (orderId: string, amount: string) => {
-    const numAmount = parseFloat(amount) || 0;
-    const updatedEntries = orderEntries.map(entry => {
+    const numAmount = Math.min(parseFloat(amount) || 0, 
+      orderEntries.find(e => e.order.id === orderId)?.remainingBalance || 0
+    );
+    
+    setOrderEntries(entries => entries.map(entry => {
       if (entry.order.id === orderId) {
-        const cappedAmount = Math.min(numAmount, entry.remainingBalance);
-        return { 
-          ...entry, 
-          requestedAmount: cappedAmount,
-          selected: cappedAmount > 0 // Auto-select when amount > 0, auto-unselect when 0
+        return {
+          ...entry,
+          paymentAmount: numAmount,
+          selected: numAmount > 0
         };
       }
       return entry;
-    });
-    setOrderEntries(updatedEntries);
-
-    // Update total amount based on all selected entries
-    const newTotal = updatedEntries
-      .filter(entry => entry.selected)
-      .reduce((sum, entry) => sum + entry.requestedAmount, 0);
-    setTotalPaymentAmount(newTotal.toString());
+    }));
   };
 
-  // Calculate totals with safety checks
-  const allocatedAmount = (orderEntries || []).reduce((sum, entry) => sum + (entry.requestedAmount || 0), 0);
-  const totalPending = (unpaidOrders || []).reduce((sum, order) => 
-    sum + ((order.totalAmount || 0) - (order.paidAmount || 0)), 0
-  );
-
-  // Format order items for display
-  const formatOrderItems = (items: any[]) => {
-    if (!items || !Array.isArray(items) || items.length === 0) return 'No items';
-    return items.slice(0, 2).map(item => 
-      `${item?.quantity || 0}kg ${getItemLabel(item?.type || '')}`
-    ).join(', ') + (items.length > 2 ? '...' : '');
-  };
-
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const selectedPayments = (orderEntries || [])
-      .filter(entry => entry && entry.selected && entry.requestedAmount > 0)
+
+    const selectedPayments = orderEntries
+      .filter(entry => entry.selected && entry.paymentAmount > 0)
       .map(entry => ({
         orderId: entry.order.id,
-        amount: entry.requestedAmount,
-        description: `Payment for order #${entry.order.id.substring(0, 8)} - ${formatOrderItems(entry.order.items)}`
+        amount: entry.paymentAmount,
+        description: `Payment for Order #${entry.order.id.substring(0, 8)}`
       }));
 
     if (selectedPayments.length === 0) {
       toast({
         title: "No orders selected",
-        description: "Please select at least one order to apply payment to.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (allocatedAmount <= 0) {
-      toast({
-        title: "Invalid amount",
-        description: "Please enter a valid payment amount.",
+        description: "Please select at least one order to process payment.",
         variant: "destructive",
       });
       return;
@@ -210,14 +166,14 @@ export default function SmartPaymentModal({
       await onSubmit(selectedPayments);
       onClose();
       toast({
-        title: "Payment processed",
-        description: `₹${allocatedAmount.toFixed(2)} allocated across ${selectedPayments.length} order(s)`,
+        title: "Payment processed successfully",
+        description: `₹${totalAllocated.toFixed(2)} allocated across ${selectedPayments.length} order(s)`,
       });
     } catch (error) {
-      console.error('Smart payment error:', error);
+      console.error('Payment error:', error);
       toast({
         title: "Payment failed",
-        description: "Failed to process payment allocation. Please try again.",
+        description: "Failed to process payment. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -226,380 +182,203 @@ export default function SmartPaymentModal({
   };
 
   const handleClose = () => {
-    setTotalPaymentAmount('');
+    setPaymentAmount('');
     setOrderEntries([]);
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="w-[98vw] sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[80vw] max-w-6xl h-[98vh] sm:h-[95vh] md:h-[92vh] overflow-hidden p-0">
-        <div className="flex flex-col h-full">
-          <DialogHeader className="flex-shrink-0 p-4 sm:p-6 border-b bg-white relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 h-9 w-9 p-0 hover:bg-gray-100 rounded-full z-10"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-            <DialogTitle className="text-lg sm:text-xl lg:text-2xl font-semibold leading-tight pr-12">
-              Smart Payment - {customer.name}
-            </DialogTitle>
-            <DialogDescription className="text-sm sm:text-base text-gray-600 mt-2">
-              Allocate payment across specific orders
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Payment for {customer.name}</DialogTitle>
+          <DialogDescription>
+            Allocate payment across pending orders
+          </DialogDescription>
+        </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6 h-full flex flex-col">
-              {/* Responsive Payment Summary */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
-                <Card className="border-red-200 bg-red-50/80 hover:bg-red-50 transition-colors">
-                  <CardContent className="p-3 md:p-4">
-                    <div className="text-center">
-                      <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-red-600">
-                        ₹{totalPending.toFixed(2)}
-                      </div>
-                      <div className="text-xs sm:text-sm md:text-base text-gray-600 font-medium">Total Pending</div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-blue-200 bg-blue-50/80 hover:bg-blue-50 transition-colors">
-                  <CardContent className="p-3 md:p-4">
-                    <div className="text-center">
-                      <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-blue-600">
-                        ₹{allocatedAmount.toFixed(2)}
-                      </div>
-                      <div className="text-xs sm:text-sm md:text-base text-gray-600 font-medium">Allocated</div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className="border-green-200 bg-green-50/80 hover:bg-green-50 transition-colors">
-                  <CardContent className="p-3 md:p-4">
-                    <div className="text-center">
-                      <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-green-600">
-                        ₹{(totalPending - allocatedAmount).toFixed(2)}
-                      </div>
-                      <div className="text-xs sm:text-sm md:text-base text-gray-600 font-medium">Remaining</div>
-                    </div>
-                  </CardContent>
-                </Card>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Payment Amount Section */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                <div className="text-lg font-bold text-red-600">₹{totalPending.toFixed(2)}</div>
+                <div className="text-xs text-red-600">Total Pending</div>
               </div>
-
-              {/* Enhanced Payment Input */}
-              <div className="space-y-3">
-                <Label htmlFor="total-amount" className="text-sm font-medium text-foreground">
-                  Total Payment Amount (₹)
-                </Label>
-                <Input
-                  id="total-amount"
-                  type="number"
-                  placeholder="Enter payment amount"
-                  value={totalPaymentAmount}
-                  onChange={(e) => handleTotalAmountChange(e.target.value)}
-                  className="h-11 sm:h-10 text-base sm:text-sm text-center border-2 focus:border-blue-500 focus:ring-blue-500/20"
-                  min="0"
-                  step="0.01"
-                  max={totalPending}
-                />
-                
-                {/* Quick Amount Buttons */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {totalPending > 100 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleTotalAmountChange('100')}
-                      disabled={isSubmitting}
-                      className="h-11 sm:h-9 text-base sm:text-sm font-medium hover:bg-blue-50 border-blue-200 touch-manipulation"
-                    >
-                      ₹100
-                    </Button>
-                  )}
-                  {totalPending > 500 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleTotalAmountChange('500')}
-                      disabled={isSubmitting}
-                      className="h-11 sm:h-9 text-base sm:text-sm font-medium hover:bg-blue-50 border-blue-200 touch-manipulation"
-                    >
-                      ₹500
-                    </Button>
-                  )}
-                  {totalPending > 1000 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleTotalAmountChange('1000')}
-                      disabled={isSubmitting}
-                      className="h-11 sm:h-9 text-base sm:text-sm font-medium hover:bg-blue-50 border-blue-200 touch-manipulation"
-                    >
-                      ₹1000
-                    </Button>
-                  )}
-                  {totalPending > 0 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => handleTotalAmountChange(totalPending.toString())}
-                      disabled={isSubmitting}
-                      className="h-11 sm:h-9 text-base sm:text-sm font-medium col-span-2 sm:col-span-1 hover:bg-green-50 border-green-200 touch-manipulation"
-                    >
-                      Pay All ₹{totalPending.toFixed(0)}
-                    </Button>
-                  )}
-                </div>
-                
-                <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200">
-                  <CardContent className="p-3 md:p-4">
-                    <div className="grid grid-cols-2 gap-4 text-sm md:text-base">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 font-medium">Maximum:</span>
-                        <span className="font-semibold text-gray-800">₹{totalPending.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 font-medium">Selected:</span>
-                        <span className="font-semibold text-blue-600">₹{allocatedAmount.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <div className="text-lg font-bold text-blue-600">₹{totalAllocated.toFixed(2)}</div>
+                <div className="text-xs text-blue-600">Allocated</div>
               </div>
-
-              {/* Fully Responsive Orders List */}
-              <div className="flex-1 space-y-4 min-h-0">
-                <h3 className="text-base md:text-lg lg:text-xl font-semibold text-gray-800">Select Orders for Payment</h3>
-                {unpaidOrders.length === 0 ? (
-                  <div className="flex-1 flex items-center justify-center text-center py-12">
-                    <div className="text-gray-500">
-                      <div className="text-lg md:text-xl font-medium">No pending orders found</div>
-                      <div className="text-sm md:text-base mt-2">This customer has no unpaid orders</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex-1 space-y-3 md:space-y-4 overflow-y-auto pr-2">
-                    {(orderEntries || []).map((entry) => (
-                      <Card key={entry.order.id} className={`transition-all duration-200 hover:shadow-md ${entry.selected ? 'ring-2 ring-blue-500 bg-blue-50/80 shadow-lg' : 'hover:bg-gray-50/50'}`}>
-                        <CardContent className="p-3 md:p-4 lg:p-5">
-                          {/* Mobile & Tablet Layout (up to lg) */}
-                          <div className="space-y-4 lg:hidden">
-                            {/* Header with Checkbox and Order Info */}
-                            <div className="flex items-start space-x-3">
-                              <Checkbox
-                                checked={entry.selected}
-                                onCheckedChange={(checked) => 
-                                  toggleOrderSelection(entry.order.id, !!checked)
-                                }
-                                className="mt-1 h-5 w-5"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <div className="font-semibold text-sm md:text-base">
-                                    Order #{entry.order.id.substring(0, 8)}
-                                  </div>
-                                  <Badge 
-                                    variant={entry.order.paymentStatus === 'partially_paid' ? 'secondary' : 'destructive'} 
-                                    className="text-xs md:text-sm"
-                                  >
-                                    {entry.order.paymentStatus === 'partially_paid' ? 'Partial' : 'Pending'}
-                                  </Badge>
-                                </div>
-                                <div className="text-xs md:text-sm text-gray-500 mt-1">
-                                  {format(new Date(entry.order.createdAt), 'dd MMM yyyy')}
-                                </div>
-                                <div className="text-xs md:text-sm text-gray-700 mt-1 line-clamp-2">
-                                  {formatOrderItems(entry.order.items)}
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Amount Summary */}
-                            <Card className="bg-gradient-to-r from-gray-50 to-blue-50 border-gray-200">
-                              <CardContent className="p-3">
-                                <div className="grid grid-cols-3 gap-3 text-xs md:text-sm">
-                                  <div className="text-center">
-                                    <div className="text-gray-600 font-medium">Total</div>
-                                    <div className="font-bold text-gray-800">₹{(entry.order.totalAmount || 0).toFixed(2)}</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-gray-600 font-medium">Paid</div>
-                                    <div className="font-bold text-green-600">₹{(entry.order.paidAmount || 0).toFixed(2)}</div>
-                                  </div>
-                                  <div className="text-center">
-                                    <div className="text-gray-600 font-medium">Balance</div>
-                                    <div className="font-bold text-red-600">₹{entry.remainingBalance.toFixed(2)}</div>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                            
-                            {/* Payment Input */}
-                            <div className="space-y-2">
-                              <Label className="text-sm md:text-base font-medium text-gray-700">Payment Amount (₹)</Label>
-                              <div className="flex space-x-2">
-                                <Input
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={entry.requestedAmount || ''}
-                                  onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
-                                  className="h-11 md:h-12 text-center text-base border-2 focus:border-blue-500"
-                                  min="0"
-                                  max={entry.remainingBalance}
-                                  step="0.01"
-                                />
-                                {entry.remainingBalance !== entry.requestedAmount && entry.remainingBalance > 0 && (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="h-11 md:h-12 px-4 text-sm font-medium whitespace-nowrap border-2 hover:bg-blue-50"
-                                    onClick={() => handleOrderAmountChange(entry.order.id, entry.remainingBalance.toString())}
-                                  >
-                                    Full
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Desktop Layout (lg and up) */}
-                          <div className="hidden lg:flex items-center space-x-6">
-                            <Checkbox
-                              checked={entry.selected}
-                              onCheckedChange={(checked) => 
-                                toggleOrderSelection(entry.order.id, !!checked)
-                              }
-                              className="h-5 w-5"
-                            />
-                            
-                            <div className="flex-1 grid grid-cols-4 gap-6 items-center">
-                              <div>
-                                <div className="font-semibold text-base">
-                                  Order #{entry.order.id.substring(0, 8)}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  {format(new Date(entry.order.createdAt), 'dd MMM yyyy')}
-                                </div>
-                              </div>
-                              
-                              <div>
-                                <div className="text-sm line-clamp-2 mb-2">
-                                  {formatOrderItems(entry.order.items)}
-                                </div>
-                                <Badge variant={entry.order.paymentStatus === 'partially_paid' ? 'secondary' : 'destructive'}>
-                                  {entry.order.paymentStatus === 'partially_paid' ? 'Partially Paid' : 'Pending'}
-                                </Badge>
-                              </div>
-                              
-                              <div className="space-y-1">
-                                <div className="text-sm flex justify-between">
-                                  <span className="text-gray-600">Total:</span>
-                                  <span className="font-semibold">₹{(entry.order.totalAmount || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="text-sm flex justify-between">
-                                  <span className="text-gray-600">Paid:</span>
-                                  <span className="font-semibold text-green-600">₹{(entry.order.paidAmount || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="text-sm flex justify-between">
-                                  <span className="text-gray-600">Balance:</span>
-                                  <span className="font-semibold text-red-600">₹{entry.remainingBalance.toFixed(2)}</span>
-                                </div>
-                              </div>
-                              
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium text-gray-700">Payment Amount (₹)</Label>
-                                <div className="space-y-2">
-                                  <Input
-                                    type="number"
-                                    placeholder="0.00"
-                                    value={entry.requestedAmount || ''}
-                                    onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
-                                    className="h-10 text-center border-2 focus:border-blue-500"
-                                    min="0"
-                                    max={entry.remainingBalance}
-                                    step="0.01"
-                                  />
-                                  {entry.remainingBalance !== entry.requestedAmount && entry.remainingBalance > 0 && (
-                                    <Button
-                                      type="button"
-                                      variant="link"
-                                      size="sm"
-                                      className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800"
-                                      onClick={() => handleOrderAmountChange(entry.order.id, entry.remainingBalance.toString())}
-                                    >
-                                      Pay Full (₹{entry.remainingBalance.toFixed(2)})
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                <div className="text-lg font-bold text-green-600">₹{(totalPending - totalAllocated).toFixed(2)}</div>
+                <div className="text-xs text-green-600">Remaining</div>
               </div>
+            </div>
 
-              {/* Enhanced Sticky Footer */}
-              <div className="flex-shrink-0 border-t bg-white p-4 md:p-6 space-y-4">
-                {/* Select All Button - All Breakpoints */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div className="space-y-2">
+              <Label htmlFor="payment-amount">Payment Amount (₹)</Label>
+              <Input
+                id="payment-amount"
+                type="number"
+                placeholder="Enter payment amount"
+                value={paymentAmount}
+                onChange={(e) => handlePaymentAmountChange(e.target.value)}
+                className="h-11 sm:h-10 text-base sm:text-sm text-center"
+                min="0"
+                step="0.01"
+                max={totalPending}
+              />
+            </div>
+
+            {/* Quick Amount Buttons */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[100, 500, 1000].map(amount => 
+                totalPending >= amount && (
                   <Button
+                    key={amount}
                     type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      const allSelected = orderEntries.every(entry => entry.selected);
-                      if (allSelected) {
-                        // Unselect all
-                        const clearedEntries = orderEntries.map(entry => ({ 
-                          ...entry, 
-                          selected: false, 
-                          requestedAmount: 0 
-                        }));
-                        setOrderEntries(clearedEntries);
-                        setTotalPaymentAmount('0');
-                      } else {
-                        // Select all and distribute current amount
-                        const amount = parseFloat(totalPaymentAmount) || totalPending;
-                        setTotalPaymentAmount(amount.toString());
-                        distributePayment(amount);
-                      }
-                    }}
+                    variant="outline"
+                    onClick={() => handlePaymentAmountChange(amount.toString())}
+                    className="h-9 text-sm"
                     disabled={isSubmitting}
-                    className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
                   >
-                    {orderEntries.every(entry => entry.selected) ? 'Unselect All Orders' : 'Select All Orders'}
+                    ₹{amount}
                   </Button>
-
-                  {/* Main Action Buttons */}
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={handleClose} 
-                      disabled={isSubmitting}
-                      className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation border-2"
-                    >
-                      Cancel Payment
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={isSubmitting || allocatedAmount <= 0}
-                      className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {isSubmitting ? 'Processing Payment...' : `Process Payment ₹${allocatedAmount.toFixed(2)}`}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </form>
+                )
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handlePaymentAmountChange(totalPending.toString())}
+                className="h-9 text-sm"
+                disabled={isSubmitting}
+              >
+                Pay All
+              </Button>
+            </div>
           </div>
-        </div>
+
+          {/* Orders List */}
+          {unpaidOrders.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No pending orders found</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Pending Orders ({unpaidOrders.length})</h4>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const allSelected = orderEntries.every(entry => entry.selected);
+                    if (allSelected) {
+                      setOrderEntries(entries => entries.map(entry => ({
+                        ...entry,
+                        selected: false,
+                        paymentAmount: 0
+                      })));
+                    } else {
+                      setOrderEntries(entries => entries.map(entry => ({
+                        ...entry,
+                        selected: true,
+                        paymentAmount: entry.remainingBalance
+                      })));
+                    }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  {orderEntries.every(entry => entry.selected) ? 'Unselect All' : 'Select All'}
+                </Button>
+              </div>
+
+              <div className="max-h-80 overflow-y-auto space-y-3 border rounded-lg p-4">
+                {orderEntries.map((entry) => (
+                  <div
+                    key={entry.order.id}
+                    className={`border rounded-lg p-4 transition-all ${
+                      entry.selected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <Checkbox
+                          checked={entry.selected}
+                          onCheckedChange={(checked) => 
+                            handleOrderSelection(entry.order.id, !!checked)
+                          }
+                        />
+                        <div>
+                          <div className="font-medium">
+                            Order #{entry.order.id.substring(0, 8)}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {format(new Date(entry.order.createdAt), 'dd MMM yyyy')}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-semibold text-red-600">
+                          ₹{entry.remainingBalance.toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground">pending</div>
+                      </div>
+                    </div>
+
+                    <div className="text-sm text-muted-foreground mb-3 bg-gray-50 p-2 rounded">
+                      {entry.order.items.map(item => `${item.quantity}kg ${item.type}`).join(', ')}
+                    </div>
+
+                    {entry.selected && (
+                      <div className="flex items-center space-x-2 pt-3 border-t">
+                        <Label className="text-sm font-medium min-w-fit">Payment:</Label>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={entry.paymentAmount || ''}
+                          onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
+                          className="flex-1 h-9 text-sm"
+                          min="0"
+                          max={entry.remainingBalance}
+                          step="0.01"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOrderAmountChange(entry.order.id, entry.remainingBalance.toString())}
+                          className="text-xs px-2"
+                        >
+                          Full
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting || totalAllocated <= 0}
+              className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
+            >
+              {isSubmitting ? 'Processing...' : `Process Payment ₹${totalAllocated.toFixed(2)}`}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

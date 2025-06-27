@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Customer, Order } from '../../types/index';
+import { Customer, Order } from '@shared/types';
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 
@@ -189,178 +189,182 @@ export default function SmartPaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl h-[90vh] max-h-[90vh] flex flex-col p-0">
+        <DialogHeader className="flex-shrink-0 p-6 pb-4">
           <DialogTitle>Payment for {customer.name}</DialogTitle>
           <DialogDescription>
             Allocate payment across pending orders
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Payment Amount Section */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="bg-red-50 p-3 rounded-lg border border-red-200">
-                <div className="text-lg font-bold text-red-600">₹{totalPending.toFixed(2)}</div>
-                <div className="text-xs text-red-600">Total Pending</div>
-              </div>
-              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                <div className="text-lg font-bold text-blue-600">₹{totalAllocated.toFixed(2)}</div>
-                <div className="text-xs text-blue-600">Allocated</div>
-              </div>
-              <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                <div className="text-lg font-bold text-green-600">₹{(totalPending - totalAllocated).toFixed(2)}</div>
-                <div className="text-xs text-green-600">Remaining</div>
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto px-6 pb-4">
+            <div className="space-y-6">
+              {/* Payment Amount Section */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-red-50 p-3 rounded-lg border border-red-200">
+                    <div className="text-lg font-bold text-red-600">₹{totalPending.toFixed(2)}</div>
+                    <div className="text-xs text-red-600">Total Pending</div>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div className="text-lg font-bold text-blue-600">₹{totalAllocated.toFixed(2)}</div>
+                    <div className="text-xs text-blue-600">Allocated</div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                    <div className="text-lg font-bold text-green-600">₹{(totalPending - totalAllocated).toFixed(2)}</div>
+                    <div className="text-xs text-green-600">Remaining</div>
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="payment-amount">Payment Amount (₹)</Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                placeholder="Enter payment amount"
-                value={paymentAmount}
-                onChange={(e) => handlePaymentAmountChange(e.target.value)}
-                className="h-11 sm:h-10 text-base sm:text-sm text-center"
-                min="0"
-                step="0.01"
-                max={totalPending}
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="payment-amount">Payment Amount (₹)</Label>
+                  <Input
+                    id="payment-amount"
+                    type="number"
+                    placeholder="Enter payment amount"
+                    value={paymentAmount}
+                    onChange={(e) => handlePaymentAmountChange(e.target.value)}
+                    className="h-11 sm:h-10 text-base sm:text-sm text-center"
+                    min="0"
+                    step="0.01"
+                    max={totalPending}
+                  />
+                </div>
 
-            {/* Quick Amount Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {[100, 500, 1000].map(amount => 
-                totalPending >= amount && (
+                {/* Quick Amount Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[100, 500, 1000].map(amount => 
+                    totalPending >= amount && (
+                      <Button
+                        key={amount}
+                        type="button"
+                        variant="outline"
+                        onClick={() => handlePaymentAmountChange(amount.toString())}
+                        className="h-9 text-sm"
+                        disabled={isSubmitting}
+                      >
+                        ₹{amount}
+                      </Button>
+                    )
+                  )}
                   <Button
-                    key={amount}
                     type="button"
                     variant="outline"
-                    onClick={() => handlePaymentAmountChange(amount.toString())}
+                    onClick={() => handlePaymentAmountChange(totalPending.toString())}
                     className="h-9 text-sm"
                     disabled={isSubmitting}
                   >
-                    ₹{amount}
+                    Pay All
                   </Button>
-                )
-              )}
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handlePaymentAmountChange(totalPending.toString())}
-                className="h-9 text-sm"
-                disabled={isSubmitting}
-              >
-                Pay All
-              </Button>
+                </div>
+              </div>
+
+              {/* Orders List */}
+              {unpaidOrders.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No pending orders found</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium">Pending Orders ({unpaidOrders.length})</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const allSelected = orderEntries.every(entry => entry.selected);
+                        if (allSelected) {
+                          setOrderEntries(entries => entries.map(entry => ({
+                            ...entry,
+                            selected: false,
+                            paymentAmount: 0
+                          })));
+                        } else {
+                          setOrderEntries(entries => entries.map(entry => ({
+                            ...entry,
+                            selected: true,
+                            paymentAmount: entry.remainingBalance
+                          })));
+                        }
+                      }}
+                      disabled={isSubmitting}
+                    >
+                      {orderEntries.every(entry => entry.selected) ? 'Unselect All' : 'Select All'}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 border rounded-lg p-3">
+                    {orderEntries.map((entry) => (
+                      <div
+                        key={entry.order.id}
+                        className={`border rounded-lg p-3 transition-all ${
+                          entry.selected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <Checkbox
+                              checked={entry.selected}
+                              onCheckedChange={(checked) => 
+                                handleOrderSelection(entry.order.id, !!checked)
+                              }
+                            />
+                            <div>
+                              <div className="font-medium text-sm">
+                                Order #{entry.order.id.substring(0, 8)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(entry.order.createdAt), 'dd MMM yyyy')}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-semibold text-red-600 text-sm">
+                              ₹{entry.remainingBalance.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">pending</div>
+                          </div>
+                        </div>
+
+                        <div className="text-xs text-muted-foreground mb-3 bg-gray-50 p-2 rounded">
+                          {entry.order.items.map((item: any) => `${item.quantity}kg ${item.type}`).join(', ')}
+                        </div>
+
+                        {entry.selected && (
+                          <div className="flex items-center space-x-2 pt-3 border-t">
+                            <Label className="text-xs font-medium min-w-fit">Payment:</Label>
+                            <Input
+                              type="number"
+                              placeholder="0.00"
+                              value={entry.paymentAmount || ''}
+                              onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
+                              className="flex-1 h-8 text-xs"
+                              min="0"
+                              max={entry.remainingBalance}
+                              step="0.01"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOrderAmountChange(entry.order.id, entry.remainingBalance.toString())}
+                              className="text-xs px-2 h-8"
+                            >
+                              Full
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+            )}
             </div>
           </div>
 
-          {/* Orders List */}
-          {unpaidOrders.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <p>No pending orders found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium">Pending Orders ({unpaidOrders.length})</h4>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const allSelected = orderEntries.every(entry => entry.selected);
-                    if (allSelected) {
-                      setOrderEntries(entries => entries.map(entry => ({
-                        ...entry,
-                        selected: false,
-                        paymentAmount: 0
-                      })));
-                    } else {
-                      setOrderEntries(entries => entries.map(entry => ({
-                        ...entry,
-                        selected: true,
-                        paymentAmount: entry.remainingBalance
-                      })));
-                    }
-                  }}
-                  disabled={isSubmitting}
-                >
-                  {orderEntries.every(entry => entry.selected) ? 'Unselect All' : 'Select All'}
-                </Button>
-              </div>
-
-              <div className="max-h-80 overflow-y-auto space-y-3 border rounded-lg p-4">
-                {orderEntries.map((entry) => (
-                  <div
-                    key={entry.order.id}
-                    className={`border rounded-lg p-4 transition-all ${
-                      entry.selected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center space-x-3">
-                        <Checkbox
-                          checked={entry.selected}
-                          onCheckedChange={(checked) => 
-                            handleOrderSelection(entry.order.id, !!checked)
-                          }
-                        />
-                        <div>
-                          <div className="font-medium">
-                            Order #{entry.order.id.substring(0, 8)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {format(new Date(entry.order.createdAt), 'dd MMM yyyy')}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-semibold text-red-600">
-                          ₹{entry.remainingBalance.toFixed(2)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">pending</div>
-                      </div>
-                    </div>
-
-                    <div className="text-sm text-muted-foreground mb-3 bg-gray-50 p-2 rounded">
-                      {entry.order.items.map(item => `${item.quantity}kg ${item.type}`).join(', ')}
-                    </div>
-
-                    {entry.selected && (
-                      <div className="flex items-center space-x-2 pt-3 border-t">
-                        <Label className="text-sm font-medium min-w-fit">Payment:</Label>
-                        <Input
-                          type="number"
-                          placeholder="0.00"
-                          value={entry.paymentAmount || ''}
-                          onChange={(e) => handleOrderAmountChange(entry.order.id, e.target.value)}
-                          className="flex-1 h-9 text-sm"
-                          min="0"
-                          max={entry.remainingBalance}
-                          step="0.01"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOrderAmountChange(entry.order.id, entry.remainingBalance.toString())}
-                          className="text-xs px-2"
-                        >
-                          Full
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
+          <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t bg-white">
             <Button
               type="button"
               variant="outline"

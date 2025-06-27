@@ -64,71 +64,73 @@ export default function PaymentModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[90vw] max-w-md p-5 sm:p-6 rounded-xl">
-        <DialogHeader className="space-y-2">
-          <DialogTitle className="text-lg sm:text-xl">{title}</DialogTitle>
-          <DialogDescription className="text-sm sm:text-base">
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
             {description || `Enter the payment amount for ${entityName}`}
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-              <Label htmlFor="amount" className="sm:text-right text-sm font-medium">
-                Amount
-              </Label>
-              <div className="sm:col-span-3 relative w-full">
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
-                  ₹
-                </span>
-                <Input
-                  id="amount"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  type="number"
-                  inputMode="decimal"
-                  min="0.01"
-                  step="0.01"
-                  required
-                  className="pl-7 h-11 text-base"
-                  placeholder="0.00"
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-            
-            <div className="mt-2 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg">
-              {entityType === 'supplier' ? (
-                <p>This amount will be deducted from the {entityType}'s outstanding pendingAmount.</p>
-              ) : (
-                <p>This amount will be deducted from the {entityType}'s pending amount.</p>
-              )}
-              
-              {currentAmount > 0 && (
-                <p className="mt-2 font-medium">
-                  Current {entityType === 'supplier' ? 'pendingAmount' : 'pending amount'}: ₹{currentAmount.toFixed(2)}
-                </p>
-              )}
+        <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-4">
+          {/* Current Amount Display */}
+          <div className="bg-gradient-to-r from-gray-50 to-gray-100 p-4 rounded-lg border">
+            <div className="flex justify-between items-center">
+              <span className="text-base sm:text-sm text-gray-600 font-medium">
+                Current {entityType === 'supplier' ? 'Debt' : 'Pending'} Amount:
+              </span>
+              <span className="font-bold text-xl sm:text-lg text-gray-900">
+                ₹{currentAmount.toFixed(2)}
+              </span>
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amount" className="text-sm font-medium text-foreground">
+              Payment Amount (₹)
+            </Label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 text-base sm:text-sm">
+                ₹
+              </span>
+              <Input
+                id="amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                required
+                className="pl-8 h-11 sm:h-10 text-base sm:text-sm"
+                placeholder="0.00"
+                disabled={isSubmitting}
+                autoFocus
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              {entityType === 'supplier' ? 
+                'This amount will be deducted from the supplier\'s debt' : 
+                'This amount will be deducted from the customer\'s pending amount'}
+            </p>
+          </div>
           
-          <DialogFooter className="flex-col space-y-2 sm:space-y-0 sm:flex-row mt-4 sm:mt-6">
+          <DialogFooter>
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose} 
               disabled={isSubmitting}
-              className="w-full sm:w-auto h-11 text-sm font-medium"
+              className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               disabled={isSubmitting}
-              className="w-full sm:w-auto h-11 text-sm font-medium"
+              className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
             >
-              {isSubmitting ? 'Processing...' : 'Record Payment'}
+              {isSubmitting ? 'Recording Payment...' : 'Record Payment'}
             </Button>
           </DialogFooter>
         </form>

@@ -291,8 +291,8 @@ export default function SmartPaymentModal({
               </div>
 
               {/* Enhanced Payment Input */}
-              <div className="space-y-4">
-                <Label htmlFor="total-amount" className="block text-sm md:text-base font-semibold text-gray-700">
+              <div className="space-y-3">
+                <Label htmlFor="total-amount" className="text-sm font-medium text-foreground">
                   Total Payment Amount (₹)
                 </Label>
                 <Input
@@ -301,21 +301,21 @@ export default function SmartPaymentModal({
                   placeholder="Enter payment amount"
                   value={totalPaymentAmount}
                   onChange={(e) => handleTotalAmountChange(e.target.value)}
-                  className="text-base sm:text-lg md:text-xl h-12 md:h-14 text-center border-2 focus:border-blue-500 focus:ring-blue-500/20"
+                  className="h-11 sm:h-10 text-base sm:text-sm text-center border-2 focus:border-blue-500 focus:ring-blue-500/20"
                   min="0"
                   step="0.01"
                   max={totalPending}
                 />
                 
-                {/* Responsive Quick Amount Buttons */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-2 md:gap-3">
+                {/* Quick Amount Buttons */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {totalPending > 100 && (
                     <Button
                       type="button"
                       variant="outline"
                       onClick={() => handleTotalAmountChange('100')}
                       disabled={isSubmitting}
-                      className="h-10 md:h-12 text-xs md:text-sm font-medium hover:bg-blue-50 border-blue-200"
+                      className="h-11 sm:h-9 text-base sm:text-sm font-medium hover:bg-blue-50 border-blue-200 touch-manipulation"
                     >
                       ₹100
                     </Button>
@@ -326,7 +326,7 @@ export default function SmartPaymentModal({
                       variant="outline"
                       onClick={() => handleTotalAmountChange('500')}
                       disabled={isSubmitting}
-                      className="h-10 md:h-12 text-xs md:text-sm font-medium hover:bg-blue-50 border-blue-200"
+                      className="h-11 sm:h-9 text-base sm:text-sm font-medium hover:bg-blue-50 border-blue-200 touch-manipulation"
                     >
                       ₹500
                     </Button>
@@ -337,7 +337,7 @@ export default function SmartPaymentModal({
                       variant="outline"
                       onClick={() => handleTotalAmountChange('1000')}
                       disabled={isSubmitting}
-                      className="h-10 md:h-12 text-xs md:text-sm font-medium hover:bg-blue-50 border-blue-200"
+                      className="h-11 sm:h-9 text-base sm:text-sm font-medium hover:bg-blue-50 border-blue-200 touch-manipulation"
                     >
                       ₹1000
                     </Button>
@@ -348,7 +348,7 @@ export default function SmartPaymentModal({
                       variant="outline"
                       onClick={() => handleTotalAmountChange(totalPending.toString())}
                       disabled={isSubmitting}
-                      className="h-10 md:h-12 text-xs md:text-sm font-medium col-span-2 sm:col-span-1 lg:col-span-2 hover:bg-green-50 border-green-200"
+                      className="h-11 sm:h-9 text-base sm:text-sm font-medium col-span-2 sm:col-span-1 hover:bg-green-50 border-green-200 touch-manipulation"
                     >
                       Pay All ₹{totalPending.toFixed(0)}
                     </Button>
@@ -571,7 +571,7 @@ export default function SmartPaymentModal({
                       }
                     }}
                     disabled={isSubmitting}
-                    className="h-11 md:h-12 font-medium"
+                    className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
                   >
                     {orderEntries.every(entry => entry.selected) ? 'Unselect All Orders' : 'Select All Orders'}
                   </Button>
@@ -583,14 +583,14 @@ export default function SmartPaymentModal({
                       variant="outline" 
                       onClick={handleClose} 
                       disabled={isSubmitting}
-                      className="h-12 md:h-14 order-2 sm:order-1 border-2 font-medium"
+                      className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation border-2"
                     >
                       Cancel Payment
                     </Button>
                     <Button 
                       type="submit" 
                       disabled={isSubmitting || allocatedAmount <= 0}
-                      className="h-12 md:h-14 order-1 sm:order-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm md:text-base px-6 md:px-8"
+                      className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       {isSubmitting ? 'Processing Payment...' : `Process Payment ₹${allocatedAmount.toFixed(2)}`}
                     </Button>

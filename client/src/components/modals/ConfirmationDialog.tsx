@@ -42,16 +42,16 @@ export default function ConfirmationDialog({
 
   return (
     <AlertDialog open={isOpen} onOpenChange={onClose}>
-      <AlertDialogContent className="w-[90vw] max-w-md rounded-xl p-5 sm:p-6">
-        <AlertDialogHeader className="space-y-3">
-          <AlertDialogTitle className="text-lg sm:text-xl">{title}</AlertDialogTitle>
-          <AlertDialogDescription className="text-sm sm:text-base">
+      <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter className="flex-col space-y-2 sm:space-y-0 sm:flex-row mt-6 sm:mt-8">
+        <AlertDialogFooter>
           <AlertDialogCancel 
-            className="mt-2 sm:mt-0 w-full sm:w-auto h-10 sm:h-11 text-sm font-medium"
+            className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
             disabled={isLoading}
           >
             {cancelText}
@@ -59,7 +59,7 @@ export default function ConfirmationDialog({
           <AlertDialogAction
             onClick={handleConfirm}
             disabled={isLoading}
-            className={`w-full sm:w-auto h-10 sm:h-11 text-sm font-medium ${
+            className={`w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation ${
               variant === "destructive" ? "bg-red-600 hover:bg-red-700" : ""
             } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
           >

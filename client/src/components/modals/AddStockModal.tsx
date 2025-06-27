@@ -145,118 +145,119 @@ export default function AddStockModal({ isOpen, onClose, suppliers }: AddStockMo
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[450px] p-4 sm:p-6">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Stock</DialogTitle>
           <DialogDescription>
-            Add new stock items to your inventory.
+            Add new stock items to your inventory
           </DialogDescription>
         </DialogHeader>
         
-        <div className="grid gap-4 py-4">
+        <div className="space-y-5 sm:space-y-4 py-2">
           {/* Supplier Selection */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-            <Label htmlFor="stock-supplier" className="text-sm font-medium sm:text-right">
+          <div className="space-y-2">
+            <Label htmlFor="stock-supplier" className="text-sm font-medium text-foreground">
               Supplier
             </Label>
-            <div className="sm:col-span-3">
-              <Select 
-                value={supplier} 
-                onValueChange={setSupplier}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select supplier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers.map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select 
+              value={supplier} 
+              onValueChange={setSupplier}
+            >
+              <SelectTrigger className="w-full h-11 sm:h-10 text-base sm:text-sm">
+                <SelectValue placeholder="Select supplier" />
+              </SelectTrigger>
+              <SelectContent>
+                {suppliers.map(s => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Item Type */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-            <Label htmlFor="stock-type" className="text-sm font-medium sm:text-right">
+          <div className="space-y-2">
+            <Label htmlFor="stock-type" className="text-sm font-medium text-foreground">
               Item Type
             </Label>
-            <div className="sm:col-span-3">
-              <Select 
-                value={type} 
-                onValueChange={setType}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select item type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {itemTypes.map(item => (
-                    <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <Select 
+              value={type} 
+              onValueChange={setType}
+            >
+              <SelectTrigger className="w-full h-11 sm:h-10 text-base sm:text-sm">
+                <SelectValue placeholder="Select item type" />
+              </SelectTrigger>
+              <SelectContent>
+                {itemTypes.map(item => (
+                  <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Quantity and Rate - Grid on mobile for space efficiency */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="stock-quantity" className="text-sm font-medium text-foreground">
+                Quantity (kg)
+              </Label>
+              <Input
+                id="stock-quantity"
+                type="number"
+                step="0.01"
+                min="0"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="h-11 sm:h-10 text-base sm:text-sm"
+                placeholder="0.00"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="stock-rate" className="text-sm font-medium text-foreground">
+                Rate (₹ per kg)
+              </Label>
+              <Input
+                id="stock-rate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                className="h-11 sm:h-10 text-base sm:text-sm"
+                placeholder="0.00"
+              />
             </div>
           </div>
           
-          {/* Quantity */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-            <Label htmlFor="stock-quantity" className="text-sm font-medium sm:text-right">
-              Quantity (kg)
-            </Label>
-            <Input
-              id="stock-quantity"
-              type="number"
-              step="0.01"
-              min="0"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              className="sm:col-span-3"
-              placeholder="0.00"
-            />
-          </div>
-          
-          {/* Rate */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-            <Label htmlFor="stock-rate" className="text-sm font-medium sm:text-right">
-              Rate (₹ per kg)
-            </Label>
-            <Input
-              id="stock-rate"
-              type="number"
-              step="0.01"
-              min="0"
-              value={rate}
-              onChange={(e) => setRate(e.target.value)}
-              className="sm:col-span-3"
-              placeholder="0.00"
-            />
-          </div>
-          
-          {/* Total Amount */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 items-start sm:items-center gap-2 sm:gap-4">
-            <Label htmlFor="stock-total" className="text-sm font-medium sm:text-right">
+          {/* Total Amount - Highlighted */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium text-foreground">
               Total Amount (₹)
             </Label>
-            <Input
-              id="stock-total"
-              type="text"
-              value={total}
-              className="sm:col-span-3 bg-slate-50"
-              disabled
-            />
+            <div className="bg-gradient-to-r from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
+              <div className="text-center">
+                <span className="text-2xl sm:text-xl font-bold text-green-800">₹{total}</span>
+                <p className="text-xs text-green-600 mt-1">Calculated automatically</p>
+              </div>
+            </div>
           </div>
         </div>
         
-        <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-2">
-          <Button variant="outline" onClick={onClose} className="w-full sm:w-auto" disabled={isSubmitting}>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation" 
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
           >
-            {isSubmitting ? 'Adding...' : 'Add Stock'}
+            {isSubmitting ? 'Adding Stock...' : 'Add Stock'}
           </Button>
         </DialogFooter>
       </DialogContent>

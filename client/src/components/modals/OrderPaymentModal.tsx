@@ -84,40 +84,44 @@ export default function OrderPaymentModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 sm:space-y-4">
           {/* Order Details */}
-          <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Order Total:</span>
-              <span className="font-medium">₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
+          <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg border border-blue-200 space-y-3">
+            <div className="flex justify-between text-base sm:text-sm">
+              <span className="text-gray-700 font-medium">Order Total:</span>
+              <span className="font-bold text-gray-900">₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Paid Amount:</span>
-              <span className="font-medium text-green-600">₹{order.paidAmount?.toFixed(2) || '0.00'}</span>
+            <div className="flex justify-between text-base sm:text-sm">
+              <span className="text-gray-700 font-medium">Paid Amount:</span>
+              <span className="font-bold text-green-600">₹{order.paidAmount?.toFixed(2) || '0.00'}</span>
             </div>
-            <div className="flex justify-between text-sm border-t pt-2">
-              <span className="text-gray-900 font-medium">Remaining Balance:</span>
-              <span className="font-bold text-red-600">₹{remainingBalance.toFixed(2)}</span>
+            <div className="flex justify-between text-base sm:text-sm border-t border-blue-200 pt-2">
+              <span className="text-gray-900 font-bold">Remaining Balance:</span>
+              <span className="font-bold text-xl sm:text-lg text-red-600">₹{remainingBalance.toFixed(2)}</span>
             </div>
           </div>
 
           {/* Order Items */}
           <div className="space-y-2">
-            <h4 className="text-sm font-medium text-gray-900">Order Items:</h4>
-            <div className="text-sm text-gray-600">
-              {order.items?.map((item, index) => (
-                <div key={index} className="flex justify-between">
-                  <span>{item.quantity}kg {item.type}</span>
-                  <span>@ ₹{item.rate}/kg</span>
-                </div>
-              )) || 'No items'}
+            <h4 className="text-base sm:text-sm font-medium text-gray-900">Order Items:</h4>
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <div className="space-y-1 text-sm text-gray-600">
+                {order.items?.map((item, index) => (
+                  <div key={index} className="flex justify-between">
+                    <span className="font-medium">{item.quantity}kg {item.type}</span>
+                    <span>@ ₹{item.rate}/kg</span>
+                  </div>
+                )) || 'No items'}
+              </div>
             </div>
           </div>
 
           {/* Payment Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="amount">Payment Amount (₹)</Label>
+          <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="amount" className="text-sm font-medium text-foreground">
+                Payment Amount (₹)
+              </Label>
               <Input
                 id="amount"
                 type="number"
@@ -127,28 +131,32 @@ export default function OrderPaymentModal({
                 min="0.01"
                 max={remainingBalance}
                 step="0.01"
+                className="h-11 sm:h-10 text-base sm:text-sm text-right"
                 required
                 disabled={isSubmitting}
+                autoFocus
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Maximum: ₹{remainingBalance.toFixed(2)}
+              <p className="text-xs text-gray-500">
+                Maximum payment: ₹{remainingBalance.toFixed(2)}
               </p>
             </div>
 
-            <div className="flex justify-end space-x-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end sm:gap-2 pt-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
                 disabled={isSubmitting}
+                className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting || !amount}
+                className="w-full sm:w-auto h-11 sm:h-10 text-base sm:text-sm font-medium touch-manipulation"
               >
-                {isSubmitting ? 'Recording...' : 'Record Payment'}
+                {isSubmitting ? 'Recording Payment...' : 'Record Payment'}
               </Button>
             </div>
           </form>

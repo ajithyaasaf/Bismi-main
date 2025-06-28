@@ -42,26 +42,30 @@ export class CacheManager {
           }
         });
 
-        // Aggressive update checking - every 15 seconds for instant deployment detection
-        setInterval(() => this.checkForUpdates(), 15000);
+        // Check for updates every 5 minutes (300 seconds) instead of every 10 seconds
+        // This reduces API calls from 25,920/day to 288/day
+        setInterval(() => this.checkForUpdates(), 5 * 60 * 1000);
         
-        // Additional redundant checks for maximum reliability
-        setInterval(() => this.performDeepVersionCheck(), 10000);
-        
-        // Page visibility API to check immediately when tab becomes active
+        // Check when tab becomes active, but with rate limiting
+        let lastVisibilityCheck = 0;
         document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) {
+          const now = Date.now();
+          if (!document.hidden && now - lastVisibilityCheck > 60000) { // Max once per minute
+            lastVisibilityCheck = now;
             this.checkForUpdates();
-            this.performDeepVersionCheck();
           }
         });
         
-        // Network change detection for immediate updates
+        // Network change detection with rate limiting
+        let lastNetworkCheck = 0;
         window.addEventListener('online', () => {
-          setTimeout(() => {
-            this.checkForUpdates();
-            this.performDeepVersionCheck();
-          }, 1000);
+          const now = Date.now();
+          if (now - lastNetworkCheck > 60000) { // Max once per minute
+            lastNetworkCheck = now;
+            setTimeout(() => {
+              this.checkForUpdates();
+            }, 1000);
+          }
         });
 
       } catch (error) {

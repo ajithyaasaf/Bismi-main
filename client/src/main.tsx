@@ -73,30 +73,30 @@ async function initializeApp() {
     }
   };
 
-  // Immediate aggressive startup checks
-  setTimeout(performUltimateDeploymentDetection, 1000);
-  setTimeout(performUltimateDeploymentDetection, 3000);
+  // Single startup check after 5 seconds
+  setTimeout(performUltimateDeploymentDetection, 5000);
   
-  // Ultra-frequent automatic checks (every 10 seconds for Instagram-level instant detection)
-  setInterval(performUltimateDeploymentDetection, 10000);
+  // Check only every 10 minutes (600 seconds) to reduce API calls from 25,920/day to 144/day
+  setInterval(performUltimateDeploymentDetection, 10 * 60 * 1000);
   
-  // Additional frequent checks (every 30 seconds as backup)
-  setInterval(performUltimateDeploymentDetection, 30000);
-  
-  // Immediate checks on user activity
+  // Rate-limited visibility check (max once per 5 minutes)
+  let lastVisibilityDeploymentCheck = 0;
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      // Check immediately when user returns to tab
+    const now = Date.now();
+    if (!document.hidden && now - lastVisibilityDeploymentCheck > 5 * 60 * 1000) {
+      lastVisibilityDeploymentCheck = now;
       performUltimateDeploymentDetection();
-      // Follow up check after 2 seconds
-      setTimeout(performUltimateDeploymentDetection, 2000);
     }
   });
 
-  // Network reconnection triggers immediate check
+  // Rate-limited network check (max once per 5 minutes)
+  let lastNetworkDeploymentCheck = 0;
   window.addEventListener('online', () => {
-    performUltimateDeploymentDetection();
-    setTimeout(performUltimateDeploymentDetection, 1000);
+    const now = Date.now();
+    if (now - lastNetworkDeploymentCheck > 5 * 60 * 1000) {
+      lastNetworkDeploymentCheck = now;
+      performUltimateDeploymentDetection();
+    }
   });
 
   // Focus events trigger immediate checks

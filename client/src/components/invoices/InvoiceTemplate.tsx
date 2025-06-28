@@ -246,53 +246,102 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
               })}
             </div>
 
-            {/* Desktop Table Layout */}
+            {/* Desktop Table Layout - Item-wise breakdown */}
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full border-collapse border border-gray-300">
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Order ID</th>
                     <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Date</th>
-                    <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Items</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Item</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-center text-xs lg:text-sm">Quantity (kg)</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-right text-xs lg:text-sm">Rate (₹)</th>
                     <th className="border border-gray-300 p-2 lg:p-3 text-right text-xs lg:text-sm">Amount</th>
                     <th className="border border-gray-300 p-2 lg:p-3 text-center text-xs lg:text-sm">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOrders.map((order, index) => {
+                  {filteredOrders.flatMap((order, orderIndex) => {
                     const isOverdue = overdueOrders.some(o => o.id === order.id);
                     const orderDate = typeof order.createdAt === 'string' ? parseISO(order.createdAt) : 
                                      order.createdAt instanceof Date ? order.createdAt : new Date();
+                    const orderId = getOrderIdentifier(order, orderIndex);
+                    const items = Array.isArray(order.items) ? order.items : [];
                     
-                    return (
-                      <tr key={order.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="border border-gray-300 p-2 lg:p-3">
-                          <span className="text-xs text-gray-500">
-                            {getOrderIdentifier(order, index)}
-                          </span>
-                        </td>
-                        <td className="border border-gray-300 p-2 lg:p-3">
-                          {format(orderDate, 'dd/MM/yyyy')}
-                        </td>
-                        <td className="border border-gray-300 p-2 lg:p-3">
-                          {formatOrderItems(Array.isArray(order.items) ? order.items : [])}
-                        </td>
-                        <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">
-                          {formatCurrency(order.totalAmount || 0)}
-                        </td>
-                        <td className="border border-gray-300 p-2 lg:p-3 text-center">
-                          <span className={`px-2 py-1 rounded text-xs font-bold ${
-                            order.paymentStatus === 'paid' 
-                              ? 'bg-green-100 text-green-800' 
-                              : isOverdue 
-                                ? 'bg-red-100 text-red-800' 
-                                : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {order.paymentStatus === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
+                    if (items.length === 0) {
+                      return (
+                        <tr key={order.id} className={orderIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="border border-gray-300 p-2 lg:p-3">
+                            <span className="text-xs text-gray-500">{orderId}</span>
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3">
+                            {format(orderDate, 'dd/MM/yyyy')}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-gray-500">No items</td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-center">-</td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-right">-</td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">
+                            {formatCurrency(order.totalAmount || 0)}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-center">
+                            <span className={`px-2 py-1 rounded text-xs font-bold ${
+                              order.paymentStatus === 'paid' 
+                                ? 'bg-green-100 text-green-800' 
+                                : isOverdue 
+                                  ? 'bg-red-100 text-red-800' 
+                                  : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {order.paymentStatus === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    }
+                    
+                    return items.map((item: any, itemIndex: number) => {
+                      const itemAmount = (item.quantity || 0) * (item.rate || 0);
+                      const isFirstItem = itemIndex === 0;
+                      
+                      return (
+                        <tr key={`${order.id}-${itemIndex}`} className={orderIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="border border-gray-300 p-2 lg:p-3">
+                            {isFirstItem ? (
+                              <span className="text-xs text-gray-500">{orderId}</span>
+                            ) : (
+                              <span className="text-xs text-gray-300">↳</span>
+                            )}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3">
+                            {isFirstItem ? format(orderDate, 'dd/MM/yyyy') : ''}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 font-medium">
+                            {(item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1)}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-center font-mono">
+                            {(item.quantity || 0).toFixed(2)}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">
+                            ₹{(item.rate || 0).toFixed(2)}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono font-semibold">
+                            ₹{itemAmount.toFixed(1)}
+                          </td>
+                          <td className="border border-gray-300 p-2 lg:p-3 text-center">
+                            {isFirstItem ? (
+                              <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                order.paymentStatus === 'paid' 
+                                  ? 'bg-green-100 text-green-800' 
+                                  : isOverdue 
+                                    ? 'bg-red-100 text-red-800' 
+                                    : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {order.paymentStatus === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                              </span>
+                            ) : ''}
+                          </td>
+                        </tr>
+                      );
+                    });
                   })}
                 </tbody>
               </table>

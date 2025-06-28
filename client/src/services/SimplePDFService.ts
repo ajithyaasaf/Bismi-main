@@ -691,13 +691,80 @@ export class SimplePDFService {
                     <tr>
                         <th>Order ID</th>
                         <th>Date</th>
-                        <th>Items</th>
+                        <th>Item</th>
+                        <th style="text-align: center;">Quantity (kg)</th>
+                        <th style="text-align: right;">Rate (₹)</th>
                         <th style="text-align: right;">Amount</th>
                         <th style="text-align: center;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${orderRows}
+                    ${(() => {
+                        return filteredOrders.flatMap((order, orderIndex) => {
+                            const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
+                            const orderId = order.id.substring(0, 8).toUpperCase();
+                            const items = Array.isArray(order.items) ? order.items : [];
+                            const isOverdue = false; // Calculate if needed
+                            
+                            const getStatusBadge = (status: string) => {
+                                const colors: { [key: string]: { bg: string; color: string } } = {
+                                    paid: { bg: '#dcfce7', color: '#166534' },
+                                    pending: { bg: '#fecaca', color: '#dc2626' },
+                                    partially_paid: { bg: '#fef3c7', color: '#d97706' }
+                                };
+                                const style = colors[status] || colors.pending;
+                                const text = status === 'paid' ? 'PAID' : 
+                                           status === 'partially_paid' ? 'PARTIAL' : 'PENDING';
+                                
+                                return `<span style="
+                                    padding: 4px 8px; 
+                                    border-radius: 4px; 
+                                    font-size: 11px; 
+                                    font-weight: 600;
+                                    background-color: ${style.bg};
+                                    color: ${style.color};
+                                ">${text}</span>`;
+                            };
+                            
+                            if (items.length === 0) {
+                                return `
+                                <tr style="background: ${orderIndex % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">${orderId}</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6;">${format(orderDate, 'dd/MM/yyyy')}</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6; color: #9ca3af;">No items</td>
+                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6;">-</td>
+                                    <td style="padding: 12px; text-align: right; border-bottom: 1px solid #f3f4f6;">-</td>
+                                    <td style="padding: 12px; text-align: right; border-bottom: 1px solid #f3f4f6; font-family: monospace; font-weight: 600;">₹${(order.totalAmount || 0).toFixed(1)}</td>
+                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6;">${getStatusBadge(order.paymentStatus)}</td>
+                                </tr>
+                                `;
+                            }
+                            
+                            return items.map((item, itemIndex) => {
+                                const itemAmount = (item.quantity || 0) * (item.rate || 0);
+                                const isFirstItem = itemIndex === 0;
+                                const itemName = (item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1);
+                                
+                                return `
+                                <tr style="background: ${orderIndex % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">
+                                        ${isFirstItem ? orderId : '<span style="color: #d1d5db;">↳</span>'}
+                                    </td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6;">
+                                        ${isFirstItem ? format(orderDate, 'dd/MM/yyyy') : ''}
+                                    </td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6; font-weight: 500;">${itemName}</td>
+                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6; font-family: monospace;">${(item.quantity || 0).toFixed(2)}</td>
+                                    <td style="padding: 12px; text-align: right; border-bottom: 1px solid #f3f4f6; font-family: monospace;">₹${(item.rate || 0).toFixed(2)}</td>
+                                    <td style="padding: 12px; text-align: right; border-bottom: 1px solid #f3f4f6; font-family: monospace; font-weight: 600;">₹${itemAmount.toFixed(1)}</td>
+                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6;">
+                                        ${isFirstItem ? getStatusBadge(order.paymentStatus) : ''}
+                                    </td>
+                                </tr>
+                                `;
+                            }).join('');
+                        }).join('');
+                    })()}
                 </tbody>
             </table>
         </div>

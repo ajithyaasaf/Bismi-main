@@ -280,24 +280,35 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
       {/* Order Details Dialog */}
       {selectedOrder && (
         <Dialog open={Boolean(selectedOrder)} onOpenChange={(open) => !open && closeOrderDetails()}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Order Details</DialogTitle>
+          <DialogContent className="w-[95vw] max-w-[500px] max-h-[85vh] overflow-y-auto p-4 sm:p-6">
+            <DialogHeader className="pb-4">
+              <DialogTitle className="text-lg sm:text-xl pr-8">Order Details</DialogTitle>
+              {/* Close button for mobile */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+                onClick={() => closeOrderDetails()}
+              >
+                <i className="fas fa-times h-4 w-4"></i>
+                <span className="sr-only">Close</span>
+              </Button>
             </DialogHeader>
             
-            <div className="py-4">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-500">Customer</p>
+            <div className="space-y-4">
+              {/* Customer and Basic Info - Mobile First Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="space-y-1">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium">Customer</p>
                   <div className="flex items-center gap-2">
-                    <p className="font-medium">{getCustomerName(selectedOrder.customerId)}</p>
+                    <p className="font-medium text-sm sm:text-base">{getCustomerName(selectedOrder.customerId)}</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                            className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                             onClick={async () => {
                               const whatsappLink = await createOrderWhatsAppMessage(selectedOrder.customerId, selectedOrder.id);
                               if (whatsappLink) {
@@ -315,9 +326,9 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                     </TooltipProvider>
                   </div>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Date</p>
-                  <p className="font-medium">
+                <div className="space-y-1">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium">Date</p>
+                  <p className="font-medium text-sm sm:text-base">
                     {(() => {
                       const orderWithTimestamp = selectedOrder as any;
                       const orderTimestamp = selectedOrder.createdAt;
@@ -328,66 +339,106 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                     })()}
                   </p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Payment Status</p>
+                <div className="space-y-1">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium">Payment Status</p>
                   {getPaymentStatusBadge(selectedOrder)}
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">Type</p>
-                  <p className="font-medium capitalize">{selectedOrder.orderStatus}</p>
+                <div className="space-y-1">
+                  <p className="text-xs sm:text-sm text-gray-500 font-medium">Type</p>
+                  <p className="font-medium capitalize text-sm sm:text-base">{selectedOrder.orderStatus}</p>
                 </div>
               </div>
               
-              <div className="border-t border-gray-200 pt-4 mt-2">
-                <h4 className="font-medium mb-2">Order Items</h4>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Item</TableHead>
-                      <TableHead className="text-right">Quantity (kg)</TableHead>
-                      <TableHead className="text-right">Rate (₹)</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {(selectedOrder.items as OrderItem[]).map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="capitalize">{item.type}</TableCell>
-                        <TableCell className="text-right">{(item.quantity || 0).toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{(item.rate || 0).toFixed(2)}</TableCell>
-                        <TableCell className="text-right">₹{((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</TableCell>
-                        <TableCell>{item.details || '-'}</TableCell>
+              {/* Order Items - Mobile Responsive */}
+              <div className="border-t border-gray-200 pt-4">
+                <h4 className="font-medium mb-3 text-sm sm:text-base">Order Items</h4>
+                
+                {/* Mobile Card Layout */}
+                <div className="block sm:hidden space-y-3">
+                  {(selectedOrder.items as OrderItem[]).map((item, index) => (
+                    <div key={index} className="bg-gray-50 p-3 rounded-lg border">
+                      <div className="flex justify-between items-start mb-2">
+                        <h5 className="font-medium capitalize text-sm">{getItemLabel(item.type)}</h5>
+                        <span className="font-bold text-sm">₹{((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                        <div>
+                          <span className="block">Quantity:</span>
+                          <span className="font-medium">{(item.quantity || 0).toFixed(2)} kg</span>
+                        </div>
+                        <div>
+                          <span className="block">Rate:</span>
+                          <span className="font-medium">₹{(item.rate || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      {item.details && (
+                        <div className="mt-2 text-xs text-gray-600">
+                          <span className="block">Details:</span>
+                          <span className="font-medium">{item.details}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  <div className="border-t-2 border-gray-300 pt-2 mt-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-base">Total</span>
+                      <span className="font-bold text-lg">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Desktop Table Layout */}
+                <div className="hidden sm:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Item</TableHead>
+                        <TableHead className="text-right">Quantity (kg)</TableHead>
+                        <TableHead className="text-right">Rate (₹)</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Details</TableHead>
                       </TableRow>
-                    ))}
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-right font-medium">Total</TableCell>
-                      <TableCell className="text-right font-bold">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {(selectedOrder.items as OrderItem[]).map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="capitalize">{getItemLabel(item.type)}</TableCell>
+                          <TableCell className="text-right">{(item.quantity || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">₹{(item.rate || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">₹{((item.quantity || 0) * (item.rate || 0)).toFixed(2)}</TableCell>
+                          <TableCell className="text-sm">{item.details || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow className="border-t-2">
+                        <TableCell colSpan={3} className="text-right font-medium">Total</TableCell>
+                        <TableCell className="text-right font-bold text-lg">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</TableCell>
+                        <TableCell></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
 
-              {/* Payment Summary for Selected Order */}
-              <div className="border-t border-gray-200 pt-4 mt-4">
-                <h4 className="font-medium mb-2">Payment Summary</h4>
-                <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Order Total:</span>
-                    <span className="font-medium">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</span>
+              {/* Payment Summary - Mobile Optimized */}
+              <div className="border-t border-gray-200 pt-4">
+                <h4 className="font-medium mb-3 text-sm sm:text-base">Payment Summary</h4>
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-3 sm:p-4 rounded-lg border border-blue-200 space-y-2">
+                  <div className="flex justify-between text-sm sm:text-base">
+                    <span className="text-gray-700 font-medium">Order Total:</span>
+                    <span className="font-bold">₹{(selectedOrder.totalAmount || 0).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Paid Amount:</span>
-                    <span className="font-medium text-green-600">₹{(selectedOrder.paidAmount || 0).toFixed(2)}</span>
+                  <div className="flex justify-between text-sm sm:text-base">
+                    <span className="text-gray-700 font-medium">Paid Amount:</span>
+                    <span className="font-bold text-green-600">₹{(selectedOrder.paidAmount || 0).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm border-t pt-2">
-                    <span className="text-gray-900 font-medium">Remaining Balance:</span>
-                    <span className="font-bold text-red-600">₹{((selectedOrder.totalAmount || 0) - (selectedOrder.paidAmount || 0)).toFixed(2)}</span>
+                  <div className="flex justify-between text-sm sm:text-base border-t border-blue-200 pt-2">
+                    <span className="text-gray-900 font-bold">Remaining Balance:</span>
+                    <span className="font-bold text-base sm:text-lg text-red-600">₹{((selectedOrder.totalAmount || 0) - (selectedOrder.paidAmount || 0)).toFixed(2)}</span>
                   </div>
                 </div>
                 {selectedOrder.paymentStatus !== 'paid' && (
                   <Button 
-                    className="mt-3 w-full"
+                    className="mt-3 w-full h-12 text-base font-medium"
                     onClick={() => {
                       setPaymentOrder(selectedOrder);
                       setSelectedOrder(null);

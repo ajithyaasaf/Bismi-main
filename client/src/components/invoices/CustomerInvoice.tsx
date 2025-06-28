@@ -234,88 +234,88 @@ export function CustomerInvoice({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[98vw] sm:w-[95vw] md:w-[92vw] lg:w-[90vw] xl:w-[85vw] max-w-7xl h-[98vh] sm:h-[95vh] md:h-[92vh] overflow-hidden p-0">
+      <DialogContent className="w-[95vw] max-w-7xl h-[90vh] max-h-[800px] overflow-hidden p-0">
         <div className="flex flex-col h-full">
-          <DialogHeader className="flex-shrink-0 p-4 sm:p-6 border-b bg-white relative">
+          <DialogHeader className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b bg-white relative">
             <Button
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 h-9 w-9 p-0 hover:bg-gray-100 rounded-full z-10"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 h-10 w-10 p-0 hover:bg-gray-100 rounded-full z-10"
             >
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </Button>
-            <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl lg:text-2xl font-semibold leading-tight pr-12">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl font-semibold leading-tight pr-12">
               <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
               <span className="truncate">Invoice - {customer.name}</span>
             </DialogTitle>
           </DialogHeader>
           
           <div className="flex-1 overflow-hidden">
-            <div className="h-full overflow-y-auto p-4 sm:p-6">
+            <div className="h-full overflow-y-auto p-3 sm:p-4 lg:p-6">
 
 
 
               <Tabs defaultValue="preview" className="w-full h-full flex flex-col">
-                <TabsList className="grid w-full grid-cols-3 h-auto mb-4 bg-gradient-to-r from-gray-100 to-blue-50 p-1 rounded-xl shadow-sm">
-                  <TabsTrigger value="preview" className="text-xs sm:text-sm md:text-base px-2 py-3 md:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium">
-                    <Eye className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Preview</span>
-                    <span className="sm:hidden">View</span>
+                <TabsList className="grid w-full grid-cols-3 h-auto mb-3 sm:mb-4 bg-gradient-to-r from-gray-100 to-blue-50 p-1 rounded-xl shadow-sm">
+                  <TabsTrigger value="preview" className="text-xs sm:text-sm px-2 py-3 sm:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium min-h-[44px]">
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Preview</span>
+                    <span className="xs:hidden">View</span>
                   </TabsTrigger>
-                  <TabsTrigger value="settings" className="text-xs sm:text-sm md:text-base px-2 py-3 md:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium">
-                    <Settings className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Settings</span>
-                    <span className="sm:hidden">Config</span>
+                  <TabsTrigger value="settings" className="text-xs sm:text-sm px-2 py-3 sm:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium min-h-[44px]">
+                    <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Settings</span>
+                    <span className="xs:hidden">Config</span>
                   </TabsTrigger>
-                  <TabsTrigger value="actions" className="text-xs sm:text-sm md:text-base px-2 py-3 md:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium">
-                    <Download className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 sm:mr-2" />
-                    <span className="hidden sm:inline">Actions</span>
-                    <span className="sm:hidden">Export</span>
+                  <TabsTrigger value="actions" className="text-xs sm:text-sm px-2 py-3 sm:py-4 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-md transition-all font-medium min-h-[44px]">
+                    <Download className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                    <span className="hidden xs:inline">Actions</span>
+                    <span className="xs:hidden">Export</span>
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="preview" className="flex-1 flex flex-col space-y-4 md:space-y-6 min-h-0">
-                  {/* Enhanced Quick Stats */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                <TabsContent value="preview" className="flex-1 flex flex-col space-y-3 sm:space-y-4 lg:space-y-6 min-h-0">
+                  {/* Enhanced Quick Stats - Mobile First */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 lg:gap-4">
                     <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 hover:shadow-md transition-all duration-200">
-                      <CardContent className="p-3 md:p-4">
+                      <CardContent className="p-2 sm:p-3 lg:p-4">
                         <div className="text-center">
-                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-blue-600">
+                          <div className="text-sm sm:text-base lg:text-xl xl:text-2xl font-bold text-blue-600">
                             ₹{totalAmount.toFixed(2)}
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600 font-medium">Total Value</p>
+                          <p className="text-xs sm:text-sm text-gray-600 font-medium">Total Value</p>
                         </div>
                       </CardContent>
                     </Card>
                     <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100 hover:shadow-md transition-all duration-200">
-                      <CardContent className="p-3 md:p-4">
+                      <CardContent className="p-2 sm:p-3 lg:p-4">
                         <div className="text-center">
-                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-red-600">
+                          <div className="text-sm sm:text-base lg:text-xl xl:text-2xl font-bold text-red-600">
                             ₹{pendingAmount.toFixed(2)}
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600 font-medium">Pending</p>
+                          <p className="text-xs sm:text-sm text-gray-600 font-medium">Pending</p>
                         </div>
                       </CardContent>
                     </Card>
                     <Card className="border-green-200 bg-gradient-to-br from-green-50 to-green-100 hover:shadow-md transition-all duration-200">
-                      <CardContent className="p-3 md:p-4">
+                      <CardContent className="p-2 sm:p-3 lg:p-4">
                         <div className="text-center">
-                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-green-600">
+                          <div className="text-sm sm:text-base lg:text-xl xl:text-2xl font-bold text-green-600">
                             {relevantOrders.length}
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600 font-medium">Orders</p>
+                          <p className="text-xs sm:text-sm text-gray-600 font-medium">Orders</p>
                         </div>
                       </CardContent>
                     </Card>
                     <Card className="border-orange-200 bg-gradient-to-br from-orange-50 to-orange-100 hover:shadow-md transition-all duration-200">
-                      <CardContent className="p-3 md:p-4">
+                      <CardContent className="p-2 sm:p-3 lg:p-4">
                         <div className="text-center">
-                          <div className="text-base sm:text-lg md:text-2xl lg:text-3xl font-bold text-orange-600">
+                          <div className="text-sm sm:text-base lg:text-xl xl:text-2xl font-bold text-orange-600">
                             {unpaidOrders.length}
                           </div>
-                          <p className="text-xs md:text-sm text-gray-600 font-medium">Unpaid</p>
+                          <p className="text-xs sm:text-sm text-gray-600 font-medium">Unpaid</p>
                         </div>
                       </CardContent>
                     </Card>

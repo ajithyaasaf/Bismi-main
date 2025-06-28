@@ -131,114 +131,174 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
   };
 
   return (
-    <div ref={ref} className="invoice-template bg-white p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto" style={{ 
+    <div ref={ref} className="invoice-template bg-white p-3 sm:p-4 lg:p-6 xl:p-8 max-w-4xl mx-auto" style={{ 
       fontFamily: 'Arial, sans-serif',
       fontSize: '14px',
       lineHeight: '1.5',
       color: '#333'
     }}>
-      {/* Header Section */}
-      <div className="header flex flex-col sm:flex-row sm:justify-between sm:items-start mb-6 sm:mb-8 pb-4 sm:pb-6 border-b-2 border-gray-200 gap-4">
-        <div className="business-info flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-800 mb-2">{businessInfo.name}</h1>
-          {businessInfo.address.map((line, index) => (
-            <p key={index} className="text-xs sm:text-sm text-gray-600 mb-1">{line}</p>
-          ))}
-          <p className="text-xs sm:text-sm text-gray-600">Phone: {businessInfo.phone}</p>
-          <p className="text-xs sm:text-sm text-gray-600">Email: {businessInfo.email}</p>
-        </div>
-        <div className="invoice-info text-left sm:text-right">
-          <h2 className="text-2xl sm:text-3xl font-bold text-blue-800 mb-2">INVOICE</h2>
-          <p className="text-base sm:text-lg text-gray-600">#{invoiceNumber}</p>
-        </div>
-      </div>
-
-      {/* Invoice Details Section */}
-      <div className="invoice-details flex flex-col lg:flex-row lg:justify-between mb-6 lg:mb-8 gap-6">
-        <div className="bill-to flex-1">
-          <h3 className="text-base lg:text-lg font-bold mb-3">BILL TO:</h3>
-          <p className="font-semibold text-base lg:text-lg">{customer.name}</p>
-          <p className="text-xs lg:text-sm text-gray-600">Type: {customer.type === 'hotel' ? 'Hotel/Restaurant' : 'Retail Customer'}</p>
-          {customer.contact && <p className="text-xs lg:text-sm text-gray-600">Contact: {customer.contact}</p>}
-        </div>
-        <div className="invoice-meta flex-1 lg:max-w-xs">
-          <h3 className="text-base lg:text-lg font-bold mb-3">INVOICE DETAILS:</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs lg:text-sm">
-            <span className="text-gray-600">Invoice Date:</span>
-            <span>{format(parseISO(currentDate), 'dd/MM/yyyy')}</span>
-            <span className="text-gray-600">Due Date:</span>
-            <span>{format(parseISO(dueDate), 'dd/MM/yyyy')}</span>
-            <span className="text-gray-600">Customer ID:</span>
-            <span className="break-all">{customer.id.substring(0, 8).toUpperCase()}</span>
-            <span className="text-gray-600">Payment Status:</span>
-            <span className={totalPending > 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
-              {totalPending > 0 ? 'PENDING' : 'PAID'}
-            </span>
+      {/* Header Section - Mobile First */}
+      <div className="header flex flex-col gap-3 sm:gap-4 mb-4 sm:mb-6 lg:mb-8 pb-3 sm:pb-4 lg:pb-6 border-b-2 border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
+          <div className="business-info flex-1">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-800 mb-2">{businessInfo.name}</h1>
+            <div className="space-y-1">
+              {businessInfo.address.map((line, index) => (
+                <p key={index} className="text-xs sm:text-sm text-gray-600">{line}</p>
+              ))}
+              <p className="text-xs sm:text-sm text-gray-600">Phone: {businessInfo.phone}</p>
+              <p className="text-xs sm:text-sm text-gray-600">Email: {businessInfo.email}</p>
+            </div>
+          </div>
+          <div className="invoice-info text-left sm:text-right">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-blue-800 mb-2">INVOICE</h2>
+            <p className="text-sm sm:text-base lg:text-lg text-gray-600">#{invoiceNumber}</p>
           </div>
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="orders-section mb-6 lg:mb-8">
-        <h3 className="text-base lg:text-lg font-bold mb-4">Order Summary</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse border border-gray-300 min-w-[500px]">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Order ID</th>
-                <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Date</th>
-                <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Items</th>
-                <th className="border border-gray-300 p-2 lg:p-3 text-right text-xs lg:text-sm">Amount</th>
-                <th className="border border-gray-300 p-2 lg:p-3 text-center text-xs lg:text-sm">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredOrders.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="border border-gray-300 p-4 text-center text-gray-500">
-                    No orders found for this customer
-                  </td>
-                </tr>
-              ) : (
-                filteredOrders.map((order, index) => {
-                  const isOverdue = overdueOrders.some(o => o.id === order.id);
-                  const orderDate = typeof order.createdAt === 'string' ? parseISO(order.createdAt) : 
-                                   order.createdAt instanceof Date ? order.createdAt : new Date();
-                  
-                  return (
-                    <tr key={order.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 p-2 lg:p-3">
-                        <span className="text-xs text-gray-500">
-                          {getOrderIdentifier(order, index)}
-                        </span>
-                      </td>
-                      <td className="border border-gray-300 p-2 lg:p-3">
-                        {format(orderDate, 'dd/MM/yyyy')}
-                      </td>
-                      <td className="border border-gray-300 p-2 lg:p-3">
-                        {formatOrderItems(Array.isArray(order.items) ? order.items : [])}
-                      </td>
-                      <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">
-                        {formatCurrency(order.totalAmount || 0)}
-                      </td>
-                      <td className="border border-gray-300 p-2 lg:p-3 text-center">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${
-                          order.paymentStatus === 'paid' 
-                            ? 'bg-green-100 text-green-800' 
-                            : isOverdue 
-                              ? 'bg-red-100 text-red-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {order.paymentStatus === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+      {/* Invoice Details Section - Mobile Optimized */}
+      <div className="invoice-details space-y-4 sm:space-y-6 mb-4 sm:mb-6 lg:mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <div className="bill-to">
+            <h3 className="text-sm sm:text-base lg:text-lg font-bold mb-2 sm:mb-3 text-blue-800">BILL TO:</h3>
+            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+              <p className="font-semibold text-sm sm:text-base lg:text-lg">{customer.name}</p>
+              <p className="text-xs sm:text-sm text-gray-600 mt-1">Type: {customer.type === 'hotel' ? 'Hotel/Restaurant' : 'Retail Customer'}</p>
+              {customer.contact && <p className="text-xs sm:text-sm text-gray-600">Contact: {customer.contact}</p>}
+            </div>
+          </div>
+          <div className="invoice-meta">
+            <h3 className="text-sm sm:text-base lg:text-lg font-bold mb-2 sm:mb-3 text-blue-800">INVOICE DETAILS:</h3>
+            <div className="bg-gray-50 p-3 sm:p-4 rounded-lg">
+              <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 font-medium">Invoice Date:</span>
+                  <span className="font-semibold">{format(parseISO(currentDate), 'dd/MM/yyyy')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 font-medium">Due Date:</span>
+                  <span className="font-semibold">{format(parseISO(dueDate), 'dd/MM/yyyy')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 font-medium">Customer ID:</span>
+                  <span className="font-semibold break-all">{customer.id.substring(0, 8).toUpperCase()}</span>
+                </div>
+                <div className="flex justify-between border-t pt-2">
+                  <span className="text-gray-600 font-medium">Payment Status:</span>
+                  <span className={`font-bold ${totalPending > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {totalPending > 0 ? 'PENDING' : 'PAID'}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Orders Section - Mobile First */}
+      <div className="orders-section mb-4 sm:mb-6 lg:mb-8">
+        <h3 className="text-sm sm:text-base lg:text-lg font-bold mb-3 sm:mb-4 text-blue-800">Order Summary</h3>
+        
+        {filteredOrders.length === 0 ? (
+          <div className="bg-gray-50 p-4 rounded-lg text-center">
+            <p className="text-gray-500 text-sm">No orders found for this customer</p>
+          </div>
+        ) : (
+          <>
+            {/* Mobile Card Layout */}
+            <div className="block lg:hidden space-y-3">
+              {filteredOrders.map((order, index) => {
+                const orderDate = typeof order.createdAt === 'string' ? parseISO(order.createdAt) : 
+                                 order.createdAt instanceof Date ? order.createdAt : new Date();
+                return (
+                  <div key={order.id || index} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="font-bold text-sm text-blue-800">
+                          #{getOrderIdentifier(order, index)}
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          {format(orderDate, 'dd/MM/yyyy')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-sm">
+                          {formatCurrency(typeof order.totalAmount === 'number' ? order.totalAmount : 0)}
+                        </p>
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                          order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 
+                          order.paymentStatus === 'partially_paid' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {order.paymentStatus === 'paid' ? 'PAID' : 
+                           order.paymentStatus === 'partially_paid' ? 'PARTIAL' : 'PENDING'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="border-t pt-2">
+                      <p className="text-xs text-gray-700">
+                        <span className="font-medium">Items:</span> {formatOrderItems(order.items)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table Layout */}
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="w-full border-collapse border border-gray-300">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Order ID</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Date</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm">Items</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-right text-xs lg:text-sm">Amount</th>
+                    <th className="border border-gray-300 p-2 lg:p-3 text-center text-xs lg:text-sm">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders.map((order, index) => {
+                    const isOverdue = overdueOrders.some(o => o.id === order.id);
+                    const orderDate = typeof order.createdAt === 'string' ? parseISO(order.createdAt) : 
+                                     order.createdAt instanceof Date ? order.createdAt : new Date();
+                    
+                    return (
+                      <tr key={order.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="border border-gray-300 p-2 lg:p-3">
+                          <span className="text-xs text-gray-500">
+                            {getOrderIdentifier(order, index)}
+                          </span>
+                        </td>
+                        <td className="border border-gray-300 p-2 lg:p-3">
+                          {format(orderDate, 'dd/MM/yyyy')}
+                        </td>
+                        <td className="border border-gray-300 p-2 lg:p-3">
+                          {formatOrderItems(Array.isArray(order.items) ? order.items : [])}
+                        </td>
+                        <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">
+                          {formatCurrency(order.totalAmount || 0)}
+                        </td>
+                        <td className="border border-gray-300 p-2 lg:p-3 text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${
+                            order.paymentStatus === 'paid' 
+                              ? 'bg-green-100 text-green-800' 
+                              : isOverdue 
+                                ? 'bg-red-100 text-red-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {order.paymentStatus === 'paid' ? 'PAID' : isOverdue ? 'OVERDUE' : 'PENDING'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Totals Section */}

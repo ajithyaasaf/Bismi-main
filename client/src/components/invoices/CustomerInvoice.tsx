@@ -234,19 +234,10 @@ export function CustomerInvoice({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-7xl h-[90vh] max-h-[800px] overflow-hidden p-0">
+      <DialogContent className="w-[95vw] max-w-7xl h-[90vh] max-h-[800px] overflow-y-auto p-0">
         <div className="flex flex-col h-full">
-          <DialogHeader className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b bg-white relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 h-10 w-10 p-0 hover:bg-gray-100 rounded-full z-10"
-            >
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </Button>
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl font-semibold leading-tight pr-12">
+          <DialogHeader className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b bg-white">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl font-semibold leading-tight">
               <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
               <span className="truncate">Invoice - {customer.name}</span>
             </DialogTitle>

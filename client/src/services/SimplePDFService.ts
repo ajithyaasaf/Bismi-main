@@ -702,7 +702,7 @@ export class SimplePDFService {
             </table>
         </div>
 
-        <!-- Consolidated Items Summary Section -->
+        <!-- Enhanced Items Summary Section -->
         ${(() => {
             // Collect all items from all orders with order info
             const allItems = filteredOrders.flatMap((order, orderIndex) => {
@@ -721,69 +721,133 @@ export class SimplePDFService {
 
             if (allItems.length === 0) return '';
 
+            // Group items by status for better UX
+            const groupedItems = {
+                paid: allItems.filter(item => item.status === 'paid'),
+                partially_paid: allItems.filter(item => item.status === 'partially_paid'),
+                pending: allItems.filter(item => item.status === 'pending')
+            };
+
             const getStatusStyle = (status: string) => {
                 switch (status) {
                     case 'paid':
-                        return { bg: '#dcfce7', color: '#166534', text: 'PAID' };
+                        return { bg: '#ecfdf5', color: '#166534', borderColor: '#10b981', dotColor: '#10b981' };
                     case 'partially_paid':
-                        return { bg: '#fef3c7', color: '#d97706', text: 'PARTIAL' };
+                        return { bg: '#fffbeb', color: '#d97706', borderColor: '#f59e0b', dotColor: '#f59e0b' };
                     default:
-                        return { bg: '#fecaca', color: '#dc2626', text: 'PENDING' };
+                        return { bg: '#fef2f2', color: '#dc2626', borderColor: '#ef4444', dotColor: '#ef4444' };
                 }
             };
 
-            return `
-            <div style="margin-bottom: 40px;">
-                <h3 style="font-size: 18px; font-weight: bold; color: #1e40af; margin-bottom: 20px;">Items Summary</h3>
-                <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f3f4f6;">
-                                <th style="padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Item</th>
-                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Quantity (kg)</th>
-                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Rate (₹)</th>
-                                <th style="padding: 12px; text-align: right; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Amount</th>
-                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Order ID</th>
-                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Date</th>
-                                <th style="padding: 12px; text-align: center; border-bottom: 1px solid #e5e7eb; font-weight: 600; color: #374151;">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${allItems.map((item, index) => {
-                                const statusStyle = getStatusStyle(item.status);
-                                return `
+            const renderStatusGroup = (items: any[], status: string, title: string) => {
+                if (items.length === 0) return '';
+                
+                const statusStyle = getStatusStyle(status);
+                const groupTotal = items.reduce((sum: number, item: any) => sum + item.amount, 0);
+                
+                return `
+                <div style="margin-bottom: 30px;">
+                    <!-- Group Header -->
+                    <div style="
+                        background: ${statusStyle.bg}; 
+                        padding: 16px 20px; 
+                        border-radius: 8px 8px 0 0; 
+                        border: 1px solid ${statusStyle.borderColor};
+                        border-bottom: none;
+                        display: flex; 
+                        justify-content: space-between; 
+                        align-items: center;
+                    ">
+                        <div style="display: flex; align-items: center;">
+                            <span style="
+                                display: inline-block; 
+                                width: 8px; 
+                                height: 8px; 
+                                border-radius: 50%; 
+                                background: ${statusStyle.dotColor}; 
+                                margin-right: 10px;
+                            "></span>
+                            <h4 style="
+                                font-size: 16px; 
+                                font-weight: 600; 
+                                color: ${statusStyle.color}; 
+                                margin: 0;
+                            ">${title}</h4>
+                            <span style="
+                                margin-left: 8px; 
+                                font-size: 12px; 
+                                color: #6b7280;
+                            ">(${items.length} items)</span>
+                        </div>
+                        <div style="
+                            font-size: 16px; 
+                            font-weight: bold; 
+                            color: ${statusStyle.color};
+                        ">₹${groupTotal.toFixed(1)}</div>
+                    </div>
+                    
+                    <!-- Items Table -->
+                    <div style="
+                        border: 1px solid ${statusStyle.borderColor}; 
+                        border-top: none;
+                        border-radius: 0 0 8px 8px; 
+                        overflow: hidden;
+                    ">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f9fafb;">
+                                    <th style="padding: 16px; text-align: left; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Item</th>
+                                    <th style="padding: 16px; text-align: center; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Quantity</th>
+                                    <th style="padding: 16px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Rate</th>
+                                    <th style="padding: 16px; text-align: right; font-weight: 600; color: #374151; border-bottom: 1px solid #e5e7eb;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${items.map((item: any, index: number) => `
                                 <tr style="background: ${index % 2 === 0 ? '#ffffff' : '#f9fafb'};">
-                                    <td style="padding: 12px; border-bottom: 1px solid #f3f4f6; font-weight: 500;">${item.itemName}</td>
-                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6; font-family: monospace;">${item.quantity.toFixed(2)}</td>
-                                    <td style="padding: 12px; text-align: right; border-bottom: 1px solid #f3f4f6; font-family: monospace;">₹${item.rate.toFixed(2)}</td>
-                                    <td style="padding: 12px; text-align: right; border-bottom: 1px solid #f3f4f6; font-family: monospace; font-weight: 600;">₹${item.amount.toFixed(1)}</td>
-                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">#${item.orderId}</td>
-                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6; font-size: 12px; color: #6b7280;">${format(item.orderDate, 'dd/MM/yyyy')}</td>
-                                    <td style="padding: 12px; text-align: center; border-bottom: 1px solid #f3f4f6;">
-                                        <span style="
-                                            padding: 4px 8px; 
-                                            border-radius: 4px; 
-                                            font-size: 11px; 
-                                            font-weight: 600;
-                                            background-color: ${statusStyle.bg};
-                                            color: ${statusStyle.color};
-                                        ">
-                                            ${statusStyle.text}
-                                        </span>
+                                    <td style="padding: 16px; border-bottom: 1px solid #f3f4f6;">
+                                        <div>
+                                            <div style="font-weight: 500; color: #111827; font-size: 15px;">${item.itemName}</div>
+                                            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">
+                                                Order #${item.orderId} • ${format(item.orderDate, 'dd/MM/yy')}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="padding: 16px; text-align: center; border-bottom: 1px solid #f3f4f6;">
+                                        <span style="font-family: monospace; font-weight: 500; font-size: 14px;">${item.quantity.toFixed(2)} kg</span>
+                                    </td>
+                                    <td style="padding: 16px; text-align: right; border-bottom: 1px solid #f3f4f6;">
+                                        <span style="font-family: monospace; font-size: 14px;">₹${item.rate.toFixed(2)}</span>
+                                    </td>
+                                    <td style="padding: 16px; text-align: right; border-bottom: 1px solid #f3f4f6;">
+                                        <span style="font-family: monospace; font-weight: 600; font-size: 16px; color: #111827;">₹${item.amount.toFixed(1)}</span>
                                     </td>
                                 </tr>
-                                `;
-                            }).join('')}
-                            <tr style="background: #eff6ff; border-top: 2px solid #3b82f6;">
-                                <td colspan="3" style="padding: 12px; text-align: right; font-weight: bold; color: #1e40af;">Total</td>
-                                <td style="padding: 12px; text-align: right; font-family: monospace; font-weight: bold; font-size: 16px; color: #1e40af;">
-                                    ₹${allItems.reduce((sum, item) => sum + item.amount, 0).toFixed(1)}
-                                </td>
-                                <td colspan="3" style="padding: 12px;"></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
+                `;
+            };
+
+            const totalAmount = allItems.reduce((sum, item) => sum + item.amount, 0);
+
+            return `
+            <div style="margin-bottom: 40px;">
+                <!-- Section Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+                    <h3 style="font-size: 20px; font-weight: bold; color: #1e40af; margin: 0;">Items Summary</h3>
+                    <div style="text-align: right;">
+                        <div style="font-size: 12px; color: #6b7280;">Total Items</div>
+                        <div style="font-size: 24px; font-weight: bold; color: #1e40af;">₹${totalAmount.toFixed(1)}</div>
+                    </div>
+                </div>
+                
+                <!-- Grouped Items -->
+                ${renderStatusGroup(groupedItems.pending, 'pending', 'Pending Payment')}
+                ${renderStatusGroup(groupedItems.partially_paid, 'partially_paid', 'Partially Paid')}
+                ${renderStatusGroup(groupedItems.paid, 'paid', 'Paid Orders')}
             </div>
             `;
         })()}

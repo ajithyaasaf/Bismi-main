@@ -249,25 +249,58 @@ export class SimplePDFService {
       return differenceInDays(currentDateObj, orderDate) >= overdueThresholdDays;
     });
 
-    // Generate order rows
-    const orderRows = filteredOrders.length === 0 ? `
+    // Generate detailed order items rows
+    const orderItemsRows = filteredOrders.length === 0 ? `
       <tr>
-        <td colspan="5" style="padding: 20px; text-align: center; color: #666;">
+        <td colspan="4" style="padding: 20px; text-align: center; color: #666;">
           No orders found for this customer
         </td>
       </tr>
-    ` : filteredOrders.map((order, index) => {
+    ` : filteredOrders.map((order, orderIndex) => {
       const isOverdue = overdueOrders.some(o => o.id === order.id);
-      const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
       const orderItems = Array.isArray(order.items) ? order.items : [];
       
-      const formattedItems = orderItems.map(item => {
-        const quantity = typeof item.quantity === 'number' ? item.quantity.toFixed(2) : (item.quantity || '0');
-        const itemType = item.type || 'item';
-        const rate = typeof item.rate === 'number' ? item.rate.toFixed(2) : (item.rate || '0');
-        const details = item.details ? ` (${item.details})` : '';
-        return `${quantity} kg ${itemType}${details} - ₹${rate}/kg`;
-      }).join(', ') || 'No items';
+      if (orderItems.length === 0) {
+        return `
+          <tr style="background-color: ${orderIndex % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+            <td colspan="4" style="padding: 12px; text-align: center; color: #666; border: 1px solid #ddd;">
+              No items found for Order #${order.id.substring(0, 8).toUpperCase()}
+            </td>
+          </tr>
+        `;
+      }
+      
+      return orderItems.map((item, itemIndex) => {
+        const quantity = item.quantity || 0;
+        const rate = item.rate || 0;
+        const amount = quantity * rate;
+        const itemName = (item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1);
+        
+        const rowIndex = orderIndex * orderItems.length + itemIndex;
+        
+        return `
+          <tr style="background-color: ${rowIndex % 2 === 0 ? '#ffffff' : '#f9fafb'};">
+            <td style="padding: 12px; border: 1px solid #ddd; font-weight: 500;">
+              ${itemName}
+            </td>
+            <td style="padding: 12px; text-align: center; font-family: monospace; border: 1px solid #ddd;">
+              ${quantity.toFixed(2)}
+            </td>
+            <td style="padding: 12px; text-align: right; font-family: monospace; border: 1px solid #ddd;">
+              ₹${rate.toFixed(2)}
+            </td>
+            <td style="padding: 12px; text-align: right; font-family: monospace; font-weight: 600; border: 1px solid #ddd;">
+              ₹${amount.toFixed(1)}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }).join('');
+
+    // Generate order summary rows for status
+    const orderSummaryRows = filteredOrders.map((order, index) => {
+      const isOverdue = overdueOrders.some(o => o.id === order.id);
+      const orderDate = order.createdAt ? new Date(order.createdAt) : new Date();
       
       const statusColor = order.paymentStatus === 'paid' ? '#16a34a' : isOverdue ? '#dc2626' : '#d97706';
       const statusBg = order.paymentStatus === 'paid' ? '#dcfce7' : isOverdue ? '#fecaca' : '#fef3c7';
@@ -280,9 +313,6 @@ export class SimplePDFService {
           </td>
           <td style="padding: 12px; border: 1px solid #ddd;">
             ${format(orderDate, 'dd/MM/yyyy')}
-          </td>
-          <td style="padding: 12px; border: 1px solid #ddd; max-width: 200px;">
-            ${formattedItems}
           </td>
           <td style="padding: 12px; text-align: right; font-family: monospace; border: 1px solid #ddd;">
             ₹${(order.totalAmount || 0).toFixed(2)}
@@ -683,21 +713,38 @@ export class SimplePDFService {
             </div>
         </div>
 
-        <!-- Orders Table -->
+        <!-- Order Items Table -->
         <div class="orders-section">
+            <h3>Order Items</h3>
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th style="text-align: center;">Quantity (kg)</th>
+                        <th style="text-align: right;">Rate (₹)</th>
+                        <th style="text-align: right;">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${orderItemsRows}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Order Status Summary -->
+        <div class="orders-section" style="margin-top: 30px;">
             <h3>Order Summary</h3>
             <table class="orders-table">
                 <thead>
                     <tr>
                         <th>Order ID</th>
                         <th>Date</th>
-                        <th>Items</th>
                         <th style="text-align: right;">Amount</th>
                         <th style="text-align: center;">Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${orderRows}
+                    ${orderSummaryRows}
                 </tbody>
             </table>
         </div>

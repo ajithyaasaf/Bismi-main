@@ -183,6 +183,11 @@ export async function createOrderWhatsAppMessage(customerId: string, orderId: st
         calculatedTotal += itemTotal;
         
         const itemName = (item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1);
+        
+        message += `\n\n🔸 *${itemName}*`;
+        message += `\n   Quantity: ${quantity.toFixed(2)} kg`;
+        message += `\n   Rate: ₹${rate.toFixed(2)} per kg`;
+        message += `\n   Amount: ₹${itemTotal.toFixed(1)}`;
       });
       
       message += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;

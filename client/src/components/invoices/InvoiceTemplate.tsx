@@ -301,6 +301,64 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
         )}
       </div>
 
+      {/* Detailed Order Items Section */}
+      {filteredOrders.length > 0 && (
+        <div className="order-items-section mb-4 sm:mb-6 lg:mb-8">
+          <h3 className="text-sm sm:text-base lg:text-lg font-bold mb-3 sm:mb-4 text-blue-800">Order Items</h3>
+          
+          {filteredOrders.map((order, orderIndex) => (
+            <div key={order.id || orderIndex} className="mb-6">
+              <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-300">
+                <h4 className="font-bold text-sm lg:text-base text-blue-800">
+                  Order #{getOrderIdentifier(order, orderIndex)}
+                </h4>
+                <span className="text-xs lg:text-sm text-gray-600">
+                  {format(typeof order.createdAt === 'string' ? parseISO(order.createdAt) : order.createdAt || new Date(), 'dd/MM/yyyy')}
+                </span>
+              </div>
+              
+              {Array.isArray(order.items) && order.items.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse border border-gray-300">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border border-gray-300 p-2 lg:p-3 text-left text-xs lg:text-sm font-semibold">Item</th>
+                        <th className="border border-gray-300 p-2 lg:p-3 text-center text-xs lg:text-sm font-semibold">Quantity (kg)</th>
+                        <th className="border border-gray-300 p-2 lg:p-3 text-right text-xs lg:text-sm font-semibold">Rate (₹)</th>
+                        <th className="border border-gray-300 p-2 lg:p-3 text-right text-xs lg:text-sm font-semibold">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {order.items.map((item: any, itemIndex: number) => {
+                        const quantity = item.quantity || 0;
+                        const rate = item.rate || 0;
+                        const amount = quantity * rate;
+                        const itemName = (item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1);
+                        
+                        return (
+                          <tr key={itemIndex} className={itemIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                            <td className="border border-gray-300 p-2 lg:p-3 font-medium">{itemName}</td>
+                            <td className="border border-gray-300 p-2 lg:p-3 text-center font-mono">{quantity.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono">₹{rate.toFixed(2)}</td>
+                            <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono font-semibold">₹{amount.toFixed(1)}</td>
+                          </tr>
+                        );
+                      })}
+                      <tr className="bg-blue-50 border-t-2 border-blue-300">
+                        <td colSpan={3} className="border border-gray-300 p-2 lg:p-3 text-right font-bold">Order Total</td>
+                        <td className="border border-gray-300 p-2 lg:p-3 text-right font-mono font-bold text-lg">₹{(order.totalAmount || 0).toFixed(0)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500 bg-gray-50 p-4 rounded">No items found for this order</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Totals Section */}
       <div className="totals-section flex flex-col sm:flex-row sm:justify-end mb-6 lg:mb-8">
         <div className="totals-table w-full sm:w-1/2 lg:w-1/3">

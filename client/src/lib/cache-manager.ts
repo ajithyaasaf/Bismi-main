@@ -42,8 +42,27 @@ export class CacheManager {
           }
         });
 
-        // Check for updates every 30 seconds
-        setInterval(() => this.checkForUpdates(), 30000);
+        // Aggressive update checking - every 15 seconds for instant deployment detection
+        setInterval(() => this.checkForUpdates(), 15000);
+        
+        // Additional redundant checks for maximum reliability
+        setInterval(() => this.performDeepVersionCheck(), 10000);
+        
+        // Page visibility API to check immediately when tab becomes active
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            this.checkForUpdates();
+            this.performDeepVersionCheck();
+          }
+        });
+        
+        // Network change detection for immediate updates
+        window.addEventListener('online', () => {
+          setTimeout(() => {
+            this.checkForUpdates();
+            this.performDeepVersionCheck();
+          }, 1000);
+        });
 
       } catch (error) {
         console.error('Service Worker registration failed:', error);
@@ -59,6 +78,107 @@ export class CacheManager {
         console.log('Update check failed:', error);
       }
     }
+  }
+
+  async performDeepVersionCheck(): Promise<void> {
+    try {
+      // Multi-endpoint version checking for maximum reliability
+      const endpoints = ['/api/health', '/api/suppliers', '/api/customers'];
+      
+      for (const endpoint of endpoints) {
+        const response = await fetch(`${endpoint}?v=${Date.now()}`, {
+          cache: 'no-cache',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'If-None-Match': '*'
+          }
+        });
+
+        if (response.ok) {
+          const etag = response.headers.get('etag');
+          const lastModified = response.headers.get('last-modified');
+          
+          // Check if deployment has changed based on headers
+          const cacheKey = `deployment-${endpoint}`;
+          const storedEtag = localStorage.getItem(cacheKey);
+          
+          if (storedEtag && etag && storedEtag !== etag) {
+            console.log(`Deployment change detected on ${endpoint}`);
+            this.triggerAutomaticUpdate();
+            return;
+          }
+          
+          if (etag) {
+            localStorage.setItem(cacheKey, etag);
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Deep version check failed:', error);
+    }
+  }
+
+  private async triggerAutomaticUpdate(): Promise<void> {
+    if (this.updateAvailable) return; // Prevent multiple simultaneous updates
+    
+    this.updateAvailable = true;
+    console.log('🚀 Automatic deployment update initiated');
+    
+    // Show minimal non-intrusive loading indicator
+    this.showUpdateIndicator();
+    
+    // Wait a moment for any ongoing operations to complete
+    setTimeout(async () => {
+      await this.clearAllCaches();
+    }, 2000);
+  }
+
+  private showUpdateIndicator(): void {
+    const indicator = document.createElement('div');
+    indicator.id = 'auto-update-indicator';
+    indicator.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        color: white;
+        padding: 6px 12px;
+        border-radius: 15px;
+        z-index: 9999;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        font-size: 11px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        animation: slideIn 0.3s ease-out;
+      ">
+        <div style="
+          width: 12px;
+          height: 12px;
+          border: 1.5px solid rgba(255,255,255,0.4);
+          border-top: 1.5px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        "></div>
+        Auto-updating...
+      </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+      </style>
+    `;
+    
+    document.body.appendChild(indicator);
   }
 
   async forceUpdate(): Promise<void> {
@@ -100,47 +220,52 @@ export class CacheManager {
   }
 
   private notifyUpdateAvailable(): void {
-    // Create a subtle notification for new version
-    const notification = document.createElement('div');
-    notification.id = 'update-notification';
-    notification.innerHTML = `
+    // Automatic silent update - no user interaction required
+    console.log('New deployment detected - automatically updating...');
+    
+    // Show minimal loading indicator during automatic update
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.innerHTML = `
       <div style="
         position: fixed;
         top: 20px;
         right: 20px;
-        background: #007bff;
+        background: rgba(0, 0, 0, 0.8);
         color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        padding: 8px 16px;
+        border-radius: 20px;
         z-index: 10000;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        font-size: 14px;
-        max-width: 300px;
-        cursor: pointer;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         transition: all 0.3s ease;
       ">
-        <div style="font-weight: 600; margin-bottom: 4px;">
-          🚀 New version available!
-        </div>
-        <div style="font-size: 12px; opacity: 0.9;">
-          Click to update and get the latest features
-        </div>
+        <div style="
+          width: 16px;
+          height: 16px;
+          border: 2px solid rgba(255,255,255,0.3);
+          border-top: 2px solid white;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        "></div>
+        Updating...
       </div>
+      <style>
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
     `;
 
-    notification.addEventListener('click', () => {
-      this.forceUpdate();
-    });
+    document.body.appendChild(loadingIndicator);
 
-    // Auto-remove after 10 seconds if not clicked
+    // Automatically trigger update after brief delay
     setTimeout(() => {
-      if (notification.parentNode) {
-        notification.remove();
-      }
-    }, 10000);
-
-    document.body.appendChild(notification);
+      this.forceUpdate();
+    }, 1500);
   }
 
   // Public method to manually refresh cache (for admin use)
@@ -154,44 +279,236 @@ export class CacheManager {
   }
 }
 
-// Version checking utility
+// Enterprise-grade version checking with multiple detection mechanisms
 export class VersionChecker {
   private static currentVersion: string | null = null;
+  private static deploymentFingerprint: string | null = null;
+  private static lastCheckTimestamp = 0;
 
   static async checkVersion(): Promise<boolean> {
     try {
-      // Add cache-busting parameter
-      const response = await fetch(`/api/health?t=${Date.now()}`, {
+      const now = Date.now();
+      
+      // Rate limiting: don't check more than once every 5 seconds
+      if (now - this.lastCheckTimestamp < 5000) {
+        return false;
+      }
+      
+      this.lastCheckTimestamp = now;
+
+      // Multi-layered version detection
+      const checks = await Promise.allSettled([
+        this.checkHealthEndpoint(),
+        this.checkStaticAssetVersion(),
+        this.checkServiceWorkerVersion(),
+        this.checkHTMLFingerprint()
+      ]);
+
+      // If any check indicates an update is needed, trigger it
+      const updateNeeded = checks.some(result => 
+        result.status === 'fulfilled' && result.value === true
+      );
+
+      if (updateNeeded) {
+        console.log('🚀 Deployment change detected via multi-layer checking');
+        return true;
+      }
+
+    } catch (error) {
+      console.log('Version check failed:', error);
+    }
+
+    return false;
+  }
+
+  private static async checkHealthEndpoint(): Promise<boolean> {
+    try {
+      const response = await fetch(`/api/health?cache_bust=${Date.now()}`, {
         cache: 'no-cache',
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
+          'Pragma': 'no-cache',
+          'If-None-Match': '*'
         }
       });
 
       if (response.ok) {
         const data = await response.json();
-        const serverVersion = data.version || data.timestamp;
+        const serverVersion = data.version || data.deployment?.sha || data.timestamp;
+        const etag = response.headers.get('etag');
 
         if (this.currentVersion && serverVersion !== this.currentVersion) {
-          console.log('Version mismatch detected:', { 
-            current: this.currentVersion, 
-            server: serverVersion 
+          console.log('📡 Health endpoint version change:', { 
+            old: this.currentVersion, 
+            new: serverVersion 
           });
-          return true; // Update needed
+          this.currentVersion = serverVersion;
+          return true;
         }
 
         this.currentVersion = serverVersion;
       }
     } catch (error) {
-      console.log('Version check failed:', error);
+      // Silent fail
     }
+    return false;
+  }
 
-    return false; // No update needed
+  private static async checkStaticAssetVersion(): Promise<boolean> {
+    try {
+      // Check if main CSS/JS files have changed by attempting to fetch with cache busting
+      const response = await fetch(`/?v=${Date.now()}`, {
+        method: 'HEAD',
+        cache: 'no-cache'
+      });
+
+      const lastModified = response.headers.get('last-modified');
+      const etag = response.headers.get('etag');
+      
+      const fingerprint = `${lastModified}-${etag}`;
+      
+      if (this.deploymentFingerprint && fingerprint !== this.deploymentFingerprint) {
+        console.log('📡 Static asset fingerprint changed');
+        this.deploymentFingerprint = fingerprint;
+        return true;
+      }
+      
+      this.deploymentFingerprint = fingerprint;
+    } catch (error) {
+      // Silent fail
+    }
+    return false;
+  }
+
+  private static async checkServiceWorkerVersion(): Promise<boolean> {
+    try {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        // Check if there's a waiting service worker (new version available)
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration && registration.waiting) {
+          console.log('📡 New service worker is waiting');
+          return true;
+        }
+      }
+    } catch (error) {
+      // Silent fail
+    }
+    return false;
+  }
+
+  private static async checkHTMLFingerprint(): Promise<boolean> {
+    try {
+      // Create a subtle fingerprint of the current DOM to detect changes
+      const metaTags = document.querySelectorAll('meta[name], meta[property]');
+      const fingerprint = Array.from(metaTags)
+        .map(tag => tag.getAttribute('content'))
+        .join('|');
+
+      const stored = sessionStorage.getItem('dom-fingerprint');
+      if (stored && stored !== fingerprint) {
+        console.log('📡 DOM fingerprint changed - possible deployment');
+        sessionStorage.setItem('dom-fingerprint', fingerprint);
+        return true;
+      }
+      
+      if (!stored) {
+        sessionStorage.setItem('dom-fingerprint', fingerprint);
+      }
+    } catch (error) {
+      // Silent fail
+    }
+    return false;
   }
 
   static setCurrentVersion(version: string): void {
     this.currentVersion = version;
+  }
+
+  // Advanced deployment detection using multiple signals
+  static async performAdvancedDeploymentDetection(): Promise<boolean> {
+    const signals = await Promise.allSettled([
+      // Signal 1: Check for Vercel deployment headers
+      fetch('/api/health').then(r => r.headers.get('x-vercel-cache')),
+      
+      // Signal 2: Browser cache invalidation check
+      this.checkBrowserCacheInvalidation(),
+      
+      // Signal 3: Service worker update detection
+      this.detectServiceWorkerUpdates(),
+      
+      // Signal 4: Application timestamp check
+      this.checkApplicationTimestamp()
+    ]);
+
+    return signals.some(signal => 
+      signal.status === 'fulfilled' && signal.value === true
+    );
+  }
+
+  private static async checkBrowserCacheInvalidation(): Promise<boolean> {
+    try {
+      // Check multiple endpoints with different cache strategies
+      const endpoints = ['/api/health', '/api/suppliers', '/api/customers'];
+      
+      for (const endpoint of endpoints) {
+        const response = await fetch(`${endpoint}?invalidate=${Date.now()}`, {
+          cache: 'reload',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        
+        const cacheStatus = response.headers.get('cache-control');
+        const etag = response.headers.get('etag');
+        
+        // Store and compare ETags for change detection
+        const key = `etag-${endpoint}`;
+        const stored = localStorage.getItem(key);
+        
+        if (stored && etag && stored !== etag) {
+          localStorage.setItem(key, etag);
+          return true;
+        }
+        
+        if (etag) localStorage.setItem(key, etag);
+      }
+    } catch (error) {
+      // Silent fail
+    }
+    return false;
+  }
+
+  private static async detectServiceWorkerUpdates(): Promise<boolean> {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+          return Boolean(registration.waiting);
+        }
+      } catch (error) {
+        // Silent fail
+      }
+    }
+    return false;
+  }
+
+  private static async checkApplicationTimestamp(): Promise<boolean> {
+    try {
+      // Check for a timestamp embedded in the page
+      const appStart = window.performance.timing.navigationStart;
+      const lastKnownStart = parseInt(sessionStorage.getItem('app-start') || '0');
+      
+      if (lastKnownStart && Math.abs(appStart - lastKnownStart) > 60000) {
+        sessionStorage.setItem('app-start', appStart.toString());
+        return true;
+      }
+      
+      if (!lastKnownStart) {
+        sessionStorage.setItem('app-start', appStart.toString());
+      }
+    } catch (error) {
+      // Silent fail
+    }
+    return false;
   }
 }
 

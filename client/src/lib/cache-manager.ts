@@ -42,30 +42,19 @@ export class CacheManager {
           }
         });
 
-        // Check for updates every 5 minutes (300 seconds) instead of every 10 seconds
-        // This reduces API calls from 25,920/day to 288/day
-        setInterval(() => this.checkForUpdates(), 5 * 60 * 1000);
-        
-        // Check when tab becomes active, but with rate limiting
-        let lastVisibilityCheck = 0;
+        // Event-driven updates only - no time-based intervals
+        // Check when tab becomes active (no rate limiting needed since intervals are removed)
         document.addEventListener('visibilitychange', () => {
-          const now = Date.now();
-          if (!document.hidden && now - lastVisibilityCheck > 60000) { // Max once per minute
-            lastVisibilityCheck = now;
+          if (!document.hidden) {
             this.checkForUpdates();
           }
         });
         
-        // Network change detection with rate limiting
-        let lastNetworkCheck = 0;
+        // Network change detection (no rate limiting needed)
         window.addEventListener('online', () => {
-          const now = Date.now();
-          if (now - lastNetworkCheck > 60000) { // Max once per minute
-            lastNetworkCheck = now;
-            setTimeout(() => {
-              this.checkForUpdates();
-            }, 1000);
-          }
+          setTimeout(() => {
+            this.checkForUpdates();
+          }, 1000);
         });
 
       } catch (error) {

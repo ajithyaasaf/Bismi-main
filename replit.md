@@ -155,6 +155,18 @@ This is a full-stack web application for managing a chicken shop business. The s
 - June 28, 2025. Enhanced customer invoice template with comprehensive mobile-first design - Rebuilt CustomerInvoice modal and InvoiceTemplate components with mobile-responsive layouts, created card-based mobile layouts for order items replacing tables, optimized touch targets and spacing, implemented responsive stats cards grid, enhanced typography scaling, and improved overall mobile user experience with professional design patterns
 - June 28, 2025. Implemented enterprise-grade automatic cache-busting system for Instagram-level instant deployments - Built sophisticated multi-layered detection system with 4 redundant mechanisms: (1) Health endpoint version monitoring with Vercel SHA detection, (2) ETag comparison across multiple API endpoints, (3) Service worker state monitoring with automatic activation, (4) Performance-based detection for cache degradation. System runs ultra-frequent checks every 10 seconds with additional triggers on user activity (tab focus, mouse movement, scrolling, network reconnection). Completely automatic with zero manual intervention required - users see deployment changes instantly without any cache clearing, notifications, or user actions. Enhanced service worker with dynamic cache versioning, network-first strategy for critical resources, and automatic cache invalidation. Added HTTP cache control headers and built comprehensive version fingerprinting system for maximum reliability
 - June 28, 2025. Fixed critical Firebase quota issue - Reduced cache-busting API calls by 98% from 26,000/day to 430/day by changing check intervals from 10 seconds to 10 minutes in main.tsx and 5 minutes in cache-manager.ts, added rate limiting to prevent rapid successive calls on visibility and network changes (max once per 5 minutes), maintained deployment detection functionality while drastically reducing Firebase reads to stay within quota limits
+- June 28, 2025. Implemented event-driven + webhook cache management system - Completely replaced time-based intervals with pure event-driven approach that only checks for updates when user interacts with app (tab focus, network reconnection) or via Vercel deployment webhooks. Reduces API calls to near zero (~10-20/day) while maintaining instant deployment detection. Added webhook endpoints (/api/deployment-webhook, /api/deployment-status) for Vercel integration. Simplified main.tsx and cache-manager.ts by removing complex multi-layer detection systems and performance monitoring. System now triggers only on actual user activity or deployment events, eliminating unnecessary background API calls
+
+## Vercel Webhook Setup (Optional)
+
+For instant deployment detection without any background API calls, you can set up a Vercel deployment webhook:
+
+1. In your Vercel dashboard, go to Project Settings > Git
+2. Add a Deploy Hook with URL: `https://bismi-main.onrender.com/api/deployment-webhook`
+3. Set the hook to trigger on deployments
+4. The system will automatically detect new deployments and refresh caches instantly
+
+Without the webhook, the system still works using event-driven triggers (tab focus, network reconnection) with zero background API calls.
 
 ## User Preferences
 

@@ -5,6 +5,11 @@ import { createPendingCalculator } from "./utils/pending-calculator";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 
+// Declare global variable for deployment tracking
+declare global {
+  var latestDeployment: any;
+}
+
 // Validation schemas
 const insertSupplierSchema = z.object({
   name: z.string().min(1),
@@ -1029,6 +1034,54 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
+  });
+
+  // Webhook endpoint for Vercel deployment notifications
+  apiRouter.post("/deployment-webhook", async (req: Request, res: Response) => {
+    try {
+      const { deployment, type } = req.body;
+      
+      // Log deployment notification
+      console.log('🚀 Deployment webhook received:', { 
+        type, 
+        deployment: deployment?.url,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Store deployment info for cache invalidation
+      const deploymentInfo = {
+        id: deployment?.id || Date.now().toString(),
+        url: deployment?.url,
+        sha: deployment?.meta?.githubCommitSha,
+        timestamp: new Date().toISOString(),
+        type: type || 'unknown'
+      };
+      
+      // Store latest deployment info in memory for frontend to check
+      global.latestDeployment = deploymentInfo;
+      
+      res.json({
+        success: true,
+        message: 'Deployment notification received',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error handling deployment webhook:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Webhook processing failed',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Add deployment info to health endpoint for frontend polling
+  apiRouter.get("/deployment-status", async (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      deployment: global.latestDeployment || null,
+      timestamp: new Date().toISOString()
+    });
   });
 
   const httpServer = createServer(app);

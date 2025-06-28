@@ -27,6 +27,23 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Add cache control headers for instant updates
+app.use((req: Request, res: Response, next: NextFunction) => {
+  // Set no-cache headers for API endpoints and HTML files to ensure instant updates
+  if (req.url.startsWith('/api/') || req.url.endsWith('.html') || req.url === '/') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+  }
+  
+  // Set ETag for proper cache invalidation
+  if (req.url.startsWith('/api/')) {
+    res.setHeader('ETag', `"${Date.now()}"`);
+  }
+  
+  next();
+});
+
 // Debug CORS issues
 app.use((req, res, next) => {
   console.log(`Request from origin: ${req.get('Origin')} to ${req.method} ${req.path}`);

@@ -1,65 +1,180 @@
-const CACHE_NAME = 'bismi-chicken-shop-v1';
-const urlsToCache = [
+// Dynamic cache name with timestamp to force cache invalidation on new deployments
+const CACHE_VERSION = `bismi-chicken-shop-${Date.now()}`;
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+
+// Critical resources that should use network-first strategy
+const CRITICAL_RESOURCES = [
   '/',
   '/index.html',
-  '/main.js',
-  '/main.css'
+  '/api/',
 ];
 
-// Install a service worker
+// Static resources that can be cached longer
+const STATIC_RESOURCES = [
+  '/favicon.svg',
+  '/manifest.json',
+  '/icons/',
+];
+
+// Install event - immediately claim clients to force update
 self.addEventListener('install', event => {
+  console.log('Service Worker installing with version:', CACHE_VERSION);
+  self.skipWaiting(); // Force activation of new service worker
+  
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+    caches.open(STATIC_CACHE).then(cache => {
+      console.log('Opened static cache:', STATIC_CACHE);
+      // Pre-cache only essential static resources
+      return cache.addAll(['/favicon.svg', '/manifest.json']);
+    })
   );
 });
 
-// Cache and return requests
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-        return fetch(event.request).then(
-          response => {
-            // Check if we received a valid response
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            // Clone the response
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          }
-        );
-      })
-  );
-});
-
-// Update a service worker
+// Activate event - clean up old caches
 self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
+  console.log('Service Worker activating with version:', CACHE_VERSION);
+  self.clients.claim(); // Take control of all clients immediately
+  
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
+          // Delete all caches that don't match current version
+          if (!cacheName.includes(CACHE_VERSION)) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     })
   );
+});
+
+// Fetch event - network-first strategy for critical resources
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  
+  // Skip non-GET requests and chrome-extension requests
+  if (event.request.method !== 'GET' || url.protocol === 'chrome-extension:') {
+    return;
+  }
+
+  // Network-first strategy for critical resources (API calls, HTML)
+  if (isCriticalResource(event.request.url)) {
+    event.respondWith(networkFirstStrategy(event.request));
+  } 
+  // Cache-first strategy for static assets
+  else if (isStaticResource(event.request.url)) {
+    event.respondWith(cacheFirstStrategy(event.request));
+  }
+  // Default to network for everything else
+  else {
+    event.respondWith(fetch(event.request));
+  }
+});
+
+// Network-first strategy - always try network first, fallback to cache
+async function networkFirstStrategy(request) {
+  try {
+    const networkResponse = await fetch(request);
+    
+    // Only cache successful responses
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(RUNTIME_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    console.log('Network failed, trying cache for:', request.url);
+    const cachedResponse = await caches.match(request);
+    
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    
+    // Return offline page for navigation requests
+    if (request.mode === 'navigate') {
+      return new Response('App offline. Please check your connection.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/html' }
+      });
+    }
+    
+    throw error;
+  }
+}
+
+// Cache-first strategy for static assets
+async function cacheFirstStrategy(request) {
+  const cachedResponse = await caches.match(request);
+  
+  if (cachedResponse) {
+    // Update cache in background
+    fetch(request).then(response => {
+      if (response && response.status === 200) {
+        caches.open(STATIC_CACHE).then(cache => {
+          cache.put(request, response);
+        });
+      }
+    });
+    return cachedResponse;
+  }
+  
+  // Not in cache, fetch from network
+  try {
+    const networkResponse = await fetch(request);
+    
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(STATIC_CACHE);
+      cache.put(request, networkResponse.clone());
+    }
+    
+    return networkResponse;
+  } catch (error) {
+    throw error;
+  }
+}
+
+// Helper functions
+function isCriticalResource(url) {
+  return CRITICAL_RESOURCES.some(resource => url.includes(resource)) ||
+         url.includes('/api/') ||
+         url.endsWith('.html') ||
+         url.endsWith('/');
+}
+
+function isStaticResource(url) {
+  return STATIC_RESOURCES.some(resource => url.includes(resource)) ||
+         url.includes('/icons/') ||
+         url.endsWith('.css') ||
+         url.endsWith('.js') ||
+         url.endsWith('.svg') ||
+         url.endsWith('.png') ||
+         url.endsWith('.jpg') ||
+         url.endsWith('.jpeg');
+}
+
+// Message handler for manual cache refresh and skip waiting
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'CLEAR_CACHE') {
+    event.waitUntil(
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => caches.delete(cacheName))
+        );
+      }).then(() => {
+        self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.postMessage({ type: 'CACHE_CLEARED' });
+          });
+        });
+      })
+    );
+  }
+  
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

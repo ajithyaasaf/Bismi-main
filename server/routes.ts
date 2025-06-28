@@ -160,17 +160,32 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.get("/health", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      
+      // Generate deployment version based on server start time or environment
+      const deploymentVersion = process.env.VERCEL_GIT_COMMIT_SHA || 
+                               process.env.DEPLOYMENT_ID || 
+                               process.env.SERVER_START_TIME || 
+                               Date.now().toString();
+      
       res.status(200).json({ 
         status: "healthy", 
         storage: storageManager.getStorageType(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: deploymentVersion,
+        deployment: {
+          sha: process.env.VERCEL_GIT_COMMIT_SHA,
+          branch: process.env.VERCEL_GIT_COMMIT_REF,
+          url: process.env.VERCEL_URL,
+          timestamp: new Date().toISOString()
+        }
       });
     } catch (error) {
       res.status(500).json({ 
         success: false,
         message: "Health check failed",
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        version: process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString()
       });
     }
   });

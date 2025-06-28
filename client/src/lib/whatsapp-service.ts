@@ -69,26 +69,25 @@ export async function createCustomerWhatsAppMessage(customerId: string, includeO
       
       if (latestOrder.items && latestOrder.items.length > 0) {
         message += `\n\n*Order Items*`;
-        message += `\n${'Item'.padEnd(12)} | ${'Quantity'.padEnd(8)} | ${'Rate (₹)'.padEnd(10)} | Amount`;
-        message += `\n${''.padEnd(12, '-')} | ${''.padEnd(8, '-')} | ${''.padEnd(10, '-')} | ${''.padEnd(8, '-')}`;
+        message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;
         
-        let totalAmount = 0;
+        let calculatedTotal = 0;
         latestOrder.items.forEach((item: any) => {
           const quantity = (item.quantity || 0);
           const rate = (item.rate || 0);
           const itemTotal = quantity * rate;
-          totalAmount += itemTotal;
+          calculatedTotal += itemTotal;
           
           const itemName = (item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1);
-          const quantityStr = `${quantity.toFixed(2)} kg`;
-          const rateStr = `₹${rate.toFixed(2)}`;
-          const amountStr = `₹${itemTotal.toFixed(1)}`;
           
-          message += `\n${itemName.padEnd(12)} | ${quantityStr.padEnd(8)} | ${rateStr.padEnd(10)} | ${amountStr}`;
+          message += `\n\n🔸 *${itemName}*`;
+          message += `\n   Quantity: ${quantity.toFixed(2)} kg`;
+          message += `\n   Rate: ₹${rate.toFixed(2)} per kg`;
+          message += `\n   Amount: ₹${itemTotal.toFixed(1)}`;
         });
         
-        message += `\n${''.padEnd(12)} | ${''.padEnd(8)} | ${''.padEnd(10)} | ${''.padEnd(8, '-')}`;
-        message += `\n${''.padEnd(12)} | ${''.padEnd(8)} | ${'Total'.padEnd(10)} | ₹${totalAmount.toFixed(0)}`;
+        message += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        message += `\n💰 *Total: ₹${calculatedTotal.toFixed(0)}*`;
       }
     }
     
@@ -171,11 +170,10 @@ export async function createOrderWhatsAppMessage(customerId: string, orderId: st
       message += `\n💸 Amount Due: ₹${totalAmount.toFixed(2)}`;
     }
     
-    // Add order items in tabular format
+    // Add order items in mobile-friendly format
     if (orderData.items && orderData.items.length > 0) {
       message += `\n\n*Order Items*`;
-      message += `\n${'Item'.padEnd(12)} | ${'Quantity'.padEnd(8)} | ${'Rate (₹)'.padEnd(10)} | Amount`;
-      message += `\n${''.padEnd(12, '-')} | ${''.padEnd(8, '-')} | ${''.padEnd(10, '-')} | ${''.padEnd(8, '-')}`;
+      message += `\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;
       
       let calculatedTotal = 0;
       orderData.items.forEach((item: any) => {
@@ -185,15 +183,15 @@ export async function createOrderWhatsAppMessage(customerId: string, orderId: st
         calculatedTotal += itemTotal;
         
         const itemName = (item.type || '').charAt(0).toUpperCase() + (item.type || '').slice(1);
-        const quantityStr = `${quantity.toFixed(2)} kg`;
-        const rateStr = `₹${rate.toFixed(2)}`;
-        const amountStr = `₹${itemTotal.toFixed(1)}`;
         
-        message += `\n${itemName.padEnd(12)} | ${quantityStr.padEnd(8)} | ${rateStr.padEnd(10)} | ${amountStr}`;
+        message += `\n\n🔸 *${itemName}*`;
+        message += `\n   Quantity: ${quantity.toFixed(2)} kg`;
+        message += `\n   Rate: ₹${rate.toFixed(2)} per kg`;
+        message += `\n   Amount: ₹${itemTotal.toFixed(1)}`;
       });
       
-      message += `\n${''.padEnd(12)} | ${''.padEnd(8)} | ${''.padEnd(10)} | ${''.padEnd(8, '-')}`;
-      message += `\n${''.padEnd(12)} | ${''.padEnd(8)} | ${'Total'.padEnd(10)} | ₹${calculatedTotal.toFixed(0)}`;
+      message += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+      message += `\n💰 *Total: ₹${calculatedTotal.toFixed(0)}*`;
     }
     
     // Enhanced closing message for order-specific WhatsApp

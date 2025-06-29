@@ -22,31 +22,47 @@ import ReportGenerator from "@/components/reports/ReportGenerator";
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState("sales");
-  const [dateRange, setDateRange] = useState("today");
+  const [dateRange, setDateRange] = useState("thisWeek");
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [autoRefresh, setAutoRefresh] = useState(false);
   
-  // Calculate date range with proper validation
+  // Enhanced date range calculation with better timezone handling
   const getDateRange = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalize to start of day
     
+    console.log(`[REPORTS] Calculating date range for: ${dateRange}`);
+    
     switch (dateRange) {
       case "today":
-        return { from: today, to: new Date(today) };
+        const todayEnd = new Date(today);
+        todayEnd.setHours(23, 59, 59, 999);
+        console.log(`[REPORTS] Today range: ${today.toISOString()} to ${todayEnd.toISOString()}`);
+        return { from: today, to: todayEnd };
+        
       case "yesterday":
         const yesterday = subDays(today, 1);
-        return { from: yesterday, to: new Date(yesterday) };
+        const yesterdayEnd = new Date(yesterday);
+        yesterdayEnd.setHours(23, 59, 59, 999);
+        console.log(`[REPORTS] Yesterday range: ${yesterday.toISOString()} to ${yesterdayEnd.toISOString()}`);
+        return { from: yesterday, to: yesterdayEnd };
+        
       case "thisWeek":
-        return { 
-          from: startOfWeek(today, { weekStartsOn: 1 }), 
-          to: endOfWeek(today, { weekStartsOn: 1 }) 
-        };
+        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+        const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
+        weekStart.setHours(0, 0, 0, 0);
+        weekEnd.setHours(23, 59, 59, 999);
+        console.log(`[REPORTS] This week range: ${weekStart.toISOString()} to ${weekEnd.toISOString()}`);
+        return { from: weekStart, to: weekEnd };
+        
       case "thisMonth":
-        return { 
-          from: startOfMonth(today), 
-          to: endOfMonth(today) 
-        };
+        const monthStart = startOfMonth(today);
+        const monthEnd = endOfMonth(today);
+        monthStart.setHours(0, 0, 0, 0);
+        monthEnd.setHours(23, 59, 59, 999);
+        console.log(`[REPORTS] This month range: ${monthStart.toISOString()} to ${monthEnd.toISOString()}`);
+        return { from: monthStart, to: monthEnd };
+        
       case "custom":
         if (customDateRange?.from) {
           // Create new dates in local timezone to avoid UTC conversion issues
@@ -55,11 +71,19 @@ export default function ReportsPage() {
           const endDateSource = customDateRange.to || customDateRange.from;
           const endDate = new Date(endDateSource.getFullYear(), endDateSource.getMonth(), endDateSource.getDate(), 23, 59, 59, 999);
           
+          console.log(`[REPORTS] Custom range: ${startDate.toISOString()} to ${endDate.toISOString()}`);
           return { from: startDate, to: endDate };
         }
-        return { from: today, to: new Date(today) };
+        console.log(`[REPORTS] Custom range fallback to today`);
+        const todayFallback = new Date(today);
+        todayFallback.setHours(23, 59, 59, 999);
+        return { from: today, to: todayFallback };
+        
       default:
-        return { from: today, to: new Date(today) };
+        console.log(`[REPORTS] Default range (today)`);
+        const defaultEnd = new Date(today);
+        defaultEnd.setHours(23, 59, 59, 999);
+        return { from: today, to: defaultEnd };
     }
   };
 
@@ -78,14 +102,23 @@ export default function ReportsPage() {
         const startDateStr = format(startDate, 'yyyy-MM-dd');
         const endDateStr = format(endDate, 'yyyy-MM-dd');
         
-        console.log(`Generating ${reportType} report from ${startDateStr} to ${endDateStr}`);
+        console.log(`[REPORTS] Generating ${reportType} report from ${startDateStr} to ${endDateStr}`);
+        console.log(`[REPORTS] Date objects: ${startDate.toISOString()} to ${endDate.toISOString()}`);
         
-        const response = await apiRequest(
-          'GET', 
-          `/api/reports?type=${reportType}&startDate=${startDateStr}&endDate=${endDateStr}`
-        );
+        const apiUrl = `/api/reports?type=${reportType}&startDate=${startDateStr}&endDate=${endDateStr}`;
+        console.log(`[REPORTS] API URL: ${apiUrl}`);
+        
+        const response = await apiRequest('GET', apiUrl);
+        console.log(`[REPORTS] API Response status: ${response.status}`);
         
         const data = await safeJsonResponse(response);
+        console.log(`[REPORTS] Report data received:`, {
+          totalSales: data.totalSales,
+          orderCount: data.orderCount,
+          ordersLength: data.orders?.length,
+          customersLength: data.customers?.length,
+          suppliersLength: data.suppliers?.length
+        });
         
         // Validate response structure
         if (!data || typeof data !== 'object') {
@@ -337,8 +370,36 @@ export default function ReportsPage() {
               ) : (
                 <div className="text-center py-8">
                   <div className="text-4xl mb-2">📭</div>
-                  <p className="text-muted-foreground">No orders found in this period</p>
-                  <p className="text-sm text-muted-foreground mt-1">Try selecting a different date range</p>
+                  <p className="text-muted-foreground">No orders found for {formatDateRange()}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Try selecting a different date range or check:
+                  </p>
+                  <div className="flex flex-wrap gap-2 justify-center mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDateRange('thisWeek')}
+                      className="text-xs"
+                    >
+                      📅 This Week
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDateRange('thisMonth')}
+                      className="text-xs"
+                    >
+                      📅 This Month
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDateRange('custom')}
+                      className="text-xs"
+                    >
+                      🗓️ Custom Range
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -583,13 +644,23 @@ export default function ReportsPage() {
             </div>
             
             {report && (
-              <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <div>
-                  Last updated: {format(new Date(), 'MMM dd, yyyy HH:mm:ss')}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4">
+                  <span>Last updated: {format(new Date(), 'MMM dd, yyyy HH:mm:ss')}</span>
+                  <span className="text-xs bg-muted px-2 py-1 rounded">
+                    Period: {formatDateRange()}
+                  </span>
                 </div>
-                <Badge variant="outline">
-                  {report.summary?.filteredOrders || 0} orders found
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">
+                    {report.summary?.filteredOrders || 0} orders found
+                  </Badge>
+                  {report.totalSales > 0 && (
+                    <Badge variant="secondary">
+                      ₹{report.totalSales.toFixed(0)} revenue
+                    </Badge>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -932,17 +932,38 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         storage.getAllTransactions()
       ]);
 
-      // Filter orders by date range if provided
+      // Enhanced date filtering with timezone handling and validation
       let filteredOrders = orders;
       if (startDate && endDate) {
+        console.log(`[REPORTS API] Filtering orders between ${startDate} and ${endDate}`);
+        
+        // Parse dates with explicit timezone handling
         const start = new Date(startDate as string);
         const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999); // Include full end date
+        
+        // Ensure start of day for start date and end of day for end date
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+        
+        console.log(`[REPORTS API] Date range parsed: ${start.toISOString()} to ${end.toISOString()}`);
         
         filteredOrders = orders.filter(order => {
+          if (!order.createdAt) {
+            console.warn(`[REPORTS API] Order ${order.id} has no createdAt date`);
+            return false;
+          }
+          
           const orderDate = new Date(order.createdAt);
-          return orderDate >= start && orderDate <= end;
+          const isInRange = orderDate >= start && orderDate <= end;
+          
+          if (!isInRange) {
+            console.log(`[REPORTS API] Order ${order.id} (${orderDate.toISOString()}) outside range`);
+          }
+          
+          return isInRange;
         });
+        
+        console.log(`[REPORTS API] Filtered ${filteredOrders.length} orders from ${orders.length} total`);
       }
 
       // Serialize dates safely

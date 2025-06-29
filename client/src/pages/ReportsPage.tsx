@@ -4,7 +4,7 @@ import { apiRequest, safeJsonResponse } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePicker } from "@/components/ui/date-range-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday, isYesterday } from "date-fns";
@@ -66,19 +66,6 @@ export default function ReportsPage() {
   const currentDateRange = getDateRange();
   const { from: startDate, to: endDate } = currentDateRange;
 
-  // Auto-refresh for real-time data
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        refetch();
-      }, 30000); // Refresh every 30 seconds
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [autoRefresh]);
-  
   // Query for report data with enterprise caching and error handling
   const { data: report, isLoading, refetch, isError, error } = useQuery({
     queryKey: ['/api/reports', reportType, startDate?.toISOString(), endDate?.toISOString()],
@@ -121,12 +108,25 @@ export default function ReportsPage() {
         throw error;
       }
     },
-    enabled: false,
+    enabled: !!startDate && !!endDate,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
     retry: 2,
     retryDelay: 1000
   });
+
+  // Auto-refresh for real-time data
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (autoRefresh) {
+      interval = setInterval(() => {
+        refetch();
+      }, 30000); // Refresh every 30 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [autoRefresh, refetch]);
   
   // Generate report with validation
   const generateReport = () => {
@@ -522,7 +522,7 @@ export default function ReportsPage() {
               {dateRange === 'custom' && (
                 <div className="lg:col-span-2">
                   <Label className="block mb-2 font-medium">Custom Date Range</Label>
-                  <DatePicker
+                  <DateRangePicker
                     date={customDateRange}
                     onDateChange={setCustomDateRange}
                     placeholder="Select date range"

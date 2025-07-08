@@ -5,7 +5,7 @@ import { Clock, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import { useOfflineManager } from '@/lib/offline-manager';
 
 export function OfflineStatus() {
-  const { isOnline, queueLength, syncInProgress } = useOfflineManager();
+  const { isOnline, queueLength, syncInProgress, manualSync } = useOfflineManager();
 
   if (isOnline && queueLength === 0) {
     return null;
@@ -33,8 +33,16 @@ export function OfflineStatus() {
               ) : (
                 <Clock className="h-4 w-4 text-amber-600" />
               )}
-              <Badge variant="secondary" className="text-xs">
-                {queueLength} pending
+              <Badge 
+                variant="secondary" 
+                className="text-xs cursor-pointer hover:bg-amber-200"
+                onClick={() => {
+                  console.log('Manual sync triggered from offline status, queue length:', queueLength);
+                  manualSync();
+                }}
+                title="Click to retry sync"
+              >
+                {syncInProgress ? 'Syncing...' : `${queueLength} pending`}
               </Badge>
             </div>
           )}

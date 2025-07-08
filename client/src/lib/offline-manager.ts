@@ -13,22 +13,79 @@ class OfflineManager {
   private queue: QueuedAction[] = [];
   private isOnline: boolean = navigator.onLine;
   private syncInProgress: boolean = false;
+  private listeners: (() => void)[] = [];
 
   constructor() {
     this.loadQueue();
     this.setupEventListeners();
+    this.checkConnectionStatus();
   }
 
   private setupEventListeners() {
-    window.addEventListener('online', () => {
-      console.log('🌐 Connection restored - starting sync');
-      this.isOnline = true;
-      this.syncQueue();
+    window.addEventListener('online', async () => {
+      console.log('🌐 Browser detected online');
+      await this.checkConnectionStatus();
+      if (this.isOnline) {
+        this.syncQueue();
+      }
     });
 
     window.addEventListener('offline', () => {
-      console.log('📱 Gone offline - queueing actions');
+      console.log('📱 Browser detected offline');
       this.isOnline = false;
+      this.notifyListeners();
+    });
+
+    // Check connection every 30 seconds
+    setInterval(() => {
+      this.checkConnectionStatus();
+    }, 30000);
+  }
+
+  private async checkConnectionStatus() {
+    if (!navigator.onLine) {
+      this.isOnline = false;
+      this.notifyListeners();
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/health', {
+        method: 'GET',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5000)
+      });
+      
+      const wasOnline = this.isOnline;
+      this.isOnline = response.ok;
+      
+      if (!wasOnline && this.isOnline) {
+        console.log('✅ Connection verified - triggering sync');
+        this.syncQueue();
+      }
+      
+      this.notifyListeners();
+    } catch (error) {
+      this.isOnline = false;
+      this.notifyListeners();
+    }
+  }
+
+  public addListener(listener: () => void) {
+    this.listeners.push(listener);
+  }
+
+  public removeListener(listener: () => void) {
+    this.listeners = this.listeners.filter(l => l !== listener);
+  }
+
+  private notifyListeners() {
+    this.listeners.forEach(listener => {
+      try {
+        listener();
+      } catch (error) {
+        console.error('Error in offline manager listener:', error);
+      }
     });
   }
 
@@ -72,6 +129,9 @@ class OfflineManager {
     if (this.isOnline && !this.syncInProgress) {
       setTimeout(() => this.syncQueue(), 1000);
     }
+
+    // Notify listeners about queue change
+    this.notifyListeners();
 
     return action.id;
   }
@@ -118,6 +178,9 @@ class OfflineManager {
     if (actionsToProcess.length > 0) {
       queryClient.invalidateQueries();
     }
+    
+    // Notify listeners about queue changes
+    this.notifyListeners();
   }
 
   private async processAction(action: QueuedAction): Promise<void> {
@@ -182,6 +245,18 @@ class OfflineManager {
     this.queue = [];
     this.saveQueue();
     console.log('🧹 Offline queue cleared');
+  }
+
+  public getConnectionStatus(): boolean {
+    return this.isOnline;
+  }
+
+  public getQueueLength(): number {
+    return this.queue.length;
+  }
+
+  public getSyncStatus(): boolean {
+    return this.syncInProgress;
   }
 }
 
@@ -252,21 +327,21 @@ export function useOfflineManager() {
       setStatus(offlineManager.getQueueStatus());
     };
     
-    const interval = setInterval(updateStatus, 1000);
-    
-    window.addEventListener('online', updateStatus);
-    window.addEventListener('offline', updateStatus);
+    // Add listener for real-time updates
+    offlineManager.addListener(updateStatus);
+    updateStatus(); // Initial update
     
     return () => {
-      clearInterval(interval);
-      window.removeEventListener('online', updateStatus);
-      window.removeEventListener('offline', updateStatus);
+      offlineManager.removeListener(updateStatus);
     };
   }, []);
   
   return {
-    ...status,
-    sync: () => offlineManager.syncQueue(),
-    clear: () => offlineManager.clearQueue()
+    isOnline: status.isOnline,
+    queueLength: status.queueLength,
+    syncInProgress: status.syncInProgress,
+    queueAction: (type: 'CREATE' | 'UPDATE' | 'DELETE', endpoint: string, data?: any) => 
+      offlineManager.queueAction(type, endpoint, data),
+    manualSync: () => offlineManager.syncQueue()
   };
 }

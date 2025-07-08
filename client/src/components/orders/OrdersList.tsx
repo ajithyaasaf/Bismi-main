@@ -18,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createOrderWhatsAppMessage } from "@/lib/whatsapp-service";
 import OrderPaymentModal from "@/components/modals/OrderPaymentModal";
+import { OrderOfflineIndicator } from "@/components/ui/offline-status";
+import { isOfflineOrder } from "@/lib/offline-api";
 import { processCustomerPayment } from "@/lib/customer-service";
 import { useToast } from "@/hooks/use-toast";
 
@@ -182,8 +184,10 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       return safeDateTimeFormat(orderTimestamp);
                     })()}
                   </TableCell>
-                  <TableCell className="font-medium flex items-center gap-2">
-                    {getCustomerName(order.customerId)}
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-2">
+                      <span>{getCustomerName(order.customerId)}</span>
+                      <OrderOfflineIndicator isOffline={isOfflineOrder(order)} />
                     {getCustomer(order.customerId)?.contact && (
                       <TooltipProvider>
                         <Tooltip>
@@ -209,6 +213,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                         </Tooltip>
                       </TooltipProvider>
                     )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {formatItems(order.items as OrderItem[])}

@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { OrdersSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
+import { OfflineStatus } from "@/components/ui/offline-status";
 
 export default function OrdersPage() {
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
@@ -122,6 +123,8 @@ export default function OrdersPage() {
           New Order
         </Button>
       </div>
+
+      <OfflineStatus />
 
       <OrdersList 
         orders={orders}

@@ -8,9 +8,11 @@ import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import PaymentModal from "@/components/modals/PaymentModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { offlineApiRequest } from "@/lib/offline-api";
 import { processSupplierPayment } from "@/lib/supplier-service";
 import { SuppliersSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
+import { OfflineStatus } from "@/components/ui/offline-status";
 
 export default function SuppliersPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -140,6 +142,8 @@ export default function SuppliersPage() {
           Add Supplier
         </Button>
       </div>
+
+      <OfflineStatus />
 
       <SuppliersList 
         suppliers={suppliers}

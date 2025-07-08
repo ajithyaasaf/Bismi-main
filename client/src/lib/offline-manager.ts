@@ -69,7 +69,7 @@ class OfflineManager {
     console.log(`📝 Queued ${type} action for ${endpoint}`);
 
     // Try to sync immediately if online
-    if (this.isOnline) {
+    if (this.isOnline && !this.syncInProgress) {
       setTimeout(() => this.syncQueue(), 1000);
     }
 
@@ -168,6 +168,14 @@ class OfflineManager {
         retryCount: action.retryCount
       }))
     };
+  }
+
+  public hasQueuedOrders(): boolean {
+    return this.queue.some(action => action.endpoint.includes('/api/orders'));
+  }
+
+  public getQueuedOrdersCount(): number {
+    return this.queue.filter(action => action.endpoint.includes('/api/orders')).length;
   }
 
   public clearQueue() {

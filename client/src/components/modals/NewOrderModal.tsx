@@ -11,6 +11,7 @@ import { Customer, Inventory, OrderItem } from '@shared/types';
 import { ITEM_TYPES, CUSTOMER_TYPES, PAYMENT_STATUS } from '@shared/constants';
 import { format, parseISO } from 'date-fns';
 import { apiRequest } from '@/lib/queryClient';
+import { offlineApiRequest, createOfflineOrderData, isOfflineOrder } from "@/lib/offline-api";
 import { Separator } from "@/components/ui/separator";
 import * as OrderService from '@/lib/order-service';
 import * as CustomerService from '@/lib/customer-service';
@@ -255,24 +256,35 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       console.log('Selected order date:', orderDate);
       console.log('Converted order date:', selectedOrderDate.toISOString());
       
-      await apiRequest('POST', '/api/orders', {
+      const orderData = {
         customerId: orderCustomerId,
         items: validItems,
         totalAmount: total,
         paidAmount: paidAmount,
         paymentStatus: paymentStatus,
-        orderStatus: 'pending'
-      });
-      
+        orderStatus: 'pending',
+        createdAt: selectedOrderDate.toISOString()
+      };
 
+      const response = await offlineApiRequest('POST', '/api/orders', orderData);
       
-      // Show success message
-      toast({
-        title: "Order created",
-        description: `Order for ${customerType === 'hotel' ? 
-          customers.find(c => c.id === customerId)?.name || 'customer' : 
-          customerName} has been created`
-      });
+      // Show success message with offline indication
+      const customerDisplayName = customerType === 'hotel' ? 
+        customers.find(c => c.id === customerId)?.name || 'customer' : 
+        customerName;
+      
+      if (response.isOffline) {
+        toast({
+          title: "Order queued for sync",
+          description: `Order for ${customerDisplayName} created offline and will sync when online`,
+          variant: "default"
+        });
+      } else {
+        toast({
+          title: "Order created",
+          description: `Order for ${customerDisplayName} has been created successfully`
+        });
+      }
       
       // Refresh queries
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });

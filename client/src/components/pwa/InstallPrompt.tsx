@@ -126,12 +126,12 @@ export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-96">
-      <Card className="border-2 border-primary/20 shadow-lg bg-white dark:bg-gray-900">
-        <CardContent className="p-4">
+    <div className="fixed bottom-4 right-4 z-40 w-80 md:w-96">
+      <Card className="border border-primary/20 shadow-lg bg-white dark:bg-gray-900">
+        <CardContent className="p-3">
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 p-2 bg-primary/10 rounded-lg">
-              <Smartphone className="h-5 w-5 text-primary" />
+            <div className="flex-shrink-0 p-1.5 bg-primary/10 rounded-lg">
+              <Smartphone className="h-4 w-4 text-primary" />
             </div>
             
             <div className="flex-1 min-w-0">
@@ -147,7 +147,7 @@ export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
                   onClick={handleInstallClick}
                   disabled={isInstalling}
                   size="sm"
-                  className="h-8 px-3 text-xs"
+                  className="h-7 px-3 text-xs"
                 >
                   <Download className="h-3 w-3 mr-1" />
                   {isInstalling ? 'Installing...' : 'Install'}
@@ -157,7 +157,7 @@ export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
                   onClick={handleDismiss}
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-3 text-xs"
+                  className="h-7 px-3 text-xs"
                 >
                   Later
                 </Button>
@@ -168,24 +168,10 @@ export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
               onClick={handleDismiss}
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 flex-shrink-0"
+              className="h-5 w-5 p-0 flex-shrink-0"
             >
               <X className="h-3 w-3" />
             </Button>
-          </div>
-          
-          {/* Benefits */}
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <Monitor className="h-3 w-3" />
-                <span>Works offline</span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <Smartphone className="h-3 w-3" />
-                <span>Native app feel</span>
-              </div>
-            </div>
           </div>
         </CardContent>
       </Card>

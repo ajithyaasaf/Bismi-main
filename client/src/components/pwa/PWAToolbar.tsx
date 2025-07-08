@@ -151,26 +151,29 @@ export function PWAStatusBar() {
   const isOnline = useOnlineStatus();
   const { queueLength, syncInProgress } = useOfflineManager();
 
-  if (isOnline && queueLength === 0) {
+  // Only show when there are queued actions or actively syncing
+  if (isOnline && queueLength === 0 && !syncInProgress) {
     return null;
   }
 
   return (
-    <div className="bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 px-4 py-2">
+    <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-3 py-1.5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {!isOnline ? (
-            <WifiOff className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <WifiOff className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           ) : (
-            <Clock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+            <Clock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
           )}
-          <span className="text-sm text-amber-800 dark:text-amber-200">
-            {!isOnline ? 'Working offline' : `${queueLength} actions pending sync`}
+          <span className="text-xs text-blue-800 dark:text-blue-200">
+            {!isOnline ? 'Working offline' : 
+             syncInProgress ? 'Syncing changes...' : 
+             `${queueLength} changes pending`}
           </span>
         </div>
         
         {syncInProgress && (
-          <RotateCcw className="h-4 w-4 text-amber-600 dark:text-amber-400 animate-spin" />
+          <RotateCcw className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 animate-spin" />
         )}
       </div>
     </div>

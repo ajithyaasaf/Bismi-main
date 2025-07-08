@@ -8,6 +8,19 @@ export function OfflineIndicator() {
   const [showOfflineMessage, setShowOfflineMessage] = useState(false);
 
   useEffect(() => {
+    // Check if device is mobile
+    const isMobileDevice = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      return /android|iphone|ipad|ipod|mobile/.test(userAgent) || 
+             window.innerWidth <= 768 ||
+             'ontouchstart' in window;
+    };
+
+    // Only show offline indicator on mobile devices
+    if (!isMobileDevice()) {
+      return;
+    }
+
     const handleOnline = () => {
       setIsOnline(true);
       setShowOfflineMessage(false);

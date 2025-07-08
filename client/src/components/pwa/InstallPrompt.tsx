@@ -38,6 +38,19 @@ export function InstallPrompt({ onInstall, onDismiss }: InstallPromptProps) {
       }
     };
 
+    // Check if device is mobile (Android/iOS)
+    const isMobileDevice = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      return /android|iphone|ipad|ipod|mobile/.test(userAgent) || 
+             window.innerWidth <= 768 ||
+             'ontouchstart' in window;
+    };
+
+    // Only show install prompt on mobile devices
+    if (!isMobileDevice()) {
+      return;
+    }
+
     checkInstalled();
 
     // Listen for beforeinstallprompt event

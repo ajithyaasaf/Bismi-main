@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
-import { PWAStatusBar } from "@/components/pwa/PWAToolbar";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,7 +32,6 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 font-body">
-      <PWAStatusBar />
       <Sidebar isOpen={sidebarOpen} closeSidebar={() => setSidebarOpen(false)} />
       
       <div className="flex flex-col flex-1 overflow-hidden" onClick={handleMainContentClick}>

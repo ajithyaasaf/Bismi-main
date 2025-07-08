@@ -54,7 +54,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
             <span className="absolute top-0 right-0 w-2 h-2 bg-orange-500 rounded-full"></span>
           </button>
           
-          <ConnectionStatus />
+
           
           <div className="relative">
             <div className="flex items-center cursor-pointer">

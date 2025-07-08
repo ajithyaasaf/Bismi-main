@@ -12,7 +12,6 @@ import TransactionsTable from "@/components/transactions/TransactionsTable";
 import { apiRequest } from "@/lib/queryClient";
 import { TransactionsSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
-import { OfflineStatus } from "@/components/ui/offline-status";
 import { safeDateFormat } from "@/utils/date-utils";
 
 interface TransactionFilters {
@@ -197,8 +196,6 @@ export default function TransactionsPage() {
           </Button>
         </div>
       </div>
-
-      <OfflineStatus />
 
       {/* Filters */}
       <Card>

@@ -9,7 +9,6 @@ import { apiRequest } from "@/lib/queryClient";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { InventorySkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
-import { OfflineStatus } from "@/components/ui/offline-status";
 
 export default function InventoryPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -108,8 +107,6 @@ export default function InventoryPage() {
           <i className="fas fa-plus mr-2"></i> Add Item
         </Button>
       </div>
-
-      <OfflineStatus />
 
       <InventoryList 
         items={inventory}

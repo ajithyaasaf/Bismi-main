@@ -6,7 +6,6 @@ import AddStockModal from "@/components/modals/AddStockModal";
 import NewOrderModal from "@/components/modals/NewOrderModal";
 import { DashboardSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
-import { OfflineStatus } from "@/components/ui/offline-status";
 import { fetchDashboardData } from "@/lib/api-batch";
 
 export default function DashboardPage() {
@@ -185,8 +184,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      <OfflineStatus />
-      
       <Dashboard 
         totalStock={totalStock} 
         todaysSales={todaysSales} 

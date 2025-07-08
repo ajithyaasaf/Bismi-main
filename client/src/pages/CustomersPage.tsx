@@ -14,7 +14,6 @@ import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
 import { CustomerInvoice } from "@/components/invoices/CustomerInvoice";
 import { CustomersSkeleton } from "@/components/skeletons";
 import { useSkeletonTimer } from "@/hooks/use-skeleton-timer";
-import { OfflineStatus } from "@/components/ui/offline-status";
 
 export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -163,8 +162,6 @@ export default function CustomersPage() {
           Add Customer
         </Button>
       </div>
-
-      <OfflineStatus />
 
       <CustomersList 
         customers={customers}

@@ -231,6 +231,16 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       // Calculate total
       const total = calculateTotal();
       
+      console.log('Creating order with items:', validItems.length, 'items');
+      console.log('Order data:', {
+        customerId: orderCustomerId,
+        items: validItems,
+        totalAmount: total,
+        paidAmount: paidAmount,
+        paymentStatus: paymentStatus,
+        orderStatus: 'pending'
+      });
+      
       // Create order
       await apiRequest('POST', '/api/orders', {
         customerId: orderCustomerId,
@@ -240,6 +250,8 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         paymentStatus: paymentStatus,
         orderStatus: 'pending'
       });
+      
+      console.log('Order created successfully');
       
       // Show success message
       toast({
@@ -259,12 +271,22 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       onClose();
       
     } catch (error) {
-      toast({
-        title: "Error creating order",
-        description: "There was an error creating the order",
-        variant: "destructive"
-      });
-      console.error(error);
+      console.error('Order creation error:', error);
+      
+      // Check if it's a timeout error
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Order creation timeout",
+          description: "The order is taking longer than expected. Please check if it was created successfully.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error creating order",
+          description: "There was an error creating the order",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

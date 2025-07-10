@@ -254,6 +254,15 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       
       console.log('Selected order date:', orderDate);
       console.log('Converted order date:', selectedOrderDate.toISOString());
+      console.log('Creating order with items:', validItems.length, 'items');
+      console.log('Order data:', {
+        customerId: orderCustomerId,
+        items: validItems,
+        totalAmount: total,
+        paidAmount: paidAmount,
+        paymentStatus: paymentStatus,
+        orderStatus: 'pending'
+      });
       
       await apiRequest('POST', '/api/orders', {
         customerId: orderCustomerId,
@@ -263,6 +272,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         paymentStatus: paymentStatus,
         orderStatus: 'pending'
       });
+      
+      console.log('Order created successfully');
       
 
       
@@ -284,12 +295,22 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       onClose();
       
     } catch (error) {
-      toast({
-        title: "Error creating order",
-        description: "There was an error creating the order",
-        variant: "destructive"
-      });
-      console.error(error);
+      console.error('Order creation error:', error);
+      
+      // Check if it's a timeout error
+      if (error instanceof Error && error.name === 'AbortError') {
+        toast({
+          title: "Order creation timeout",
+          description: "The order is taking longer than expected. Please check if it was created successfully.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error creating order",
+          description: "There was an error creating the order",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }

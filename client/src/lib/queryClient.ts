@@ -56,7 +56,11 @@ export async function apiRequest(
   while (retries > 0) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
+      // Dynamic timeout based on endpoint - longer for order creation
+      const isOrderCreation = endpoint.includes('/orders') && method === 'POST';
+      const timeoutMs = isOrderCreation ? 30000 : 10000; // 30s for order creation, 10s for others
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const res = await fetch(url, {
         method,

@@ -37,7 +37,7 @@ const insertOrderSchema = z.object({
   customerId: z.string().min(1),
   items: z.array(z.object({
     type: z.string().min(1),
-    quantity: z.number().min(1),
+    quantity: z.number().min(0.001), // Allow fractional quantities (0.001 kg minimum)
     rate: z.number().min(0),
     details: z.string().optional()
   })),

@@ -125,6 +125,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+      console.log('=== ORDER CREATION STARTED ===');
+      console.log('Items count:', items.length);
+      console.log('All items:', items);
       
       // Validate customer
       let orderCustomerId = customerId;
@@ -264,7 +267,10 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         orderStatus: 'pending'
       });
       
-      await apiRequest('POST', '/api/orders', {
+      console.log('About to make API request...');
+      const startTime = Date.now();
+      
+      const response = await apiRequest('POST', '/api/orders', {
         customerId: orderCustomerId,
         items: validItems,
         totalAmount: total,
@@ -273,7 +279,17 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         orderStatus: 'pending'
       });
       
-      console.log('Order created successfully');
+      const endTime = Date.now();
+      console.log(`API request completed in ${endTime - startTime}ms`);
+      console.log('Response:', response.status, response.statusText);
+      
+      // Parse response if needed
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('Order created successfully:', responseData);
+      } else {
+        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+      }
       
 
       
@@ -295,23 +311,41 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       onClose();
       
     } catch (error) {
-      console.error('Order creation error:', error);
+      console.error('=== ORDER CREATION ERROR ===');
+      console.error('Error details:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error name:', error instanceof Error ? error.name : 'Unknown');
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
-      // Check if it's a timeout error
-      if (error instanceof Error && error.name === 'AbortError') {
-        toast({
-          title: "Order creation timeout",
-          description: "The order is taking longer than expected. Please check if it was created successfully.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Error creating order",
-          description: "There was an error creating the order",
-          variant: "destructive"
-        });
+      let errorTitle = "Error creating order";
+      let errorDescription = "There was an error creating the order";
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          errorTitle = "Order creation timeout";
+          errorDescription = "The order is taking longer than expected. Please check if it was created successfully.";
+        } else if (error.message.includes('timeout')) {
+          errorTitle = "Request timeout";
+          errorDescription = "The request timed out. Please try again or check if the order was created.";
+        } else if (error.message.includes('network')) {
+          errorTitle = "Network error";
+          errorDescription = "Network connection issue. Please check your connection and try again.";
+        } else if (error.message.includes('400')) {
+          errorTitle = "Validation error";
+          errorDescription = "Invalid order data. Please check all fields and try again.";
+        } else {
+          errorDescription = `Error: ${error.message}`;
+        }
       }
+      
+      toast({
+        title: errorTitle,
+        description: errorDescription,
+        variant: "destructive"
+      });
     } finally {
+      console.log('=== ORDER CREATION FINISHED ===');
       setIsSubmitting(false);
     }
   };

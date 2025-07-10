@@ -1,6 +1,5 @@
 import { useLocation } from "wouter";
 import { useState } from "react";
-import { ConnectionStatus } from "@/components/pwa/ConnectionStatus";
 
 interface HeaderProps {
   toggleSidebar: () => void;
@@ -53,8 +52,6 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
             <i className="fas fa-bell"></i>
             <span className="absolute top-0 right-0 w-2 h-2 bg-orange-500 rounded-full"></span>
           </button>
-          
-
           
           <div className="relative">
             <div className="flex items-center cursor-pointer">

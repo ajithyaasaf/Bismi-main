@@ -13,8 +13,6 @@ import OrdersPage from "@/pages/OrdersPage";
 import CustomersPage from "@/pages/CustomersPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import ReportsPage from "@/pages/ReportsPage";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { OfflineIndicator } from "@/components/pwa/OfflineIndicator";
 
 function Router() {
   return (
@@ -40,13 +38,6 @@ function App() {
         <TooltipProvider>
           <Toaster />
           <Router />
-          
-          {/* PWA Features */}
-          <InstallPrompt 
-            onInstall={() => console.log('App installed successfully')}
-            onDismiss={() => console.log('Install prompt dismissed')}
-          />
-          <OfflineIndicator />
         </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>

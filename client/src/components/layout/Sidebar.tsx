@@ -15,7 +15,7 @@ export default function Sidebar({ isOpen, closeSidebar }: SidebarProps) {
     { name: "Inventory", path: "/inventory", icon: "fa-boxes" },
     { name: "Orders", path: "/orders", icon: "fa-shopping-cart" },
     { name: "Customers", path: "/customers", icon: "fa-users" },
-    { name: "Hotel Ledger", path: "/hotel-ledger", icon: "fa-building" },
+    { name: "Hotel Debt", path: "/hotel-debt", icon: "fa-building" },
     { name: "Transactions", path: "/transactions", icon: "fa-exchange-alt" },
     { name: "Reports", path: "/reports", icon: "fa-chart-bar" },
   ];

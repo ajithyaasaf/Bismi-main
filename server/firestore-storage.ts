@@ -13,6 +13,10 @@ import {
   InsertOrder,
   Transaction,
   InsertTransaction,
+  DebtAdjustment,
+  InsertDebtAdjustment,
+  HotelLedgerEntry,
+  HotelDebtSummary
 } from '@shared/types';
 
 export class FirestoreStorage implements IStorage {
@@ -762,6 +766,226 @@ export class FirestoreStorage implements IStorage {
     } catch (error) {
       console.error('Error deleting transaction:', error);
       return false;
+    }
+  }
+
+  // Debt Adjustment operations
+  async getAllDebtAdjustments(): Promise<DebtAdjustment[]> {
+    try {
+      const snapshot = await this.db.collection('debt-adjustments').get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          customerId: data.customerId || '',
+          type: data.type || 'debit',
+          amount: data.amount || 0,
+          reason: data.reason || '',
+          adjustedBy: data.adjustedBy || 'System',
+          createdAt: this.convertTimestamp(data.createdAt),
+        };
+      });
+    } catch (error) {
+      console.error('Error getting debt adjustments:', error);
+      throw new Error(`Failed to get debt adjustments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getDebtAdjustmentsByCustomer(customerId: string): Promise<DebtAdjustment[]> {
+    try {
+      const snapshot = await this.db.collection('debt-adjustments')
+        .where('customerId', '==', customerId)
+        .orderBy('createdAt', 'desc')
+        .get();
+      return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          customerId: data.customerId || '',
+          type: data.type || 'debit',
+          amount: data.amount || 0,
+          reason: data.reason || '',
+          adjustedBy: data.adjustedBy || 'System',
+          createdAt: this.convertTimestamp(data.createdAt),
+        };
+      });
+    } catch (error) {
+      console.error('Error getting debt adjustments by customer:', error);
+      throw new Error(`Failed to get debt adjustments by customer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getDebtAdjustment(id: string): Promise<DebtAdjustment | undefined> {
+    try {
+      const doc = await this.db.collection('debt-adjustments').doc(id).get();
+      if (!doc.exists) return undefined;
+
+      const data = doc.data();
+      return {
+        id: doc.id,
+        customerId: data?.customerId || '',
+        type: data?.type || 'debit',
+        amount: data?.amount || 0,
+        reason: data?.reason || '',
+        adjustedBy: data?.adjustedBy || 'System',
+        createdAt: this.convertTimestamp(data?.createdAt),
+      };
+    } catch (error) {
+      console.error('Error getting debt adjustment:', error);
+      throw new Error(`Failed to get debt adjustment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async createDebtAdjustment(adjustment: InsertDebtAdjustment): Promise<DebtAdjustment> {
+    try {
+      const now = new Date();
+      const docRef = await this.db.collection('debt-adjustments').add({
+        customerId: adjustment.customerId,
+        type: adjustment.type,
+        amount: adjustment.amount,
+        reason: adjustment.reason,
+        adjustedBy: adjustment.adjustedBy || 'System',
+        createdAt: now,
+      });
+
+      return {
+        id: docRef.id,
+        customerId: adjustment.customerId,
+        type: adjustment.type,
+        amount: adjustment.amount,
+        reason: adjustment.reason,
+        adjustedBy: adjustment.adjustedBy || 'System',
+        createdAt: now,
+      };
+    } catch (error) {
+      console.error('Error creating debt adjustment:', error);
+      throw new Error(`Failed to create debt adjustment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async updateDebtAdjustment(id: string, adjustment: Partial<InsertDebtAdjustment>): Promise<DebtAdjustment | undefined> {
+    try {
+      await this.db.collection('debt-adjustments').doc(id).update(adjustment);
+      return this.getDebtAdjustment(id);
+    } catch (error) {
+      console.error('Error updating debt adjustment:', error);
+      throw new Error(`Failed to update debt adjustment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async deleteDebtAdjustment(id: string): Promise<boolean> {
+    try {
+      await this.db.collection('debt-adjustments').doc(id).delete();
+      return true;
+    } catch (error) {
+      console.error('Error deleting debt adjustment:', error);
+      return false;
+    }
+  }
+
+  // Hotel Ledger operations
+  async getHotelLedgerEntries(customerId: string, limit?: number): Promise<HotelLedgerEntry[]> {
+    try {
+      const entries: HotelLedgerEntry[] = [];
+      let runningBalance = 0;
+
+      // Get all orders for this customer
+      const orders = await this.getOrdersByCustomer(customerId);
+      
+      // Get all debt adjustments for this customer
+      const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
+
+      // Combine and sort by date
+      const allEntries = [
+        ...orders.map(order => ({
+          id: `order-${order.id}`,
+          customerId: order.customerId,
+          type: 'order' as const,
+          orderId: order.id,
+          amount: order.totalAmount - order.paidAmount,
+          description: `Order: ${order.items.map(item => `${item.quantity}kg ${item.type}`).join(', ')}`,
+          runningBalance: 0, // Will be calculated
+          createdAt: order.createdAt,
+        })),
+        ...adjustments.map(adj => ({
+          id: `adjustment-${adj.id}`,
+          customerId: adj.customerId,
+          type: 'adjustment' as const,
+          amount: adj.type === 'debit' ? adj.amount : -adj.amount,
+          description: `${adj.type === 'debit' ? 'Charge' : 'Credit'}: ${adj.reason}`,
+          runningBalance: 0, // Will be calculated
+          adjustedBy: adj.adjustedBy,
+          createdAt: adj.createdAt,
+        }))
+      ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      // Calculate running balance
+      for (const entry of allEntries) {
+        runningBalance += entry.amount;
+        entry.runningBalance = runningBalance;
+        entries.push(entry);
+      }
+
+      // Apply limit if specified
+      if (limit) {
+        return entries.slice(-limit).reverse(); // Get most recent entries
+      }
+
+      return entries.reverse(); // Most recent first
+    } catch (error) {
+      console.error('Error getting hotel ledger entries:', error);
+      throw new Error(`Failed to get hotel ledger entries: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getHotelDebtSummary(customerId: string): Promise<HotelDebtSummary | undefined> {
+    try {
+      const customer = await this.getCustomer(customerId);
+      if (!customer || customer.type !== 'hotel') return undefined;
+
+      const orders = await this.getOrdersByCustomer(customerId);
+      const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
+      const ledgerEntries = await this.getHotelLedgerEntries(customerId, 10);
+
+      // Calculate total owed
+      const orderDebt = orders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
+      const adjustmentBalance = adjustments.reduce((sum, adj) => 
+        sum + (adj.type === 'debit' ? adj.amount : -adj.amount), 0
+      );
+      const totalOwed = orderDebt + adjustmentBalance;
+
+      return {
+        hotelId: customerId,
+        hotelName: customer.name,
+        totalOwed,
+        totalOrders: orders.length,
+        lastOrderDate: orders.length > 0 ? orders.sort((a, b) => 
+          b.createdAt.getTime() - a.createdAt.getTime())[0].createdAt.toISOString() : undefined,
+        recentActivity: ledgerEntries
+      };
+    } catch (error) {
+      console.error('Error getting hotel debt summary:', error);
+      throw new Error(`Failed to get hotel debt summary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async getAllHotelDebtSummaries(): Promise<HotelDebtSummary[]> {
+    try {
+      const customers = await this.getAllCustomers();
+      const hotels = customers.filter(c => c.type === 'hotel');
+      
+      const summaries: HotelDebtSummary[] = [];
+      for (const hotel of hotels) {
+        const summary = await this.getHotelDebtSummary(hotel.id);
+        if (summary) {
+          summaries.push(summary);
+        }
+      }
+      
+      return summaries;
+    } catch (error) {
+      console.error('Error getting all hotel debt summaries:', error);
+      throw new Error(`Failed to get all hotel debt summaries: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

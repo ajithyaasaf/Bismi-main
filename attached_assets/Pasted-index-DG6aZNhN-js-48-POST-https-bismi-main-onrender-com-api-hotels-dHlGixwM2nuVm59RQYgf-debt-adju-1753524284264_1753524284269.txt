@@ -1,0 +1,61 @@
+index-DG6aZNhN.js:48  POST https://bismi-main.onrender.com/api/hotels/dHlGixwM2nuVm59RQYgf/debt-adjustments 500 (Internal Server Error)
+Ye @ index-DG6aZNhN.js:48
+mutationFn @ index-DG6aZNhN.js:972
+fn @ index-DG6aZNhN.js:48
+v @ index-DG6aZNhN.js:48
+(anonymous) @ index-DG6aZNhN.js:48
+Promise.then
+(anonymous) @ index-DG6aZNhN.js:48
+Promise.catch
+v @ index-DG6aZNhN.js:48
+start @ index-DG6aZNhN.js:48
+execute @ index-DG6aZNhN.js:48
+await in execute
+mutate @ index-DG6aZNhN.js:48
+(anonymous) @ index-DG6aZNhN.js:48
+_ @ index-DG6aZNhN.js:972
+cM @ index-DG6aZNhN.js:37
+dM @ index-DG6aZNhN.js:37
+fM @ index-DG6aZNhN.js:37
+Ky @ index-DG6aZNhN.js:37
+I1 @ index-DG6aZNhN.js:37
+(anonymous) @ index-DG6aZNhN.js:37
+Sg @ index-DG6aZNhN.js:40
+o1 @ index-DG6aZNhN.js:37
+Hf @ index-DG6aZNhN.js:37
+Xp @ index-DG6aZNhN.js:37
+kM @ index-DG6aZNhN.js:37Understand this error
+index-DG6aZNhN.js:48 API Error Details: {status: 500, statusText: '', url: 'https://bismi-main.onrender.com/api/hotels/dHlGixwM2nuVm59RQYgf/debt-adjustments', headers: {…}, responseText: '{"success":true,"data":{"message":"Failed to creat…ustment"},"timestamp":"2025-07-26T10:04:29.541Z"}'}
+mS @ index-DG6aZNhN.js:48
+await in mS
+Ye @ index-DG6aZNhN.js:48
+await in Ye
+mutationFn @ index-DG6aZNhN.js:972
+fn @ index-DG6aZNhN.js:48
+v @ index-DG6aZNhN.js:48
+(anonymous) @ index-DG6aZNhN.js:48
+Promise.then
+(anonymous) @ index-DG6aZNhN.js:48
+Promise.catch
+v @ index-DG6aZNhN.js:48
+start @ index-DG6aZNhN.js:48
+execute @ index-DG6aZNhN.js:48
+await in execute
+mutate @ index-DG6aZNhN.js:48
+(anonymous) @ index-DG6aZNhN.js:48
+_ @ index-DG6aZNhN.js:972
+cM @ index-DG6aZNhN.js:37
+dM @ index-DG6aZNhN.js:37
+fM @ index-DG6aZNhN.js:37
+Ky @ index-DG6aZNhN.js:37
+I1 @ index-DG6aZNhN.js:37
+(anonymous) @ index-DG6aZNhN.js:37
+Sg @ index-DG6aZNhN.js:40
+o1 @ index-DG6aZNhN.js:37
+Hf @ index-DG6aZNhN.js:37
+Xp @ index-DG6aZNhN.js:37
+kM @ index-DG6aZNhN.js:37Understand this error
+index-DG6aZNhN.js:48 API Error: Error: 500: {"success":true,"data":{"message":"Failed to create debt adjustment"},"timestamp":"2025-07-26T10:04:29.541Z"}
+    at mS (index-DG6aZNhN.js:48:43281)
+    at async Ye (index-DG6aZNhN.js:48:43961)
+    at async Object.mutationFn (index-DG6aZNhN.js:972:17962)

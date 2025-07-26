@@ -1057,6 +1057,194 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
+  // Hotel Debt Ledger API Routes
+  
+  // Get all hotel debt summaries
+  apiRouter.get("/hotels/debt-summaries", async (req: Request, res: Response) => {
+    try {
+      const storage = await getStorage();
+      const summaries = await storage.getAllHotelDebtSummaries();
+      
+      const serializedSummaries = summaries.map(summary => ({
+        ...summary,
+        customer: {
+          ...summary.customer,
+          createdAt: summary.customer.createdAt instanceof Date 
+            ? summary.customer.createdAt.toISOString() 
+            : new Date(summary.customer.createdAt || Date.now()).toISOString()
+        },
+        recentActivity: summary.recentActivity.map(entry => ({
+          ...entry,
+          createdAt: entry.createdAt instanceof Date 
+            ? entry.createdAt.toISOString() 
+            : new Date(entry.createdAt || Date.now()).toISOString()
+        })),
+        lastOrderDate: summary.lastOrderDate instanceof Date 
+          ? summary.lastOrderDate.toISOString() 
+          : summary.lastOrderDate ? new Date(summary.lastOrderDate).toISOString() : undefined,
+        lastPaymentDate: summary.lastPaymentDate instanceof Date 
+          ? summary.lastPaymentDate.toISOString() 
+          : summary.lastPaymentDate ? new Date(summary.lastPaymentDate).toISOString() : undefined
+      }));
+      
+      res.json(serializedSummaries);
+    } catch (error) {
+      console.error("Failed to get hotel debt summaries:", error);
+      res.status(500).json({ message: "Failed to get hotel debt summaries" });
+    }
+  });
+
+  // Get specific hotel debt summary
+  apiRouter.get("/hotels/:id/debt-summary", async (req: Request, res: Response) => {
+    try {
+      const storage = await getStorage();
+      const summary = await storage.getHotelDebtSummary(req.params.id);
+      
+      if (!summary) {
+        return res.status(404).json({ message: "Hotel not found or not a hotel customer" });
+      }
+      
+      const serializedSummary = {
+        ...summary,
+        customer: {
+          ...summary.customer,
+          createdAt: summary.customer.createdAt instanceof Date 
+            ? summary.customer.createdAt.toISOString() 
+            : new Date(summary.customer.createdAt || Date.now()).toISOString()
+        },
+        recentActivity: summary.recentActivity.map(entry => ({
+          ...entry,
+          createdAt: entry.createdAt instanceof Date 
+            ? entry.createdAt.toISOString() 
+            : new Date(entry.createdAt || Date.now()).toISOString()
+        })),
+        lastOrderDate: summary.lastOrderDate instanceof Date 
+          ? summary.lastOrderDate.toISOString() 
+          : summary.lastOrderDate ? new Date(summary.lastOrderDate).toISOString() : undefined,
+        lastPaymentDate: summary.lastPaymentDate instanceof Date 
+          ? summary.lastPaymentDate.toISOString() 
+          : summary.lastPaymentDate ? new Date(summary.lastPaymentDate).toISOString() : undefined
+      };
+      
+      res.json(serializedSummary);
+    } catch (error) {
+      console.error("Failed to get hotel debt summary:", error);
+      res.status(500).json({ message: "Failed to get hotel debt summary" });
+    }
+  });
+
+  // Get hotel ledger entries
+  apiRouter.get("/hotels/:id/ledger", async (req: Request, res: Response) => {
+    try {
+      const storage = await getStorage();
+      const { limit } = req.query;
+      const limitNum = limit ? parseInt(limit as string, 10) : undefined;
+      
+      const entries = await storage.getHotelLedgerEntries(req.params.id, limitNum);
+      
+      const serializedEntries = entries.map(entry => ({
+        ...entry,
+        createdAt: entry.createdAt instanceof Date 
+          ? entry.createdAt.toISOString() 
+          : new Date(entry.createdAt || Date.now()).toISOString()
+      }));
+      
+      res.json(serializedEntries);
+    } catch (error) {
+      console.error("Failed to get hotel ledger entries:", error);
+      res.status(500).json({ message: "Failed to get hotel ledger entries" });
+    }
+  });
+
+  // Create debt adjustment
+  apiRouter.post("/hotels/:id/debt-adjustments", async (req: Request, res: Response) => {
+    try {
+      const { type, amount, reason, adjustedBy } = req.body;
+      
+      // Validate request data
+      if (!type || !amount || !reason) {
+        return res.status(400).json({ message: "Type, amount, and reason are required" });
+      }
+      
+      if (type !== 'debit' && type !== 'credit') {
+        return res.status(400).json({ message: "Type must be 'debit' or 'credit'" });
+      }
+      
+      if (amount <= 0) {
+        return res.status(400).json({ message: "Amount must be positive" });
+      }
+      
+      const storage = await getStorage();
+      
+      // Verify customer exists and is a hotel
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      
+      if (customer.type !== 'hotel') {
+        return res.status(400).json({ message: "Customer is not a hotel" });
+      }
+      
+      const adjustment = await storage.createDebtAdjustment({
+        customerId: req.params.id,
+        type,
+        amount: parseFloat(amount),
+        reason,
+        adjustedBy: adjustedBy || 'System'
+      });
+      
+      const serializedAdjustment = {
+        ...adjustment,
+        createdAt: adjustment.createdAt instanceof Date 
+          ? adjustment.createdAt.toISOString() 
+          : new Date(adjustment.createdAt || Date.now()).toISOString()
+      };
+      
+      res.status(201).json(serializedAdjustment);
+    } catch (error) {
+      console.error("Failed to create debt adjustment:", error);
+      res.status(500).json({ message: "Failed to create debt adjustment" });
+    }
+  });
+
+  // Get debt adjustments for a hotel
+  apiRouter.get("/hotels/:id/debt-adjustments", async (req: Request, res: Response) => {
+    try {
+      const storage = await getStorage();
+      const adjustments = await storage.getDebtAdjustmentsByCustomer(req.params.id);
+      
+      const serializedAdjustments = adjustments.map(adjustment => ({
+        ...adjustment,
+        createdAt: adjustment.createdAt instanceof Date 
+          ? adjustment.createdAt.toISOString() 
+          : new Date(adjustment.createdAt || Date.now()).toISOString()
+      }));
+      
+      res.json(serializedAdjustments);
+    } catch (error) {
+      console.error("Failed to get debt adjustments:", error);
+      res.status(500).json({ message: "Failed to get debt adjustments" });
+    }
+  });
+
+  // Delete debt adjustment
+  apiRouter.delete("/debt-adjustments/:id", async (req: Request, res: Response) => {
+    try {
+      const storage = await getStorage();
+      const success = await storage.deleteDebtAdjustment(req.params.id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Debt adjustment not found" });
+      }
+      
+      res.json({ message: "Debt adjustment deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete debt adjustment:", error);
+      res.status(500).json({ message: "Failed to delete debt adjustment" });
+    }
+  });
+
   // Webhook endpoint for Vercel deployment notifications
   apiRouter.post("/deployment-webhook", async (req: Request, res: Response) => {
     try {

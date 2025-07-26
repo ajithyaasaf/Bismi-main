@@ -123,3 +123,45 @@ export interface InsertTransaction {
   amount: number;
   description: string;
 }
+
+// Hotel Debt Adjustment for manual debt tracking
+export interface DebtAdjustment {
+  id: string;
+  customerId: string; // Hotel customer ID
+  type: 'debit' | 'credit'; // debit increases debt, credit decreases debt
+  amount: number;
+  reason: string; // Description of the adjustment
+  adjustedBy: string; // Who made the adjustment
+  createdAt: Date;
+}
+
+export interface InsertDebtAdjustment {
+  customerId: string;
+  type: 'debit' | 'credit';
+  amount: number;
+  reason: string;
+  adjustedBy?: string;
+}
+
+// Hotel Ledger Entry for comprehensive debt tracking
+export interface HotelLedgerEntry {
+  id: string;
+  customerId: string;
+  entryType: 'order' | 'adjustment' | 'payment';
+  amount: number;
+  description: string;
+  relatedOrderId?: string; // If entry is related to an order
+  relatedAdjustmentId?: string; // If entry is related to a debt adjustment
+  runningBalance: number; // Running total after this entry
+  createdAt: Date;
+}
+
+// Hotel debt summary for the main ledger view
+export interface HotelDebtSummary {
+  customer: Customer;
+  totalOwed: number;
+  totalOrders: number;
+  recentActivity: HotelLedgerEntry[];
+  lastOrderDate?: Date;
+  lastPaymentDate?: Date;
+}

@@ -17,6 +17,12 @@ export default function Layout({ children }: LayoutProps) {
     
     if (!segment) {
       setPageTitle("Dashboard");
+    } else if (segment === 'hotel-ledger') {
+      if (pathSegments[2]) {
+        setPageTitle("Hotel Details");
+      } else {
+        setPageTitle("Hotel Ledger");
+      }
     } else {
       const formattedTitle = segment.charAt(0).toUpperCase() + segment.slice(1);
       setPageTitle(formattedTitle);

@@ -13,6 +13,8 @@ import OrdersPage from "@/pages/OrdersPage";
 import CustomersPage from "@/pages/CustomersPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import ReportsPage from "@/pages/ReportsPage";
+import HotelLedgerPage from "@/pages/HotelLedgerPage";
+import HotelDetailPage from "@/pages/HotelDetailPage";
 
 function Router() {
   return (
@@ -25,6 +27,8 @@ function Router() {
         <Route path="/customers" component={CustomersPage} />
         <Route path="/transactions" component={TransactionsPage} />
         <Route path="/reports" component={ReportsPage} />
+        <Route path="/hotel-ledger" component={HotelLedgerPage} />
+        <Route path="/hotel-ledger/:id" component={HotelDetailPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

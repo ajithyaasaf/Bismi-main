@@ -4,7 +4,9 @@ import {
   Inventory, InsertInventory,
   Customer, InsertCustomer,
   Order, InsertOrder,
-  Transaction, InsertTransaction
+  Transaction, InsertTransaction,
+  DebtAdjustment, InsertDebtAdjustment,
+  HotelLedgerEntry, HotelDebtSummary
 } from "@shared/types";
 
 // Interface with all CRUD operations for our application
@@ -50,4 +52,17 @@ export interface IStorage {
   createTransaction(transaction: InsertTransaction): Promise<Transaction>;
   updateTransaction(id: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined>;
   deleteTransaction(id: string): Promise<boolean>;
+  
+  // Debt Adjustment operations for hotel ledger
+  getAllDebtAdjustments(): Promise<DebtAdjustment[]>;
+  getDebtAdjustmentsByCustomer(customerId: string): Promise<DebtAdjustment[]>;
+  getDebtAdjustment(id: string): Promise<DebtAdjustment | undefined>;
+  createDebtAdjustment(adjustment: InsertDebtAdjustment): Promise<DebtAdjustment>;
+  updateDebtAdjustment(id: string, adjustment: Partial<InsertDebtAdjustment>): Promise<DebtAdjustment | undefined>;
+  deleteDebtAdjustment(id: string): Promise<boolean>;
+  
+  // Hotel Ledger operations
+  getHotelLedgerEntries(customerId: string, limit?: number): Promise<HotelLedgerEntry[]>;
+  getHotelDebtSummary(customerId: string): Promise<HotelDebtSummary | undefined>;
+  getAllHotelDebtSummaries(): Promise<HotelDebtSummary[]>;
 }

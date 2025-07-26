@@ -5,7 +5,9 @@ import type {
   Inventory, InsertInventory,
   Customer, InsertCustomer,
   Order, InsertOrder,
-  Transaction, InsertTransaction
+  Transaction, InsertTransaction,
+  DebtAdjustment, InsertDebtAdjustment,
+  HotelLedgerEntry, HotelDebtSummary
 } from '../shared/types';
 
 export class MockStorage implements IStorage {
@@ -15,6 +17,7 @@ export class MockStorage implements IStorage {
   private customers: Customer[] = [];
   private orders: Order[] = [];
   private transactions: Transaction[] = [];
+  private debtAdjustments: DebtAdjustment[] = [];
 
   constructor() {
     this.initializeMockData();
@@ -127,6 +130,37 @@ export class MockStorage implements IStorage {
         paymentStatus: 'paid',
         orderStatus: 'completed',
         createdAt: new Date('2025-05-15') // Last month
+      }
+    ];
+
+    // Create sample debt adjustments for hotels
+    this.debtAdjustments = [
+      {
+        id: 'adj1',
+        customerId: 'customer1', // Hotel Paradise
+        type: 'debit',
+        amount: 500,
+        reason: 'Late delivery charges for weekend orders',
+        adjustedBy: 'Manager',
+        createdAt: new Date('2025-06-26')
+      },
+      {
+        id: 'adj2',
+        customerId: 'customer1', // Hotel Paradise
+        type: 'credit',
+        amount: 200,
+        reason: 'Discount for bulk order commitment',
+        adjustedBy: 'Sales Team',
+        createdAt: new Date('2025-06-27')
+      },
+      {
+        id: 'adj3',
+        customerId: 'customer3', // Restaurant ABC
+        type: 'debit',
+        amount: 150,
+        reason: 'Additional cleaning service charge',
+        adjustedBy: 'Operations',
+        createdAt: new Date('2025-06-25')
       }
     ];
 
@@ -361,6 +395,150 @@ export class MockStorage implements IStorage {
     
     this.transactions.splice(index, 1);
     return true;
+  }
+
+  // Debt Adjustment operations
+  async getAllDebtAdjustments(): Promise<DebtAdjustment[]> {
+    return [...this.debtAdjustments];
+  }
+
+  async getDebtAdjustmentsByCustomer(customerId: string): Promise<DebtAdjustment[]> {
+    return this.debtAdjustments.filter(d => d.customerId === customerId);
+  }
+
+  async getDebtAdjustment(id: string): Promise<DebtAdjustment | undefined> {
+    return this.debtAdjustments.find(d => d.id === id);
+  }
+
+  async createDebtAdjustment(adjustment: InsertDebtAdjustment): Promise<DebtAdjustment> {
+    const newAdjustment: DebtAdjustment = {
+      id: `adj${this.debtAdjustments.length + 1}`,
+      ...adjustment,
+      adjustedBy: adjustment.adjustedBy || 'System',
+      createdAt: new Date()
+    };
+    this.debtAdjustments.push(newAdjustment);
+    return newAdjustment;
+  }
+
+  async updateDebtAdjustment(id: string, adjustment: Partial<InsertDebtAdjustment>): Promise<DebtAdjustment | undefined> {
+    const index = this.debtAdjustments.findIndex(d => d.id === id);
+    if (index === -1) return undefined;
+    
+    this.debtAdjustments[index] = { ...this.debtAdjustments[index], ...adjustment };
+    return this.debtAdjustments[index];
+  }
+
+  async deleteDebtAdjustment(id: string): Promise<boolean> {
+    const index = this.debtAdjustments.findIndex(d => d.id === id);
+    if (index === -1) return false;
+    
+    this.debtAdjustments.splice(index, 1);
+    return true;
+  }
+
+  // Hotel Ledger operations
+  async getHotelLedgerEntries(customerId: string, limit?: number): Promise<HotelLedgerEntry[]> {
+    const entries: HotelLedgerEntry[] = [];
+    let runningBalance = 0;
+
+    // Get all orders for this customer
+    const orders = await this.getOrdersByCustomer(customerId);
+    orders.forEach(order => {
+      runningBalance += order.totalAmount - (order.paidAmount || 0);
+      entries.push({
+        id: `ledger_order_${order.id}`,
+        customerId: customerId,
+        entryType: 'order',
+        amount: order.totalAmount,
+        description: `Order #${order.id} - Total: ₹${order.totalAmount}${order.paidAmount ? ` (Paid: ₹${order.paidAmount})` : ''}`,
+        relatedOrderId: order.id,
+        runningBalance: runningBalance,
+        createdAt: order.createdAt
+      });
+
+      // Add payment entry if there was a payment
+      if (order.paidAmount && order.paidAmount > 0) {
+        runningBalance -= order.paidAmount;
+        entries.push({
+          id: `ledger_payment_${order.id}`,
+          customerId: customerId,
+          entryType: 'payment',
+          amount: -order.paidAmount,
+          description: `Payment for Order #${order.id} - ₹${order.paidAmount}`,
+          relatedOrderId: order.id,
+          runningBalance: runningBalance,
+          createdAt: order.createdAt
+        });
+      }
+    });
+
+    // Get all debt adjustments for this customer
+    const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
+    adjustments.forEach(adjustment => {
+      const adjustmentAmount = adjustment.type === 'debit' ? adjustment.amount : -adjustment.amount;
+      runningBalance += adjustmentAmount;
+      entries.push({
+        id: `ledger_adj_${adjustment.id}`,
+        customerId: customerId,
+        entryType: 'adjustment',
+        amount: adjustmentAmount,
+        description: `${adjustment.type === 'debit' ? 'Charge' : 'Credit'}: ${adjustment.reason}`,
+        relatedAdjustmentId: adjustment.id,
+        runningBalance: runningBalance,
+        createdAt: adjustment.createdAt
+      });
+    });
+
+    // Sort by date (most recent first) and apply limit
+    entries.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return limit ? entries.slice(0, limit) : entries;
+  }
+
+  async getHotelDebtSummary(customerId: string): Promise<HotelDebtSummary | undefined> {
+    const customer = await this.getCustomer(customerId);
+    if (!customer || customer.type !== 'hotel') return undefined;
+
+    const orders = await this.getOrdersByCustomer(customerId);
+    const recentActivity = await this.getHotelLedgerEntries(customerId, 10);
+    
+    // Calculate total owed from all orders minus payments
+    let totalOwed = 0;
+    orders.forEach(order => {
+      totalOwed += order.totalAmount - (order.paidAmount || 0);
+    });
+
+    // Add debt adjustments
+    const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
+    adjustments.forEach(adjustment => {
+      totalOwed += adjustment.type === 'debit' ? adjustment.amount : -adjustment.amount;
+    });
+
+    const lastOrderDate = orders.length > 0 ? 
+      new Date(Math.max(...orders.map(o => o.createdAt.getTime()))) : undefined;
+
+    return {
+      customer,
+      totalOwed,
+      totalOrders: orders.length,
+      recentActivity,
+      lastOrderDate,
+      lastPaymentDate: undefined // Could be calculated from payments if needed
+    };
+  }
+
+  async getAllHotelDebtSummaries(): Promise<HotelDebtSummary[]> {
+    const hotels = this.customers.filter(c => c.type === 'hotel');
+    const summaries: HotelDebtSummary[] = [];
+
+    for (const hotel of hotels) {
+      const summary = await this.getHotelDebtSummary(hotel.id);
+      if (summary) {
+        summaries.push(summary);
+      }
+    }
+
+    return summaries.sort((a, b) => b.totalOwed - a.totalOwed);
   }
 }
 

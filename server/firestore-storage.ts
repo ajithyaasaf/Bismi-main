@@ -795,9 +795,8 @@ export class FirestoreStorage implements IStorage {
     try {
       const snapshot = await this.db.collection('debt-adjustments')
         .where('customerId', '==', customerId)
-        .orderBy('createdAt', 'desc')
         .get();
-      return snapshot.docs.map((doc) => {
+      const adjustments = snapshot.docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -809,6 +808,9 @@ export class FirestoreStorage implements IStorage {
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
+      
+      // Sort in memory to avoid Firestore index requirement
+      return adjustments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
       console.error('Error getting debt adjustments by customer:', error);
       throw new Error(`Failed to get debt adjustments by customer: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -900,8 +902,8 @@ export class FirestoreStorage implements IStorage {
         ...orders.map(order => ({
           id: `order-${order.id}`,
           customerId: order.customerId,
-          type: 'order' as const,
-          orderId: order.id,
+          entryType: 'order' as const,
+          relatedOrderId: order.id,
           amount: order.totalAmount - order.paidAmount,
           description: `Order: ${order.items.map(item => `${item.quantity}kg ${item.type}`).join(', ')}`,
           runningBalance: 0, // Will be calculated
@@ -910,11 +912,11 @@ export class FirestoreStorage implements IStorage {
         ...adjustments.map(adj => ({
           id: `adjustment-${adj.id}`,
           customerId: adj.customerId,
-          type: 'adjustment' as const,
+          entryType: 'adjustment' as const,
+          relatedAdjustmentId: adj.id,
           amount: adj.type === 'debit' ? adj.amount : -adj.amount,
           description: `${adj.type === 'debit' ? 'Charge' : 'Credit'}: ${adj.reason}`,
           runningBalance: 0, // Will be calculated
-          adjustedBy: adj.adjustedBy,
           createdAt: adj.createdAt,
         }))
       ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
@@ -955,13 +957,12 @@ export class FirestoreStorage implements IStorage {
       const totalOwed = orderDebt + adjustmentBalance;
 
       return {
-        hotelId: customerId,
-        hotelName: customer.name,
+        customer,
         totalOwed,
         totalOrders: orders.length,
+        recentActivity: ledgerEntries,
         lastOrderDate: orders.length > 0 ? orders.sort((a, b) => 
-          b.createdAt.getTime() - a.createdAt.getTime())[0].createdAt.toISOString() : undefined,
-        recentActivity: ledgerEntries
+          b.createdAt.getTime() - a.createdAt.getTime())[0].createdAt : undefined,
       };
     } catch (error) {
       console.error('Error getting hotel debt summary:', error);

@@ -13,7 +13,7 @@ import OrdersPage from "@/pages/OrdersPage";
 import CustomersPage from "@/pages/CustomersPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import ReportsPage from "@/pages/ReportsPage";
-import HotelDebtPage from "@/pages/HotelDebtPage";
+import HotelDebtPageEnhanced from "@/pages/HotelDebtPageEnhanced";
 
 function Router() {
   return (
@@ -26,7 +26,7 @@ function Router() {
         <Route path="/customers" component={CustomersPage} />
         <Route path="/transactions" component={TransactionsPage} />
         <Route path="/reports" component={ReportsPage} />
-        <Route path="/hotel-debt" component={HotelDebtPage} />
+        <Route path="/hotel-debt" component={HotelDebtPageEnhanced} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

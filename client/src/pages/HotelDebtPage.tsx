@@ -67,7 +67,15 @@ export default function HotelDebtPage() {
   const createAdjustmentMutation = useMutation({
     mutationFn: async (data: { type: 'debit' | 'credit'; amount: number; reason: string; adjustedBy: string }) => {
       const response = await apiRequest('POST', `/api/hotels/${selectedHotelId}/debt-adjustments`, data);
-      return response.json();
+      const result = await response.json();
+      
+      // Handle wrapped response format from backend
+      if (result.success === false) {
+        throw new Error(result.message || 'Failed to create debt adjustment');
+      }
+      
+      // If wrapped in success format, extract the data
+      return result.data || result;
     },
     onSuccess: () => {
       toast({

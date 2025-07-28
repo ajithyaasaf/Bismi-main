@@ -51,6 +51,14 @@ export class MockStorage implements IStorage {
         type: 'hotel',
         pendingAmount: 1200,
         createdAt: new Date('2025-06-27')
+      },
+      {
+        id: 'customer4',
+        name: 'Ajith Hotel',
+        contact: '+91-9876543213',
+        type: 'hotel',
+        pendingAmount: 69.99, // Should only be the unpaid order amount
+        createdAt: new Date('2025-07-28')
       }
     ];
 
@@ -120,9 +128,33 @@ export class MockStorage implements IStorage {
         createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
       },
       
-      // Last month's orders
+      // Ajith's paid order (should NOT count toward debt)
       {
         id: 'order5',
+        customerId: 'customer4', // Ajith Hotel
+        items: [{ type: 'whole_chicken', quantity: 5, rate: 200, details: 'Fully paid order' }],
+        totalAmount: 1000,
+        paidAmount: 1000, // FULLY PAID
+        paymentStatus: 'paid', // MARKED AS PAID
+        orderStatus: 'completed',
+        createdAt: new Date('2025-07-27')
+      },
+      
+      // Ajith's unpaid order (should count toward debt)
+      {
+        id: 'order6',
+        customerId: 'customer4', // Ajith Hotel
+        items: [{ type: 'chicken_pieces', quantity: 1, rate: 69.99, details: 'Unpaid order' }],
+        totalAmount: 69.99,
+        paidAmount: 0, // UNPAID
+        paymentStatus: 'pending', // PENDING PAYMENT
+        orderStatus: 'completed',
+        createdAt: new Date('2025-07-28')
+      },
+      
+      // Last month's orders
+      {
+        id: 'order7',
         customerId: 'customer2',
         items: [{ type: 'whole_chicken', quantity: 2, rate: 200, details: 'Fresh' }],
         totalAmount: 400,

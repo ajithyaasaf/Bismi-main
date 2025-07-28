@@ -47,12 +47,23 @@ export default function HotelDebtPage() {
   const hotelOrders = orders?.filter(order => order.customerId === selectedHotelId) || [];
   const hotelAdjustments = adjustments || [];
   
-  // Calculate total debt: unpaid order amounts + adjustments
-  const orderDebt = hotelOrders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
-  const adjustmentBalance = hotelAdjustments.reduce((sum, adj) => 
-    sum + (adj.type === 'debit' ? adj.amount : -adj.amount), 0
-  );
-  const totalOwed = orderDebt + adjustmentBalance;
+  // Calculate total debt: ONLY unpaid order amounts + adjustments
+  // CRITICAL FIX: Only count orders that are not fully paid
+  const orderDebt = hotelOrders
+    .filter(order => order.paymentStatus !== 'paid') // Only unpaid orders
+    .reduce((sum, order) => {
+      const totalAmount = order.totalAmount || 0;
+      const paidAmount = order.paidAmount || 0;
+      const balance = Math.round((totalAmount - paidAmount + Number.EPSILON) * 100) / 100;
+      return Math.round((sum + balance + Number.EPSILON) * 100) / 100;
+    }, 0);
+  
+  const adjustmentBalance = hotelAdjustments.reduce((sum, adj) => {
+    const amount = adj.type === 'debit' ? adj.amount : -adj.amount;
+    return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+  }, 0);
+  
+  const totalOwed = Math.round((orderDebt + adjustmentBalance + Number.EPSILON) * 100) / 100;
 
   // Auto-select first hotel if available and none selected
   useEffect(() => {

@@ -48,23 +48,49 @@ export default function OrdersPage() {
 
   const handleUpdateStatus = async (order: Order) => {
     try {
-      // Toggle payment status: paid -> pending, pending -> paid
-      const newPaymentStatus = order.paymentStatus === 'paid' ? 'pending' : 'paid';
-      
-      const response = await apiRequest('PUT', `/api/orders/${order.id}`, {
-        paymentStatus: newPaymentStatus
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Status updated",
-          description: `Order payment status changed to ${newPaymentStatus}.`,
+      const totalAmount = order.totalAmount || 0;
+      const paidAmount = order.paidAmount || 0;
+      const remainingBalance = totalAmount - paidAmount;
+
+      if (order.paymentStatus === 'paid') {
+        // If already paid, revert to pending (reset paidAmount to 0)
+        const response = await apiRequest('PUT', `/api/orders/${order.id}`, {
+          paymentStatus: 'pending',
+          paidAmount: 0
         });
         
-        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+        if (response.ok) {
+          toast({
+            title: "Status updated",
+            description: "Order payment status changed to pending.",
+          });
+          
+          queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+        } else {
+          throw new Error('Failed to update order status');
+        }
       } else {
-        throw new Error('Failed to update order status');
+        // If pending or partially paid, mark as fully paid
+        // Add the remaining balance to current paidAmount to close the order
+        const newPaidAmount = totalAmount; // Pay the full amount
+        
+        const response = await apiRequest('PUT', `/api/orders/${order.id}`, {
+          paymentStatus: 'paid',
+          paidAmount: newPaidAmount
+        });
+        
+        if (response.ok) {
+          toast({
+            title: "Payment completed",
+            description: `Order marked as fully paid. Remaining balance of ₹${remainingBalance.toFixed(2)} has been settled.`,
+          });
+          
+          queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+        } else {
+          throw new Error('Failed to update order status');
+        }
       }
     } catch (error) {
       toast({

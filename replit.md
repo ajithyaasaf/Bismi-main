@@ -172,6 +172,7 @@ This is a full-stack web application for managing a chicken shop business with p
   - Added comprehensive logging and validation throughout the calculation pipeline
   - Eliminated transaction amount vs order balance mismatches that caused analytics discrepancies
   - **CRITICAL FIX**: Fixed hotel debt page calculation bug - now only counts unpaid orders (paymentStatus !== 'paid') instead of all orders, preventing double-counting of fully paid orders in debt totals
+  - **CRITICAL FIX**: Fixed order payment tick button functionality - now properly closes remaining balance by updating both paidAmount and paymentStatus, ensuring accurate payment tracking and customer pending amount calculations
 
 ## Vercel Webhook Setup (Optional)
 

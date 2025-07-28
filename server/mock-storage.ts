@@ -57,7 +57,7 @@ export class MockStorage implements IStorage {
         name: 'Ajith Hotel',
         contact: '+91-9876543213',
         type: 'hotel',
-        pendingAmount: 69.99, // Should only be the unpaid order amount
+        pendingAmount: 60.00, // Only the remaining balance after ₹9.99 partial payment
         createdAt: new Date('2025-07-28')
       }
     ];
@@ -140,14 +140,14 @@ export class MockStorage implements IStorage {
         createdAt: new Date('2025-07-27')
       },
       
-      // Ajith's unpaid order (should count toward debt)
+      // Ajith's partially paid order (should count toward debt)
       {
         id: 'order6',
         customerId: 'customer4', // Ajith Hotel
-        items: [{ type: 'chicken_pieces', quantity: 1, rate: 69.99, details: 'Unpaid order' }],
+        items: [{ type: 'chicken_pieces', quantity: 1, rate: 69.99, details: 'Partially paid order' }],
         totalAmount: 69.99,
-        paidAmount: 0, // UNPAID
-        paymentStatus: 'pending', // PENDING PAYMENT
+        paidAmount: 9.99, // PARTIALLY PAID ₹9.99
+        paymentStatus: 'partially_paid', // PARTIALLY PAID
         orderStatus: 'completed',
         createdAt: new Date('2025-07-28')
       },

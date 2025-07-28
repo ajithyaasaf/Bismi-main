@@ -49,7 +49,10 @@ export default function SalesChart() {
         return orderDate >= dayStart && orderDate <= dayEnd;
       });
       
-      return dayOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+      return dayOrders.reduce((sum, order) => {
+        const amount = order.totalAmount || 0;
+        return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+      }, 0);
     });
     
     // Create new chart

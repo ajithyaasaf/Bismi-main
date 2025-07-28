@@ -10,9 +10,13 @@ export class PendingAmountCalculator {
   /**
    * Calculate customer's actual pending amount from their orders
    * Formula: Sum of (totalAmount - paidAmount) for all non-fully-paid orders
+   * Uses precise currency calculations to prevent floating point errors
    */
   async calculateCustomerPendingAmount(customerId: string): Promise<number> {
     try {
+      // Import currency utilities for precise calculations
+      const { roundCurrency, calculateOrderBalance } = await import('@shared/currency-utils');
+      
       const orders = await this.storage.getOrdersByCustomer(customerId);
       console.log(`Calculate pending - Found ${orders.length} orders for customer ${customerId}`);
       
@@ -27,9 +31,9 @@ export class PendingAmountCalculator {
       
       let totalPending = 0;
       for (const order of unpaidOrders) {
-        const totalAmount = Math.max(0, order.totalAmount || 0);
-        const paidAmount = Math.max(0, order.paidAmount || 0);
-        const orderBalance = Math.max(0, totalAmount - paidAmount);
+        const totalAmount = roundCurrency(order.totalAmount || 0);
+        const paidAmount = roundCurrency(order.paidAmount || 0);
+        const orderBalance = calculateOrderBalance(totalAmount, paidAmount);
         
         console.log(`Order ${order.id}: Total=₹${totalAmount}, Paid=₹${paidAmount}, Balance=₹${orderBalance}, Status=${order.paymentStatus}`);
         
@@ -39,7 +43,16 @@ export class PendingAmountCalculator {
           continue;
         }
         
-        totalPending += orderBalance;
+        // Enhanced validation for payment status consistency
+        if (order.paymentStatus === 'paid' && orderBalance > 0.01) {
+          console.warn(`Order ${order.id} marked as paid but has balance ₹${orderBalance}`);
+        }
+        
+        if (order.paymentStatus === 'pending' && paidAmount > 0.01) {
+          console.warn(`Order ${order.id} marked as pending but has paid amount ₹${paidAmount}`);
+        }
+        
+        totalPending = roundCurrency(totalPending + orderBalance);
       }
       
       console.log(`Total calculated pending amount: ₹${totalPending}`);
@@ -214,17 +227,20 @@ export class PendingAmountCalculator {
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       }
 
-      let remainingPayment = paymentAmount;
+      // Import currency utilities for precise calculations
+      const { roundCurrency, calculateOrderBalance, determinePaymentStatus } = await import('@shared/currency-utils');
+      
+      let remainingPayment = roundCurrency(paymentAmount);
       let appliedAmount = 0;
       const updatedOrders: string[] = [];
 
-      // Apply payment to orders
+      // Apply payment to orders with precise calculations
       for (const order of ordersToProcess) {
         if (remainingPayment <= 0) break;
 
-        const currentPaid = Math.max(0, order.paidAmount || 0);
-        const totalAmount = Math.max(0, order.totalAmount || 0);
-        const remainingBalance = Math.max(0, totalAmount - currentPaid);
+        const currentPaid = roundCurrency(order.paidAmount || 0);
+        const totalAmount = roundCurrency(order.totalAmount || 0);
+        const remainingBalance = calculateOrderBalance(totalAmount, currentPaid);
         
         console.log(`Processing order ${order.id}: currentPaid=₹${currentPaid}, totalAmount=₹${totalAmount}, remainingBalance=₹${remainingBalance}, paymentLeft=₹${remainingPayment}`);
         
@@ -236,23 +252,31 @@ export class PendingAmountCalculator {
         if (remainingPayment >= remainingBalance) {
           // Full payment for remaining balance
           const newPaidAmount = totalAmount;
-          console.log(`Full payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}`);
+          const finalPaymentStatus = determinePaymentStatus(totalAmount, newPaidAmount);
+          
+          console.log(`Full payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}, status: ${finalPaymentStatus}`);
+          
           await this.storage.updateOrder(order.id, { 
             paidAmount: newPaidAmount,
-            paymentStatus: 'paid' 
+            paymentStatus: finalPaymentStatus
           });
-          remainingPayment -= remainingBalance;
-          appliedAmount += remainingBalance;
+          
+          remainingPayment = roundCurrency(remainingPayment - remainingBalance);
+          appliedAmount = roundCurrency(appliedAmount + remainingBalance);
           updatedOrders.push(order.id);
         } else {
           // Partial payment - update paidAmount and set status to partially_paid
-          const newPaidAmount = currentPaid + remainingPayment;
-          console.log(`Partial payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}`);
+          const newPaidAmount = roundCurrency(currentPaid + remainingPayment);
+          const finalPaymentStatus = determinePaymentStatus(totalAmount, newPaidAmount);
+          
+          console.log(`Partial payment for order ${order.id}: setting paidAmount to ₹${newPaidAmount}, status: ${finalPaymentStatus}`);
+          
           await this.storage.updateOrder(order.id, { 
             paidAmount: newPaidAmount,
-            paymentStatus: 'partially_paid' 
+            paymentStatus: finalPaymentStatus
           });
-          appliedAmount += remainingPayment;
+          
+          appliedAmount = roundCurrency(appliedAmount + remainingPayment);
           remainingPayment = 0;
           updatedOrders.push(order.id);
         }

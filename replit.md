@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack web application for managing a chicken shop business. The system handles suppliers, inventory, customers, orders, transactions, and generates reports. It uses a split deployment architecture with a React frontend and Node.js/Express backend, utilizing Firestore as the database.
+This is a full-stack web application for managing a chicken shop business with precision financial calculations. The system handles suppliers, inventory, customers, orders, transactions, and generates reports. It uses a split deployment architecture with a React frontend and Node.js/Express backend, utilizing Firestore as the database. Recently overhauled with comprehensive calculation fixes to eliminate all minute calculation mistakes in analytics.
 
 ## System Architecture
 
@@ -162,6 +162,15 @@ This is a full-stack web application for managing a chicken shop business. The s
 - July 10, 2025. Fixed critical order creation timeout issue affecting orders with 5+ items - The application showed "Error creating order" toast messages for orders with many items even though they were successfully created in the database. Root cause: 10-second timeout in apiRequest function was too short for processing large orders. Solution: Implemented dynamic timeout (30 seconds for order creation, 10 seconds for other endpoints), added better error handling to distinguish timeout errors from actual failures, improved logging for debugging order creation process
 - July 26, 2025. Implemented simple hotel debt tracking system - Added dedicated "Hotel Debt" page accessible from sidebar that displays total debt amount for individual hotels. System calculates debt from unpaid orders plus manual adjustments. Features include hotel selection dropdown, large debt amount display with color coding (red for debt, green for credit), manual debt adjustment form with debit/credit options, reason tracking, and recent adjustments history. Designed as single-page focused UX for specific hotel debt management rather than overview approach.
 - July 26, 2025. Fixed production backend error and enhanced hotel debt page UX - Resolved 500 error in production by adding missing debt adjustment methods to Firestore storage (createDebtAdjustment, getDebtAdjustmentsByCustomer, etc.). Completely redesigned hotel debt page with professional UX including gradient backgrounds, enhanced cards, better typography, improved loading states, and mobile-responsive design. Fixed Firestore orderBy issue by sorting in memory to avoid index requirements. New design features professional statistics display, color-coded transaction history, and improved form validation with real-time preview.
+- July 28, 2025. **COMPREHENSIVE CALCULATION SYSTEM OVERHAUL** - Fixed all minute calculation mistakes in analytics section:
+  - Created shared/currency-utils.ts with precision currency calculations to eliminate floating point errors
+  - Fixed order creation double-counting issue in Firestore storage (orderBalance vs totalAmount in transactions)
+  - Enhanced payment processing logic with precise currency calculations and payment status validation
+  - Updated all frontend calculation components (NewOrderModal, OrderForm, SmartPaymentModal, SalesChart, DashboardPage) to use precise rounding
+  - Fixed customer service to properly handle partially_paid orders instead of only pending orders
+  - Improved reports API calculations with precise currency handling and race condition prevention
+  - Added comprehensive logging and validation throughout the calculation pipeline
+  - Eliminated transaction amount vs order balance mismatches that caused analytics discrepancies
 
 ## Vercel Webhook Setup (Optional)
 

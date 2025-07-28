@@ -519,53 +519,89 @@ export class FirestoreStorage implements IStorage {
 
   async createOrder(order: InsertOrder & { createdAt?: Date }): Promise<Order> {
     try {
+      // Import currency utilities for precise calculations
+      const { roundCurrency, calculateOrderBalance, determinePaymentStatus } = await import('@shared/currency-utils');
+      
+      // Ensure precise currency amounts
+      const totalAmount = roundCurrency(order.totalAmount || 0);
+      const paidAmount = roundCurrency(order.paidAmount || 0);
+      const orderBalance = calculateOrderBalance(totalAmount, paidAmount);
+      
+      // Validate payment status consistency
+      const calculatedPaymentStatus = determinePaymentStatus(totalAmount, paidAmount);
+      const finalPaymentStatus = order.paymentStatus || calculatedPaymentStatus;
+      
+      console.log(`[ORDER CREATION] Order balance: ₹${orderBalance}, Payment status: ${finalPaymentStatus}`);
+      
       const docRef = await this.db.collection('orders').add({
         customerId: order.customerId,
         items: order.items,
-        totalAmount: order.totalAmount,
-        paidAmount: order.paidAmount || 0,
-        paymentStatus: order.paymentStatus,
+        totalAmount,
+        paidAmount,
+        paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
         createdAt: order.createdAt || new Date(),
       });
 
-      // Update customer pending amount based on payment status
-      if (order.paymentStatus === 'pending' || order.paymentStatus === 'partially_paid') {
+      // Get current inventory state once to avoid race conditions
+      const allInventory = await this.getAllInventory();
+      
+      // Update inventory quantities for ordered items (batch operation)
+      const inventoryUpdates: Promise<any>[] = [];
+      for (const item of order.items) {
+        const inventoryItem = allInventory.find(inv => inv.type === item.type);
+        
+        if (inventoryItem) {
+          const currentQuantity = roundCurrency(inventoryItem.quantity);
+          const itemQuantity = roundCurrency(item.quantity || 0);
+          const newQuantity = roundCurrency(currentQuantity - itemQuantity);
+          
+          console.log(`[INVENTORY UPDATE] ${item.type}: ${currentQuantity} - ${itemQuantity} = ${newQuantity}`);
+          
+          inventoryUpdates.push(
+            this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity })
+          );
+        } else {
+          console.warn(`[INVENTORY WARNING] No inventory found for type: ${item.type}`);
+        }
+      }
+      
+      // Execute inventory updates in parallel
+      await Promise.all(inventoryUpdates);
+
+      // Update customer pending amount ONLY if there's an unpaid balance
+      // This prevents double-counting since transaction will be recorded separately
+      if (orderBalance > 0 && finalPaymentStatus !== 'paid') {
         const customer = await this.getCustomer(order.customerId);
         if (customer) {
-          const orderBalance = order.totalAmount - (order.paidAmount || 0);
-          const newPendingAmount = (customer.pendingAmount || 0) + orderBalance;
+          const currentPending = roundCurrency(customer.pendingAmount || 0);
+          const newPendingAmount = roundCurrency(currentPending + orderBalance);
+          
+          console.log(`[CUSTOMER UPDATE] Pending: ₹${currentPending} + ₹${orderBalance} = ₹${newPendingAmount}`);
+          
           await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
         }
       }
 
-      // Update inventory quantities for ordered items
-      for (const item of order.items) {
-        const allInventory = await this.getAllInventory();
-        const inventoryItem = allInventory.find(inv => inv.type === item.type);
-        
-        if (inventoryItem) {
-          const newQuantity = inventoryItem.quantity - item.quantity;
-          await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
-        }
-      }
-
-      // Create transaction record for order
+      // Create transaction record - use orderBalance instead of totalAmount for accuracy
+      const transactionAmount = finalPaymentStatus === 'paid' ? totalAmount : orderBalance;
       await this.createTransaction({
         entityId: order.customerId,
         entityType: 'customer',
-        type: order.paymentStatus === 'paid' ? 'sale' : 'credit',
-        amount: order.totalAmount,
-        description: `Order #${docRef.id} - ${order.items.length} items`
+        type: finalPaymentStatus === 'paid' ? 'sale' : 'credit',
+        amount: transactionAmount,
+        description: `Order #${docRef.id} - ${order.items.length} items (${finalPaymentStatus})`
       });
+
+      console.log(`[ORDER CREATED] ID: ${docRef.id}, Total: ₹${totalAmount}, Paid: ₹${paidAmount}, Balance: ₹${orderBalance}`);
 
       return {
         id: docRef.id,
         customerId: order.customerId,
         items: order.items,
-        totalAmount: order.totalAmount,
-        paidAmount: order.paidAmount || 0,
-        paymentStatus: order.paymentStatus,
+        totalAmount,
+        paidAmount,
+        paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
         createdAt: order.createdAt || new Date(),
       };

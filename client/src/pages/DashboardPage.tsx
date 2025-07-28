@@ -104,7 +104,10 @@ export default function DashboardPage() {
   }, [orders, today]);
   
   const todaysSales = useMemo(() => {
-    return todaysOrders.reduce((sum: number, order: any) => sum + (order?.totalAmount || 0), 0);
+    return todaysOrders.reduce((sum: number, order: any) => {
+      const amount = order?.totalAmount || 0;
+      return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+    }, 0);
   }, [todaysOrders]);
   
   // Enterprise stock monitoring: Show negative stock and low stock items

@@ -48,13 +48,16 @@ export default function SmartPaymentModal({
   );
 
   const totalPending = unpaidOrders.reduce((sum, order) => {
-    const remaining = (order.totalAmount || 0) - (order.paidAmount || 0);
-    return sum + remaining;
+    const totalAmount = order.totalAmount || 0;
+    const paidAmount = order.paidAmount || 0;
+    const remaining = Math.round((totalAmount - paidAmount + Number.EPSILON) * 100) / 100;
+    return Math.round((sum + remaining + Number.EPSILON) * 100) / 100;
   }, 0);
 
-  const totalAllocated = orderEntries.reduce((sum, entry) => 
-    entry.selected ? sum + entry.paymentAmount : sum, 0
-  );
+  const totalAllocated = orderEntries.reduce((sum, entry) => {
+    const amount = entry.selected ? entry.paymentAmount : 0;
+    return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+  }, 0);
 
   useEffect(() => {
     if (isOpen && unpaidOrders.length > 0) {
@@ -62,7 +65,7 @@ export default function SmartPaymentModal({
         order,
         paymentAmount: 0,
         selected: false,
-        remainingBalance: (order.totalAmount || 0) - (order.paidAmount || 0)
+        remainingBalance: Math.round(((order.totalAmount || 0) - (order.paidAmount || 0) + Number.EPSILON) * 100) / 100
       }));
       setOrderEntries(entries);
       setPaymentAmount('');
@@ -93,7 +96,7 @@ export default function SmartPaymentModal({
         }
         
         const allocation = Math.min(remaining, entry.remainingBalance);
-        remaining -= allocation;
+        remaining = Math.round((remaining - allocation + Number.EPSILON) * 100) / 100;
         
         return {
           ...entry,

@@ -1006,11 +1006,23 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         })
       );
 
-      // Calculate metrics based on filtered data
-      const totalSales = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+      // Calculate metrics based on filtered data with precise currency calculations
+      const totalSales = filteredOrders.reduce((sum, order) => {
+        const amount = order.totalAmount || 0;
+        return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+      }, 0);
+      
       const orderCount = filteredOrders.length;
-      const totalSupplierDebt = enrichedSuppliers.reduce((sum, supplier) => sum + (supplier.pendingAmount || 0), 0);
-      const totalCustomerPending = enrichedCustomers.reduce((sum, customer) => sum + (customer.pendingAmount || 0), 0);
+      
+      const totalSupplierDebt = enrichedSuppliers.reduce((sum, supplier) => {
+        const amount = supplier.pendingAmount || 0;
+        return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+      }, 0);
+      
+      const totalCustomerPending = enrichedCustomers.reduce((sum, customer) => {
+        const amount = customer.pendingAmount || 0;
+        return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
+      }, 0);
 
       // Filter customers and suppliers with non-zero pending amounts for debt reports
       const customersWithPending = enrichedCustomers.filter(customer => customer.pendingAmount > 0);

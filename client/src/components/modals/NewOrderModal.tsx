@@ -49,12 +49,13 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
   // Hotels (filtered customers) - using the correct field name 'type'
   const hotels = customers.filter(c => c.type === 'hotel');
   
-  // Calculate total order amount with null safety
+  // Calculate total order amount with precise currency calculations
   const calculateTotal = () => {
     return items.reduce((total, item) => {
       const quantity = parseFloat(item.quantity) || 0;
       const rate = parseFloat(item.rate) || 0;
-      return total + (quantity * rate);
+      const itemTotal = Math.round((quantity * rate + Number.EPSILON) * 100) / 100;
+      return Math.round((total + itemTotal + Number.EPSILON) * 100) / 100;
     }, 0);
   };
 

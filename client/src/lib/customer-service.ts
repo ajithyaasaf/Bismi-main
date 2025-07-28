@@ -42,8 +42,13 @@ export async function recalculateCustomerPendingAmount(customerId: string) {
   const customerOrders = await OrderService.getOrdersByCustomer(customerId);
   
   const pendingAmount = customerOrders
-    .filter((order: any) => order.paymentStatus === 'pending')
-    .reduce((sum: number, order: any) => sum + (order.totalAmount || 0), 0);
+    .filter((order: any) => order.paymentStatus !== 'paid')
+    .reduce((sum: number, order: any) => {
+      const totalAmount = order.totalAmount || 0;
+      const paidAmount = order.paidAmount || 0;
+      const balance = Math.round((totalAmount - paidAmount + Number.EPSILON) * 100) / 100;
+      return Math.round((sum + balance + Number.EPSILON) * 100) / 100;
+    }, 0);
   
   return await updateCustomer(customerId, { pendingAmount });
 }

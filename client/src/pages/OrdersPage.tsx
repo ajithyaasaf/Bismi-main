@@ -53,16 +53,22 @@ export default function OrdersPage() {
       const remainingBalance = totalAmount - paidAmount;
 
       if (order.paymentStatus === 'paid') {
-        // If already paid, revert to pending (reset paidAmount to 0)
+        // SMART STATE RESTORATION: Revert to previous partial payment state
+        const revertAmount = (order as any).originalPaidAmount || 0;
+        const newStatus = revertAmount > 0 ? 'partially_paid' : 'pending';
+        
         const response = await apiRequest('PUT', `/api/orders/${order.id}`, {
-          paymentStatus: 'pending',
-          paidAmount: 0
+          paymentStatus: newStatus,
+          paidAmount: revertAmount,
+          originalPaidAmount: null // Clear the saved state
         });
         
         if (response.ok) {
           toast({
-            title: "Status updated",
-            description: "Order payment status changed to pending.",
+            title: "Payment reverted",
+            description: revertAmount > 0 
+              ? `Order reverted to partially paid state. Remaining balance: ₹${(totalAmount - revertAmount).toFixed(2)}`
+              : "Order payment status changed to pending.",
           });
           
           queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
@@ -71,13 +77,11 @@ export default function OrdersPage() {
           throw new Error('Failed to update order status');
         }
       } else {
-        // If pending or partially paid, mark as fully paid
-        // Add the remaining balance to current paidAmount to close the order
-        const newPaidAmount = totalAmount; // Pay the full amount
-        
+        // SMART STATE PRESERVATION: Save current partial payment before marking as paid
         const response = await apiRequest('PUT', `/api/orders/${order.id}`, {
+          originalPaidAmount: paidAmount, // Save current partial payment
           paymentStatus: 'paid',
-          paidAmount: newPaidAmount
+          paidAmount: totalAmount // Pay the full amount
         });
         
         if (response.ok) {

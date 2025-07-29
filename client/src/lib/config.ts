@@ -1,7 +1,7 @@
 // API Configuration
 export const API_CONFIG = {
   // Always use Render backend URL since it's working
-  BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://bismi-main.onrender.com',
+  BASE_URL: import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:5000' : 'https://bismi-main.onrender.com'),
   
   // Environment detection
   IS_PRODUCTION: import.meta.env.PROD,

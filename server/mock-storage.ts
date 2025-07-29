@@ -149,6 +149,7 @@ export class MockStorage implements IStorage {
         paidAmount: 9.99, // PARTIALLY PAID ₹9.99
         paymentStatus: 'partially_paid', // PARTIALLY PAID
         orderStatus: 'completed',
+        originalPaidAmount: undefined, // Not set initially
         createdAt: new Date('2025-07-28')
       },
       

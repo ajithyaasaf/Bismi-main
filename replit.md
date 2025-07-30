@@ -24,7 +24,7 @@ This is a full-stack web application for managing a chicken shop business with p
 - **Authentication**: Firebase Admin SDK for server-side operations
 
 ### Deployment Strategy
-- **Backend**: Deployed on Render at `https://bismi-main.onrender.com`
+- **Backend**: Deployed on Render at `https://bismi-main-76ww.onrender.com`
 - **Frontend**: Can be deployed to Netlify, Render Static Sites, or other static hosting platforms
 - **Configuration**: Environment-based configuration with production/development splits
 
@@ -102,7 +102,7 @@ This is a full-stack web application for managing a chicken shop business with p
 ## Deployment Strategy
 
 ### Backend (Render)
-- Already deployed and operational at `https://bismi-main.onrender.com`
+- Already deployed and operational at `https://bismi-main-76ww.onrender.com`
 - Handles all API endpoints under `/api/*` prefix
 - Uses Firebase Admin SDK for secure database access
 - Configured for automatic deployments from Git

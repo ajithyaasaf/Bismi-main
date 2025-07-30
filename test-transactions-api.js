@@ -1,5 +1,5 @@
 // Simple test to verify transactions API endpoint
-const testUrl = 'https://bismi-main.onrender.com/api/transactions';
+const testUrl = 'https://bismi-main-76ww.onrender.com/api/transactions';
 
 fetch(testUrl)
   .then(response => {

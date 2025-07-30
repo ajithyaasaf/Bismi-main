@@ -10,7 +10,7 @@ const app = express();
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://bismi-main.onrender.com', 
+        'https://bismi-main-76ww.onrender.com', 
         'https://bismi-main.vercel.app',
         /\.onrender\.com$/, 
         /\.vercel\.app$/,
@@ -75,7 +75,7 @@ app.use(compression({
 
 // Development note: Frontend configured to use Render backend directly
 if (process.env.NODE_ENV === 'development') {
-  log('Frontend configured to connect directly to Render backend: https://bismi-main.onrender.com');
+  log('Frontend configured to connect directly to Render backend: https://bismi-main-76ww.onrender.com');
 }
 
 app.use((req, res, next) => {

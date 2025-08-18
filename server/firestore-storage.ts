@@ -598,7 +598,7 @@ export class FirestoreStorage implements IStorage {
 
       console.log(`[ORDER CREATED] ID: ${docRef.id}, Total: ₹${totalAmount}, Paid: ₹${paidAmount}, Balance: ₹${orderBalance}`);
 
-      return {
+      const returnOrder = {
         id: docRef.id,
         customerId: order.customerId,
         items: order.items,
@@ -606,8 +606,11 @@ export class FirestoreStorage implements IStorage {
         paidAmount,
         paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
-        createdAt: order.createdAt || new Date(),
+        createdAt: createdAt, // Use the properly processed createdAt variable
       };
+      
+      console.log(`[ORDER RETURN] Returning order with createdAt: ${returnOrder.createdAt.toISOString()}`);
+      return returnOrder;
     } catch (error) {
       console.error('Error creating order:', error);
       throw new Error(`Failed to create order: ${error instanceof Error ? error.message : 'Unknown error'}`);

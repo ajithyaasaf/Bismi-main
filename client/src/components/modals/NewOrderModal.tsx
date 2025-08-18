@@ -253,8 +253,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       // Calculate total
       const total = calculateTotal();
       
-      // Create order with selected date
-      const selectedOrderDate = new Date(orderDate + 'T00:00:00.000Z');
+      // Create order with selected date - use local timezone to avoid date shift
+      const selectedOrderDate = new Date(orderDate + 'T00:00:00');
       
       console.log('Selected order date:', orderDate);
       console.log('Converted order date:', selectedOrderDate.toISOString());

@@ -648,12 +648,16 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/orders", async (req: Request, res: Response) => {
     try {
+      console.log('[ORDERS API] Received order creation request:', JSON.stringify(req.body, null, 2));
       const validatedData = insertOrderSchema.parse(req.body);
+      console.log('[ORDERS API] Validated order data:', JSON.stringify(validatedData, null, 2));
+      
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
       
       // Create the order
       const order = await storage.createOrder(validatedData);
+      console.log('[ORDERS API] Created order response:', JSON.stringify(order, null, 2));
       
       // If order is pending, update customer's pending amount
       if (order.paymentStatus === 'pending') {

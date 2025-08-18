@@ -256,8 +256,10 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       // Create order with selected date - use local timezone to avoid date shift
       const selectedOrderDate = new Date(orderDate + 'T00:00:00');
       
-      console.log('Selected order date:', orderDate);
-      console.log('Converted order date:', selectedOrderDate.toISOString());
+      console.log('=== DATE DEBUG ===');
+      console.log('Raw orderDate from form:', orderDate);
+      console.log('selectedOrderDate object:', selectedOrderDate);
+      console.log('selectedOrderDate ISO:', selectedOrderDate.toISOString());
       console.log('Creating order with items:', validItems.length, 'items');
       console.log('Order data:', {
         customerId: orderCustomerId,

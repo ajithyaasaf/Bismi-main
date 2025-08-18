@@ -238,6 +238,9 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       // Calculate total
       const total = calculateTotal();
       
+      console.log('=== OrderForm DATE DEBUG ===');
+      console.log('orderDate object:', orderDate);
+      console.log('orderDate ISO:', orderDate.toISOString());
       console.log('Creating order with items:', validItems.length, 'items');
       console.log('Order data with selected date:', {
         customerId: orderCustomerId,

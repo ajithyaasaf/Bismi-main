@@ -253,22 +253,26 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       // Calculate total
       const total = calculateTotal();
       
-      // Create order with selected date - use local timezone to avoid date shift
-      const selectedOrderDate = new Date(orderDate + 'T00:00:00');
+      // Smart date handling: If selected date is today, use current time; otherwise use selected date at midnight
+      const selectedOrderDate = new Date(orderDate + 'T00:00:00'); // Parse selected date at midnight
+      const now = new Date();
+      const isToday = selectedOrderDate.toDateString() === now.toDateString();
       
-      console.log('=== DATE DEBUG ===');
+      let finalOrderDate: Date;
+      if (isToday) {
+        // Use current time for today's orders
+        finalOrderDate = now;
+      } else {
+        // Use selected date at midnight for past/future dates
+        finalOrderDate = selectedOrderDate;
+      }
+      
+      console.log('=== NewOrderModal DATE DEBUG ===');
       console.log('Raw orderDate from form:', orderDate);
-      console.log('selectedOrderDate object:', selectedOrderDate);
-      console.log('selectedOrderDate ISO:', selectedOrderDate.toISOString());
-      console.log('Creating order with items:', validItems.length, 'items');
-      console.log('Order data:', {
-        customerId: orderCustomerId,
-        items: validItems,
-        totalAmount: total,
-        paidAmount: paidAmount,
-        paymentStatus: paymentStatus,
-        orderStatus: 'pending'
-      });
+      console.log('selectedOrderDate (midnight):', selectedOrderDate);
+      console.log('isToday:', isToday);
+      console.log('finalOrderDate:', finalOrderDate);
+      console.log('finalOrderDate ISO:', finalOrderDate.toISOString());
       
       console.log('About to make API request...');
       const startTime = Date.now();
@@ -280,7 +284,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         paidAmount: paidAmount,
         paymentStatus: paymentStatus,
         orderStatus: 'pending',
-        createdAt: selectedOrderDate.toISOString() // Include the selected date
+        createdAt: finalOrderDate.toISOString() // Send as ISO string for consistent parsing
       });
       
       const endTime = Date.now();

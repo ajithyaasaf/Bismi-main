@@ -238,20 +238,24 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       // Calculate total
       const total = calculateTotal();
       
+      // Smart date handling: If selected date is today, use current time; otherwise use selected date at midnight
+      const now = new Date();
+      const isToday = orderDate.toDateString() === now.toDateString();
+      
+      let finalOrderDate: Date;
+      if (isToday) {
+        // Use current time for today's orders
+        finalOrderDate = now;
+      } else {
+        // Use selected date at midnight for past/future dates
+        finalOrderDate = orderDate;
+      }
+      
       console.log('=== OrderForm DATE DEBUG ===');
-      console.log('orderDate object:', orderDate);
-      console.log('orderDate ISO:', orderDate.toISOString());
-      console.log('Creating order with items:', validItems.length, 'items');
-      console.log('Order data with selected date:', {
-        customerId: orderCustomerId,
-        items: validItems,
-        totalAmount: total,
-        paidAmount: paidAmount,
-        paymentStatus: paymentStatus,
-        orderStatus: 'pending',
-        createdAt: orderDate,
-        createdAtISO: orderDate.toISOString()
-      });
+      console.log('orderDate selected:', orderDate);
+      console.log('isToday:', isToday);
+      console.log('finalOrderDate:', finalOrderDate);
+      console.log('finalOrderDate ISO:', finalOrderDate.toISOString());
       
       // Create order
       await apiRequest('POST', '/api/orders', {
@@ -261,7 +265,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         paidAmount: paidAmount,
         paymentStatus: paymentStatus,
         orderStatus: 'pending',
-        createdAt: orderDate.toISOString() // Send as ISO string for consistent parsing
+        createdAt: finalOrderDate.toISOString() // Send as ISO string for consistent parsing
       });
       
       console.log('Order created successfully');

@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 
 // Helper type for API responses
 interface ApiResponse<T> {
@@ -30,6 +34,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
   const [customerId, setCustomerId] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [orderDate, setOrderDate] = useState<Date>(new Date()); // Default to today
   const [items, setItems] = useState<{
     id: string;
     type: string;
@@ -116,6 +121,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
     setCustomerId('');
     setCustomerName('');
     setCustomerPhone('');
+    setOrderDate(new Date()); // Reset to current date
     setItems([{ id: '1', type: itemTypes.length > 0 ? itemTypes[0].value : 'chicken', quantity: '', rate: '', details: '' }]);
     setPaymentStatus('pending');
     setPaidAmount(0);
@@ -233,13 +239,15 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
       const total = calculateTotal();
       
       console.log('Creating order with items:', validItems.length, 'items');
-      console.log('Order data:', {
+      console.log('Order data with selected date:', {
         customerId: orderCustomerId,
         items: validItems,
         totalAmount: total,
         paidAmount: paidAmount,
         paymentStatus: paymentStatus,
-        orderStatus: 'pending'
+        orderStatus: 'pending',
+        createdAt: orderDate,
+        createdAtISO: orderDate.toISOString()
       });
       
       // Create order
@@ -249,7 +257,8 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
         totalAmount: total,
         paidAmount: paidAmount,
         paymentStatus: paymentStatus,
-        orderStatus: 'pending'
+        orderStatus: 'pending',
+        createdAt: orderDate.toISOString() // Send as ISO string for consistent parsing
       });
       
       console.log('Order created successfully');
@@ -371,6 +380,37 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
               </div>
             </>
           )}
+          
+          <Separator className="my-2" />
+          
+          {/* Order Date Selection */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="order-date" className="text-right">
+              Order Date
+            </Label>
+            <div className="col-span-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                    id="order-date"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {orderDate ? format(orderDate, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={orderDate}
+                    onSelect={(date) => date && setOrderDate(date)}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
           
           <Separator className="my-2" />
           

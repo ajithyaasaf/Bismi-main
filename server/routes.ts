@@ -44,7 +44,8 @@ const insertOrderSchema = z.object({
   totalAmount: z.number().min(0),
   paidAmount: z.number().min(0).optional(),
   paymentStatus: z.string().min(1),
-  orderStatus: z.string().min(1)
+  orderStatus: z.string().min(1),
+  createdAt: z.string().optional().transform(str => str ? new Date(str) : undefined) // Accept ISO string and convert to Date
 });
 
 const insertTransactionSchema = z.object({

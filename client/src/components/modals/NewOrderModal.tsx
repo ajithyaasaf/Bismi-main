@@ -277,7 +277,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         totalAmount: total,
         paidAmount: paidAmount,
         paymentStatus: paymentStatus,
-        orderStatus: 'pending'
+        orderStatus: 'pending',
+        createdAt: selectedOrderDate.toISOString() // Include the selected date
       });
       
       const endTime = Date.now();

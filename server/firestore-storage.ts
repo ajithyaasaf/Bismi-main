@@ -533,6 +533,9 @@ export class FirestoreStorage implements IStorage {
       
       console.log(`[ORDER CREATION] Order balance: ₹${orderBalance}, Payment status: ${finalPaymentStatus}`);
       
+      const createdAt = order.createdAt || new Date();
+      console.log(`[ORDER CREATION] Using order date: ${createdAt.toISOString()}, Original input: ${order.createdAt ? order.createdAt.toISOString() : 'undefined - using current date'}`);
+      
       const docRef = await this.db.collection('orders').add({
         customerId: order.customerId,
         items: order.items,
@@ -540,7 +543,7 @@ export class FirestoreStorage implements IStorage {
         paidAmount,
         paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
-        createdAt: order.createdAt || new Date(),
+        createdAt,
       });
 
       // Get current inventory state once to avoid race conditions

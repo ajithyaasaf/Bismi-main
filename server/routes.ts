@@ -45,7 +45,20 @@ const insertOrderSchema = z.object({
   paidAmount: z.number().min(0).optional(),
   paymentStatus: z.string().min(1),
   orderStatus: z.string().min(1),
-  createdAt: z.string().optional().transform(str => str ? new Date(str) : undefined) // Accept ISO string and convert to Date
+  createdAt: z.string().optional().transform(str => {
+    if (!str) return new Date(); // If no date provided, use current date
+    try {
+      const date = new Date(str);
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string provided:', str, 'using current date');
+        return new Date();
+      }
+      return date;
+    } catch (error) {
+      console.warn('Error parsing date:', str, error, 'using current date');
+      return new Date();
+    }
+  }) // Accept ISO string and convert to Date with validation
 });
 
 const insertTransactionSchema = z.object({

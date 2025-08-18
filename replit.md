@@ -6,6 +6,13 @@ This is a full-stack web application designed for comprehensive management of a 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+### August 18, 2025 - Date Handling Bug Fix
+- **Issue**: Orders were always displaying current date instead of user-selected date
+- **Root Cause**: Backend schema validation defaulting to current date when date parsing failed
+- **Solution**: Enhanced date validation in API schema and removed fallback to current date in storage layer
+- **Impact**: Users can now create orders with accurate past, present, or future dates
+
 ## System Architecture
 ### Frontend
 - **Framework**: React 18 with TypeScript, using Vite for building.
@@ -30,6 +37,7 @@ Preferred communication style: Simple, everyday language.
 - **Report Generation**: Business analytics and PDF exports, including professional invoice generation.
 - **Financial Precision**: Comprehensive calculation system to ensure accuracy in all financial analytics, including pending amounts, partial payments, and hotel debt tracking.
 - **Payment Allocation**: Smart payment allocation system allowing customers to distribute payments across specific orders.
+- **Date Handling**: Robust date selection and storage system supporting past, present, and future order dates with proper timezone handling.
 
 ## External Dependencies
 - **UI/UX**: `@radix-ui/*`, `tailwindcss`

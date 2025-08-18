@@ -533,8 +533,9 @@ export class FirestoreStorage implements IStorage {
       
       console.log(`[ORDER CREATION] Order balance: ₹${orderBalance}, Payment status: ${finalPaymentStatus}`);
       
+      // Use the provided createdAt date - it should never be undefined due to schema validation
       const createdAt = order.createdAt || new Date();
-      console.log(`[ORDER CREATION] Using order date: ${createdAt.toISOString()}, Original input: ${order.createdAt ? order.createdAt.toISOString() : 'undefined - using current date'}`);
+      console.log(`[ORDER CREATION] Using order date: ${createdAt.toISOString()}, Schema provided: ${order.createdAt ? 'Yes' : 'No (fallback used)'}`);
       
       const docRef = await this.db.collection('orders').add({
         customerId: order.customerId,

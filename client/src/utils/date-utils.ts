@@ -5,11 +5,7 @@
  * Handles Firestore timestamps, ISO strings, and Date objects
  */
 export function safeToDate(dateInput: any): Date {
-  // Debug logging to track date conversion issues
-  console.log('safeToDate input:', dateInput, 'type:', typeof dateInput);
-  
   if (!dateInput) {
-    console.log('safeToDate: dateInput is falsy, returning current date');
     return new Date();
   }
 
@@ -31,12 +27,10 @@ export function safeToDate(dateInput: any): Date {
   // String or number
   if (typeof dateInput === 'string' || typeof dateInput === 'number') {
     const parsed = new Date(dateInput);
-    console.log('safeToDate: string/number conversion:', dateInput, '->', parsed.toISOString(), 'isValid:', !isNaN(parsed.getTime()));
     return isNaN(parsed.getTime()) ? new Date() : parsed;
   }
 
   // Fallback
-  console.log('safeToDate: fallback to current date for input:', dateInput);
   return new Date();
 }
 

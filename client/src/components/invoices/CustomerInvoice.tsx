@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Customer, Order, Transaction } from '@shared/types';
+import { Customer, Order, Transaction, DebtAdjustment } from '@shared/types';
+import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,12 @@ export function CustomerInvoice({
   const [generationProgress, setGenerationProgress] = useState(0);
   const [currentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [invoiceNumber] = useState(`INV-${Date.now()}`);
+
+  // Get debt adjustments for hotel customers
+  const { data: debtAdjustments = [] } = useQuery<DebtAdjustment[]>({
+    queryKey: [`/api/hotels/${customer.id}/debt-adjustments`],
+    enabled: customer.type === 'hotel' && isOpen,
+  });
   
   const [settings, setSettings] = useState<InvoiceSettings>({
     showPaid: false,
@@ -115,6 +122,7 @@ export function CustomerInvoice({
         showPaid: settings.showPaid,
         overdueThresholdDays: settings.overdueThresholdDays,
         payments: transactions,
+        debtAdjustments: debtAdjustments,
         businessInfo: {
           name: settings.businessInfo.name,
           address: settings.businessInfo.address,

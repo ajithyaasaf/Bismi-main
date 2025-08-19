@@ -4,7 +4,7 @@
  * Provides reliable cross-browser PDF generation without complex dependencies
  */
 
-import { Customer, Order, Transaction } from '@shared/types';
+import { Customer, Order, Transaction, DebtAdjustment } from '@shared/types';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import qrCodeImage from '../assets/qr-code-payment.png';
 
@@ -17,6 +17,7 @@ export interface InvoiceData {
   showPaid?: boolean;
   overdueThresholdDays?: number;
   payments?: Transaction[];
+  debtAdjustments?: DebtAdjustment[];
   businessInfo?: {
     name: string;
     address: string[];
@@ -203,6 +204,7 @@ export class SimplePDFService {
       showPaid = false,
       overdueThresholdDays = 15,
       payments = [],
+      debtAdjustments = [],
       businessInfo = {
         name: "Bismi Broiler's",
         address: ["Near Busstand, Hayarnisha Hospital", "Mudukulathur"],
@@ -249,10 +251,12 @@ export class SimplePDFService {
     // Calculate actual debt: unpaid order amounts (order debt)
     const orderDebt = filteredOrders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
     
-    // Use customer's pendingAmount as adjustment balance (manual debt adjustments)
-    const adjustmentBalance = customer.pendingAmount || 0;
+    // Calculate adjustment balance from actual debt adjustments (same as hotel debt calculation)
+    const adjustmentBalance = debtAdjustments.reduce((sum, adj) => 
+      sum + (adj.type === 'debit' ? adj.amount : -adj.amount), 0
+    );
     
-    // Total debt = order debt + adjustment balance (same as hotel debt calculation)
+    // Total debt = order debt + adjustment balance (exactly same as hotel debt calculation)
     const totalPending = orderDebt + adjustmentBalance;
     
     // Calculate total paid amount from orders
@@ -265,7 +269,13 @@ export class SimplePDFService {
       adjustmentBalance,
       totalPending,
       paidAmount,
-      filteredOrdersCount: filteredOrders.length
+      filteredOrdersCount: filteredOrders.length,
+      debtAdjustmentsCount: debtAdjustments.length,
+      debtAdjustments: debtAdjustments.map(adj => ({
+        type: adj.type,
+        amount: adj.amount,
+        reason: adj.reason
+      }))
     });
 
 

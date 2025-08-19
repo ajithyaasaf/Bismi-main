@@ -809,10 +809,13 @@ export class SimplePDFService {
 
 
 
+        <!-- Page Break Before Debt Summary -->
+        <div style="page-break-before: always;"></div>
+        
         <!-- Debt Summary Section -->
-        <div class="debt-summary-section" style="background: #fef2f2; border: 2px solid #fca5a5; border-radius: 12px; padding: 24px; margin: 24px 0;">
-            <h3 style="color: #dc2626; margin: 0 0 20px 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                <span style="background: #dc2626; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">₹</span>
+        <div class="debt-summary-section" style="background: ${adjustmentBalance === 0 ? '#f0fdf4' : '#fef2f2'}; border: 2px solid ${adjustmentBalance === 0 ? '#22c55e' : '#fca5a5'}; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <h3 style="color: ${adjustmentBalance === 0 ? '#16a34a' : '#dc2626'}; margin: 0 0 20px 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <span style="background: ${adjustmentBalance === 0 ? '#16a34a' : '#dc2626'}; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">₹</span>
                 Outstanding Debt Summary
             </h3>
             <table class="totals-table">
@@ -831,15 +834,20 @@ export class SimplePDFService {
                     </tr>
                     ${adjustmentBalance !== 0 ? `
                     <tr>
-                        <td class="label">Previous Adjustments:</td>
+                        <td class="label">Old Balance:</td>
                         <td class="value" style="color: ${adjustmentBalance > 0 ? '#dc2626' : '#16a34a'};">
                             ${adjustmentBalance > 0 ? '+' : ''}₹${adjustmentBalance.toFixed(2)}
                         </td>
                     </tr>
-                    ` : ''}
-                    <tr class="total-row" style="border-top: 2px solid #dc2626; background: #fee2e2;">
-                        <td class="label" style="font-size: 16px; font-weight: 700; color: #dc2626; padding: 16px 12px;">TOTAL OUTSTANDING DEBT:</td>
-                        <td class="value" style="font-size: 20px; font-weight: 800; color: #dc2626; padding: 16px 12px;">₹${totalPending.toFixed(2)}</td>
+                    ` : `
+                    <tr>
+                        <td class="label">Old Balance:</td>
+                        <td class="value" style="color: #16a34a;">₹0.00</td>
+                    </tr>
+                    `}
+                    <tr class="total-row" style="border-top: 2px solid ${adjustmentBalance === 0 ? '#16a34a' : '#dc2626'}; background: ${adjustmentBalance === 0 ? '#dcfce7' : '#fee2e2'};">
+                        <td class="label" style="font-size: 16px; font-weight: 700; color: ${adjustmentBalance === 0 ? '#16a34a' : '#dc2626'}; padding: 16px 12px;">TOTAL OUTSTANDING DEBT:</td>
+                        <td class="value" style="font-size: 20px; font-weight: 800; color: ${adjustmentBalance === 0 ? '#16a34a' : '#dc2626'}; padding: 16px 12px;">₹${totalPending.toFixed(2)}</td>
                     </tr>
                 </tbody>
             </table>

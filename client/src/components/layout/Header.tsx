@@ -25,17 +25,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
   // Fetch data for search functionality
   const { data: customers = [] } = useQuery({
     queryKey: ['/api/customers'],
-    enabled: searchQuery.length > 0
-  });
-
-  const { data: orders = [] } = useQuery({
-    queryKey: ['/api/orders'],
-    enabled: searchQuery.length > 0
-  });
-
-  const { data: inventory = [] } = useQuery({
-    queryKey: ['/api/inventory'],
-    enabled: searchQuery.length > 0
+    enabled: searchQuery.length > 1
   });
 
   const { data: notifications = [] } = useQuery({
@@ -44,31 +34,20 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
 
   // Search results
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return { customers: [], orders: [], inventory: [] };
+    if (!searchQuery.trim() || searchQuery.length < 2) return { customers: [] };
 
     const query = searchQuery.toLowerCase();
     
     const filteredCustomers = (customers as any[]).filter((customer: any) =>
       customer.name?.toLowerCase().includes(query) ||
+      customer.contact?.includes(query) ||
       customer.phone?.includes(query)
-    ).slice(0, 3);
-
-    const filteredOrders = (orders as any[]).filter((order: any) =>
-      order.id?.toLowerCase().includes(query) ||
-      order.customerName?.toLowerCase().includes(query)
-    ).slice(0, 3);
-
-    const filteredInventory = (inventory as any[]).filter((item: any) =>
-      item.name?.toLowerCase().includes(query) ||
-      item.category?.toLowerCase().includes(query)
-    ).slice(0, 3);
+    ).slice(0, 5);
 
     return {
-      customers: filteredCustomers,
-      orders: filteredOrders,
-      inventory: filteredInventory
+      customers: filteredCustomers
     };
-  }, [searchQuery, customers, orders, inventory]);
+  }, [searchQuery, customers]);
 
   // Notification counts
   const unreadNotifications = (notifications as any[]).filter((n: any) => !n.read).length;
@@ -100,7 +79,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
           </button>
           
           {/* Desktop Search with Popover Results */}
-          <Popover open={searchQuery.length > 0} onOpenChange={(open) => !open && setSearchQuery('')}>
+          <Popover open={searchQuery.length > 1} onOpenChange={(open) => !open && setSearchQuery('')}>
             <PopoverTrigger asChild>
               <div className="hidden md:flex items-center px-3 py-2 bg-gray-100 rounded-lg relative">
                 <i className="fas fa-search text-gray-500 mr-2"></i>
@@ -133,7 +112,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
               </div>
               <ScrollArea className="max-h-80">
                 <div className="p-3">
-                  {searchResults.customers.length > 0 && (
+                  {searchResults.customers.length > 0 ? (
                     <div className="mb-4">
                       <h4 className="font-medium text-sm text-gray-600 mb-2">Customers</h4>
                       {searchResults.customers.map((customer: any) => (
@@ -142,53 +121,19 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
                             <i className="fas fa-user text-blue-500 w-4 mr-3"></i>
                             <div>
                               <div className="font-medium text-sm">{customer.name}</div>
-                              <div className="text-xs text-gray-500">{customer.phone}</div>
+                              <div className="text-xs text-gray-500">{customer.contact || customer.phone}</div>
                             </div>
                           </div>
-                          {customer.pendingAmount > 0 && (
-                            <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                              ₹{customer.pendingAmount.toFixed(2)}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {searchResults.orders.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-medium text-sm text-gray-600 mb-2">Orders</h4>
-                      {searchResults.orders.map((order: any) => (
-                        <div key={order.id} className="flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                          <i className="fas fa-shopping-cart text-green-500 w-4 mr-3"></i>
-                          <div>
-                            <div className="font-medium text-sm">Order #{order.id}</div>
-                            <div className="text-xs text-gray-500">{order.customerName} • ${order.total}</div>
+                          <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            ₹{(customer.pendingAmount || 0).toFixed(2)}
                           </div>
                         </div>
                       ))}
                     </div>
-                  )}
-
-                  {searchResults.inventory.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="font-medium text-sm text-gray-600 mb-2">Inventory</h4>
-                      {searchResults.inventory.map((item: any) => (
-                        <div key={item.id} className="flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                          <i className="fas fa-box text-orange-500 w-4 mr-3"></i>
-                          <div>
-                            <div className="font-medium text-sm">{item.name}</div>
-                            <div className="text-xs text-gray-500">Stock: {item.quantity} • ${item.price}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {searchQuery && searchResults.customers.length === 0 && searchResults.orders.length === 0 && searchResults.inventory.length === 0 && (
+                  ) : searchQuery.length > 1 && (
                     <div className="text-center py-4 text-gray-500">
                       <i className="fas fa-search text-2xl mb-2"></i>
-                      <div>No results found for "{searchQuery}"</div>
+                      <div>No customers found for "{searchQuery}"</div>
                     </div>
                   )}
                 </div>
@@ -292,7 +237,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
           </div>
           
           {/* Mobile Search Results */}
-          {searchQuery && (
+          {searchQuery && searchQuery.length > 1 && (
             <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
               <div className="flex items-center justify-between p-3 border-b bg-gray-50">
                 <span className="text-sm font-medium text-gray-700">Search Results</span>
@@ -305,7 +250,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
               </div>
               <ScrollArea className="max-h-60">
                 <div className="p-3">
-                  {searchResults.customers.length > 0 && (
+                  {searchResults.customers.length > 0 ? (
                     <div className="mb-3">
                       <h4 className="font-medium text-sm text-gray-600 mb-2">Customers</h4>
                       {searchResults.customers.map((customer: any) => (
@@ -314,55 +259,21 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
                             <i className="fas fa-user text-blue-500 w-4 mr-3"></i>
                             <div>
                               <div className="font-medium text-sm">{customer.name}</div>
-                              <div className="text-xs text-gray-500">{customer.phone}</div>
+                              <div className="text-xs text-gray-500">{customer.contact || customer.phone}</div>
                             </div>
                           </div>
-                          {customer.pendingAmount > 0 && (
-                            <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
-                              ₹{customer.pendingAmount.toFixed(2)}
-                            </div>
-                          )}
+                          <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                            ₹{(customer.pendingAmount || 0).toFixed(2)}
+                          </div>
                         </div>
                       ))}
                     </div>
+                  ) : searchQuery.length > 1 && (
+                    <div className="text-center py-4 text-gray-500">
+                      <i className="fas fa-search text-xl mb-2"></i>
+                      <div className="text-sm">No customers found for "{searchQuery}"</div>
+                    </div>
                   )}
-
-                {searchResults.orders.length > 0 && (
-                  <div className="mb-3">
-                    <h4 className="font-medium text-sm text-gray-600 mb-2">Orders</h4>
-                    {searchResults.orders.map((order: any) => (
-                      <div key={order.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                        <i className="fas fa-shopping-cart text-green-500 w-4 mr-3"></i>
-                        <div>
-                          <div className="font-medium text-sm">Order #{order.id}</div>
-                          <div className="text-xs text-gray-500">{order.customerName} • ${order.total}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {searchResults.inventory.length > 0 && (
-                  <div className="mb-3">
-                    <h4 className="font-medium text-sm text-gray-600 mb-2">Inventory</h4>
-                    {searchResults.inventory.map((item: any) => (
-                      <div key={item.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                        <i className="fas fa-box text-orange-500 w-4 mr-3"></i>
-                        <div>
-                          <div className="font-medium text-sm">{item.name}</div>
-                          <div className="text-xs text-gray-500">Stock: {item.quantity} • ${item.price}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {searchResults.customers.length === 0 && searchResults.orders.length === 0 && searchResults.inventory.length === 0 && (
-                  <div className="text-center py-4 text-gray-500">
-                    <i className="fas fa-search text-xl mb-2"></i>
-                    <div className="text-sm">No results found</div>
-                  </div>
-                )}
               </div>
               </ScrollArea>
             </div>

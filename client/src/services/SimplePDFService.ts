@@ -219,12 +219,20 @@ export class SimplePDFService {
       }
     } = data;
 
-    // Debug logging for order filtering
+    // Debug logging for order filtering and debt calculation
     console.log('PDF Generation Debug:', {
       customerId: customer.id,
+      customerName: customer.name,
       totalOrders: orders.length,
-      orders: orders.map(o => ({ id: o.id, customerId: o.customerId, totalAmount: o.totalAmount })),
-      showPaid
+      orders: orders.map(o => ({ 
+        id: o.id, 
+        customerId: o.customerId, 
+        totalAmount: o.totalAmount,
+        paidAmount: o.paidAmount,
+        paymentStatus: o.paymentStatus
+      })),
+      showPaid,
+      customerPendingAmount: customer.pendingAmount
     });
 
     // Filter orders based on customer and payment status
@@ -235,10 +243,30 @@ export class SimplePDFService {
 
     console.log('Filtered orders:', filteredOrders.length, filteredOrders);
 
-    // Calculate totals
-    const totalPending = customer.pendingAmount || 0;
+    // Calculate totals using the same logic as hotel debt page
     const ordersGrandTotal = filteredOrders.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-    const paidAmount = Math.max(0, ordersGrandTotal - totalPending);
+    
+    // Calculate actual debt: unpaid order amounts (order debt)
+    const orderDebt = filteredOrders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
+    
+    // Use customer's pendingAmount as adjustment balance (manual debt adjustments)
+    const adjustmentBalance = customer.pendingAmount || 0;
+    
+    // Total debt = order debt + adjustment balance (same as hotel debt calculation)
+    const totalPending = orderDebt + adjustmentBalance;
+    
+    // Calculate total paid amount from orders
+    const paidAmount = filteredOrders.reduce((sum, order) => sum + (order.paidAmount || 0), 0);
+    
+    // Debug debt calculation
+    console.log('Debt Calculation Debug:', {
+      ordersGrandTotal,
+      orderDebt,
+      adjustmentBalance,
+      totalPending,
+      paidAmount,
+      filteredOrdersCount: filteredOrders.length
+    });
 
 
     // Check for overdue orders
@@ -771,21 +799,37 @@ export class SimplePDFService {
 
 
 
-        <!-- Totals Section -->
-        <div class="totals-section">
+        <!-- Debt Summary Section -->
+        <div class="debt-summary-section" style="background: #fef2f2; border: 2px solid #fca5a5; border-radius: 12px; padding: 24px; margin: 24px 0;">
+            <h3 style="color: #dc2626; margin: 0 0 20px 0; font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <span style="background: #dc2626; color: white; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 14px;">₹</span>
+                Outstanding Debt Summary
+            </h3>
             <table class="totals-table">
                 <tbody>
                     <tr>
-                        <td class="label">Total Amount:</td>
+                        <td class="label">Total Order Amount:</td>
                         <td class="value">₹${ordersGrandTotal.toFixed(2)}</td>
                     </tr>
                     <tr>
-                        <td class="label">Paid Amount:</td>
+                        <td class="label">Amount Paid:</td>
                         <td class="value" style="color: #16a34a;">-₹${paidAmount.toFixed(2)}</td>
                     </tr>
-                    <tr class="total-row">
-                        <td class="label">Total Due:</td>
-                        <td class="value">₹${totalPending.toFixed(2)}</td>
+                    <tr style="border-top: 1px solid #e5e7eb;">
+                        <td class="label" style="padding-top: 12px;"><strong>Unpaid Order Balance:</strong></td>
+                        <td class="value" style="padding-top: 12px; color: #dc2626;"><strong>₹${orderDebt.toFixed(2)}</strong></td>
+                    </tr>
+                    ${adjustmentBalance !== 0 ? `
+                    <tr>
+                        <td class="label">Previous Adjustments:</td>
+                        <td class="value" style="color: ${adjustmentBalance > 0 ? '#dc2626' : '#16a34a'};">
+                            ${adjustmentBalance > 0 ? '+' : ''}₹${adjustmentBalance.toFixed(2)}
+                        </td>
+                    </tr>
+                    ` : ''}
+                    <tr class="total-row" style="border-top: 2px solid #dc2626; background: #fee2e2;">
+                        <td class="label" style="font-size: 16px; font-weight: 700; color: #dc2626; padding: 16px 12px;">TOTAL OUTSTANDING DEBT:</td>
+                        <td class="value" style="font-size: 20px; font-weight: 800; color: #dc2626; padding: 16px 12px;">₹${totalPending.toFixed(2)}</td>
                     </tr>
                 </tbody>
             </table>

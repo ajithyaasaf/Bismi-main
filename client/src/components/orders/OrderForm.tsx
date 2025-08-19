@@ -79,16 +79,25 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
   
   // Add item to order
   const addItem = () => {
+    const newItemId = String(items.length + 1);
     setItems([
       ...items,
       { 
-        id: String(items.length + 1), 
+        id: newItemId, 
         type: 'chicken', 
         quantity: '', 
         rate: '',
         details: ''
       }
     ]);
+    
+    // Auto-focus on the new item's quantity field after a short delay
+    setTimeout(() => {
+      const newItemQuantityInput = document.querySelector(`#item-qty-${newItemId}`) as HTMLInputElement;
+      if (newItemQuantityInput) {
+        newItemQuantityInput.focus();
+      }
+    }, 100);
   };
   
   // Remove item from order

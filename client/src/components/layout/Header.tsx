@@ -100,9 +100,9 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
           </button>
           
           {/* Desktop Search with Popover Results */}
-          <Popover open={searchQuery.length > 0}>
+          <Popover open={searchQuery.length > 0} onOpenChange={(open) => !open && setSearchQuery('')}>
             <PopoverTrigger asChild>
-              <div className="hidden md:flex items-center px-3 py-2 bg-gray-100 rounded-lg">
+              <div className="hidden md:flex items-center px-3 py-2 bg-gray-100 rounded-lg relative">
                 <i className="fas fa-search text-gray-500 mr-2"></i>
                 <Input
                   type="text" 
@@ -111,21 +111,45 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="ml-2 text-gray-400 hover:text-gray-600"
+                  >
+                    <i className="fas fa-times text-xs"></i>
+                  </button>
+                )}
               </div>
             </PopoverTrigger>
             <PopoverContent className="w-96 p-0" align="end">
+              <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+                <span className="text-sm font-medium text-gray-700">Search Results</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <i className="fas fa-times text-sm"></i>
+                </button>
+              </div>
               <ScrollArea className="max-h-80">
-                <div className="p-4">
+                <div className="p-3">
                   {searchResults.customers.length > 0 && (
                     <div className="mb-4">
                       <h4 className="font-medium text-sm text-gray-600 mb-2">Customers</h4>
                       {searchResults.customers.map((customer: any) => (
-                        <div key={customer.id} className="flex items-center p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
-                          <i className="fas fa-user text-blue-500 w-4 mr-3"></i>
-                          <div>
-                            <div className="font-medium text-sm">{customer.name}</div>
-                            <div className="text-xs text-gray-500">{customer.phone}</div>
+                        <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+                          <div className="flex items-center">
+                            <i className="fas fa-user text-blue-500 w-4 mr-3"></i>
+                            <div>
+                              <div className="font-medium text-sm">{customer.name}</div>
+                              <div className="text-xs text-gray-500">{customer.phone}</div>
+                            </div>
                           </div>
+                          {customer.pendingAmount > 0 && (
+                            <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                              ₹{customer.pendingAmount.toFixed(2)}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -256,26 +280,52 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSearchVisible(false);
+              }}
+              className="ml-2 text-gray-400 hover:text-gray-600"
+            >
+              <i className="fas fa-times text-sm"></i>
+            </button>
           </div>
           
           {/* Mobile Search Results */}
           {searchQuery && (
-            <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-              <div className="p-3">
-                {searchResults.customers.length > 0 && (
-                  <div className="mb-3">
-                    <h4 className="font-medium text-sm text-gray-600 mb-2">Customers</h4>
-                    {searchResults.customers.map((customer: any) => (
-                      <div key={customer.id} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
-                        <i className="fas fa-user text-blue-500 w-4 mr-3"></i>
-                        <div>
-                          <div className="font-medium text-sm">{customer.name}</div>
-                          <div className="text-xs text-gray-500">{customer.phone}</div>
+            <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
+              <div className="flex items-center justify-between p-3 border-b bg-gray-50">
+                <span className="text-sm font-medium text-gray-700">Search Results</span>
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <i className="fas fa-times text-xs"></i>
+                </button>
+              </div>
+              <ScrollArea className="max-h-60">
+                <div className="p-3">
+                  {searchResults.customers.length > 0 && (
+                    <div className="mb-3">
+                      <h4 className="font-medium text-sm text-gray-600 mb-2">Customers</h4>
+                      {searchResults.customers.map((customer: any) => (
+                        <div key={customer.id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded cursor-pointer">
+                          <div className="flex items-center">
+                            <i className="fas fa-user text-blue-500 w-4 mr-3"></i>
+                            <div>
+                              <div className="font-medium text-sm">{customer.name}</div>
+                              <div className="text-xs text-gray-500">{customer.phone}</div>
+                            </div>
+                          </div>
+                          {customer.pendingAmount > 0 && (
+                            <div className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                              ₹{customer.pendingAmount.toFixed(2)}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                    </div>
+                  )}
 
                 {searchResults.orders.length > 0 && (
                   <div className="mb-3">
@@ -314,6 +364,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
                   </div>
                 )}
               </div>
+              </ScrollArea>
             </div>
           )}
         </div>

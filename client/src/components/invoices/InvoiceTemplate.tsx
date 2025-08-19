@@ -53,10 +53,19 @@ const InvoiceTemplate = forwardRef<HTMLDivElement, InvoiceTemplateProps>(({
   const ordersArray = Array.isArray(orders) ? orders : [];
   
   // Filter orders based on customer and payment status
-  const filteredOrders = ordersArray.filter(order => {
-    if (order.customerId !== customer.id) return false;
-    return showPaid ? true : order.paymentStatus !== 'paid';
-  });
+  const filteredOrders = ordersArray
+    .filter(order => {
+      if (order.customerId !== customer.id) return false;
+      return showPaid ? true : order.paymentStatus !== 'paid';
+    })
+    .sort((a, b) => {
+      // Sort by date in ascending order (oldest first)
+      const dateA = typeof a.createdAt === 'string' ? parseISO(a.createdAt) : 
+                   a.createdAt instanceof Date ? a.createdAt : new Date(0);
+      const dateB = typeof b.createdAt === 'string' ? parseISO(b.createdAt) : 
+                   b.createdAt instanceof Date ? b.createdAt : new Date(0);
+      return dateA.getTime() - dateB.getTime();
+    });
 
   // Calculate totals
   const totalPending = typeof customer.pendingAmount === 'number' ? customer.pendingAmount : 

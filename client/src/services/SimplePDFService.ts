@@ -238,10 +238,19 @@ export class SimplePDFService {
     });
 
     // Filter orders based on customer and payment status
-    const filteredOrders = orders.filter(order => {
-      if (order.customerId !== customer.id) return false;
-      return showPaid ? true : order.paymentStatus !== 'paid';
-    });
+    const filteredOrders = orders
+      .filter(order => {
+        if (order.customerId !== customer.id) return false;
+        return showPaid ? true : order.paymentStatus !== 'paid';
+      })
+      .sort((a, b) => {
+        // Sort by date in ascending order (oldest first)
+        const dateA = typeof a.createdAt === 'string' ? parseISO(a.createdAt) : 
+                     a.createdAt instanceof Date ? a.createdAt : new Date(0);
+        const dateB = typeof b.createdAt === 'string' ? parseISO(b.createdAt) : 
+                     b.createdAt instanceof Date ? b.createdAt : new Date(0);
+        return dateA.getTime() - dateB.getTime();
+      });
 
     console.log('Filtered orders:', filteredOrders.length, filteredOrders);
 

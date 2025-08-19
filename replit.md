@@ -7,6 +7,12 @@ This is a full-stack web application designed for comprehensive management of a 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+### August 19, 2025 - PDF Order Date Sorting Fix
+- **Issue**: Orders in customer PDF invoices were not sorted chronologically by date
+- **Root Cause**: Filtered orders array was not being sorted before rendering in both preview and PDF generation
+- **Solution**: Added date-based sorting in ascending order (oldest first) to both InvoiceTemplate.tsx and SimplePDFService.ts
+- **Impact**: Order dates now appear in proper chronological order in PDF previews and downloads
+
 ### August 18, 2025 - Date Handling Bug Fix
 - **Issue**: Orders were always displaying current date instead of user-selected date
 - **Root Cause**: Backend schema validation defaulting to current date when date parsing failed

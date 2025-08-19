@@ -547,9 +547,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                     />
                   </div>
                   
-                  {/* Action Button - Only show remove button for items after the first */}
+                  {/* Action Button - Show remove button for all items when there's more than one */}
                   <div className="flex justify-center sm:justify-end sm:col-span-1">
-                    {index > 0 && (
+                    {items.length > 1 && (
                       <Button
                         type="button"
                         variant="outline"

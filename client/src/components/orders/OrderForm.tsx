@@ -497,7 +497,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
                   />
                 </div>
                 <div className="col-span-1 flex justify-center">
-                  {index > 0 && (
+                  {items.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"

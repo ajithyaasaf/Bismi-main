@@ -528,20 +528,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                     />
                   </div>
                   
-                  {/* Action Button */}
+                  {/* Action Button - Only show remove button for items after the first */}
                   <div className="flex justify-center sm:justify-end sm:col-span-1">
-                    {index === 0 ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-11 w-11 sm:h-9 sm:w-9 rounded-full border-green-300 text-green-600 hover:bg-green-50 touch-manipulation"
-                        onClick={addItem}
-                        title="Add item"
-                      >
-                        <i className="fas fa-plus text-sm"></i>
-                      </Button>
-                    ) : (
+                    {index > 0 && (
                       <Button
                         type="button"
                         variant="outline"
@@ -556,6 +545,20 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                   </div>
                 </div>
               ))}
+            </div>
+            
+            {/* Add Item Button - Always visible at the bottom */}
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto h-12 sm:h-10 bg-green-50 border-green-300 text-green-700 hover:bg-green-100 touch-manipulation"
+                onClick={addItem}
+                title="Add another item"
+              >
+                <i className="fas fa-plus mr-2"></i>
+                Add Item
+              </Button>
             </div>
             
             {/* Total Amount */}

@@ -478,17 +478,7 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
                   />
                 </div>
                 <div className="col-span-1 flex justify-center">
-                  {index === 0 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 rounded-full"
-                      onClick={addItem}
-                    >
-                      <i className="fas fa-plus text-xs"></i>
-                    </Button>
-                  ) : (
+                  {index > 0 && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -502,6 +492,19 @@ export default function OrderForm({ customers, inventory, isOpen, onClose }: Ord
                 </div>
               </div>
             ))}
+            
+            {/* Add Item Button - Always visible at the bottom */}
+            <div className="flex justify-center mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                onClick={addItem}
+              >
+                <i className="fas fa-plus mr-2"></i>
+                Add Item
+              </Button>
+            </div>
             
             <div className="mt-4 bg-slate-50 p-3 rounded-md">
               <div className="flex justify-between items-center">

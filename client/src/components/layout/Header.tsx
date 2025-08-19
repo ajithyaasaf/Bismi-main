@@ -86,9 +86,10 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
                 <Input
                   type="text" 
                   placeholder="Search customers..." 
-                  className="bg-transparent border-none outline-none text-gray-600 placeholder:text-gray-400 text-sm w-56 h-6 p-0 focus-visible:ring-0 focus:ring-0 focus:ring-offset-0 focus:border-transparent focus:shadow-none focus:outline-0"
+                  className="bg-transparent border-0 outline-0 text-gray-600 placeholder:text-gray-400 text-sm w-56 h-6 p-0 focus-visible:ring-0 focus:ring-0 focus:ring-offset-0 focus:border-0 focus:shadow-none focus:outline-0 [&:focus]:border-0 [&:focus]:outline-0 [&:focus]:ring-0 [&:focus]:shadow-none"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
                 />
                 {searchQuery && (
                   <button
@@ -220,10 +221,11 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
             <Input
               type="text"
               placeholder="Search customers..." 
-              className="bg-transparent border-none outline-none text-gray-600 placeholder:text-gray-400 text-sm w-full h-6 p-0 focus-visible:ring-0 focus:ring-0 focus:ring-offset-0 focus:border-transparent focus:shadow-none focus:outline-0"
+              className="bg-transparent border-0 outline-0 text-gray-600 placeholder:text-gray-400 text-sm w-full h-6 p-0 focus-visible:ring-0 focus:ring-0 focus:ring-offset-0 focus:border-0 focus:shadow-none focus:outline-0 [&:focus]:border-0 [&:focus]:outline-0 [&:focus]:ring-0 [&:focus]:shadow-none"
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
             />
             <button
               onClick={() => {

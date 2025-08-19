@@ -79,13 +79,13 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
           </button>
           
           {/* Desktop Search with Popover Results */}
-          <Popover open={searchQuery.length > 1} onOpenChange={(open) => !open && setSearchQuery('')}>
+          <Popover open={searchQuery.length > 1 && !searchVisible} onOpenChange={(open) => !open && setSearchQuery('')}>
             <PopoverTrigger asChild>
               <div className="hidden md:flex items-center px-3 py-2 bg-gray-100 rounded-lg relative">
                 <i className="fas fa-search text-gray-500 mr-2"></i>
                 <Input
                   type="text" 
-                  placeholder="Search customers, orders, inventory..." 
+                  placeholder="Search customers..." 
                   className="bg-transparent border-none outline-none text-gray-600 placeholder:text-gray-400 text-sm w-56 h-6 p-0 focus-visible:ring-0"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -219,7 +219,7 @@ export default function Header({ toggleSidebar, pageTitle }: HeaderProps) {
             <i className="fas fa-search text-gray-400 mr-2"></i>
             <Input
               type="text"
-              placeholder="Search customers, orders, inventory..." 
+              placeholder="Search customers..." 
               className="bg-transparent border-none outline-none text-gray-600 placeholder:text-gray-400 text-sm w-full h-6 p-0 focus-visible:ring-0"
               autoFocus
               value={searchQuery}

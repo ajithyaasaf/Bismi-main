@@ -85,13 +85,23 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       }
     ]);
     
-    // Auto-focus on the new item's quantity input after a short delay
+    // Smooth auto-focus on the new item's quantity input
     setTimeout(() => {
       const newItemQuantityInput = document.querySelector(`#item-qty-${newItemId}`) as HTMLInputElement;
       if (newItemQuantityInput) {
-        newItemQuantityInput.focus();
+        // Smooth scroll to the new item first
+        newItemQuantityInput.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center',
+          inline: 'nearest'
+        });
+        
+        // Then focus after scroll animation
+        setTimeout(() => {
+          newItemQuantityInput.focus();
+        }, 300);
       }
-    }, 100);
+    }, 150);
   };
   
   // Remove item from order

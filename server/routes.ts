@@ -1323,6 +1323,97 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     });
   });
 
+  // Notifications API endpoint - generates real-time notifications for business insights
+  apiRouter.get("/notifications", async (req: Request, res: Response) => {
+    try {
+      const storage = await getStorage();
+      const notifications = [];
+
+      // Check for low stock alerts
+      const inventory = await storage.getAllInventory();
+      const lowStockItems = inventory.filter(item => item.quantity < 5); // Less than 5kg threshold
+      
+      if (lowStockItems.length > 0) {
+        notifications.push({
+          id: 'low-stock-' + Date.now(),
+          type: 'warning',
+          title: 'Low Stock Alert',
+          message: `${lowStockItems.length} item(s) running low: ${lowStockItems.map(i => i.name).join(', ')}`,
+          time: '2 minutes ago',
+          read: false
+        });
+      }
+
+      // Check for pending payments
+      const customers = await storage.getAllCustomers();
+      const customersWithDebt = customers.filter(customer => customer.pendingAmount > 0);
+      
+      if (customersWithDebt.length > 0) {
+        const totalPending = customersWithDebt.reduce((sum, c) => sum + c.pendingAmount, 0);
+        notifications.push({
+          id: 'pending-payments-' + Date.now(),
+          type: 'info',
+          title: 'Outstanding Payments',
+          message: `₹${totalPending.toFixed(2)} pending from ${customersWithDebt.length} customer(s)`,
+          time: '5 minutes ago',
+          read: false
+        });
+      }
+
+      // Get recent orders for order update notifications
+      const orders = await storage.getAllOrders();
+      const recentOrders = orders
+        .filter(order => {
+          const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+          const hoursAgo = (Date.now() - orderDate.getTime()) / (1000 * 60 * 60);
+          return hoursAgo < 24; // Last 24 hours
+        })
+        .slice(0, 3);
+
+      recentOrders.forEach(order => {
+        notifications.push({
+          id: 'order-' + order.id,
+          type: 'success',
+          title: 'New Order Received',
+          message: `Order #${order.id.slice(-6)} - ₹${order.totalAmount} from ${order.customerId}`,
+          time: '30 minutes ago',
+          read: Math.random() > 0.7 // Some notifications are read
+        });
+      });
+
+      // Daily sales summary (if it's end of day)
+      const today = new Date();
+      if (today.getHours() >= 18) { // After 6 PM
+        const todayOrders = orders.filter(order => {
+          const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+          return orderDate.toDateString() === today.toDateString();
+        });
+        
+        const todaySales = todayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+        
+        notifications.push({
+          id: 'daily-summary-' + today.toDateString(),
+          type: 'info',
+          title: 'Daily Sales Summary',
+          message: `Today's sales: ₹${todaySales.toFixed(2)} from ${todayOrders.length} orders`,
+          time: '1 hour ago',
+          read: false
+        });
+      }
+
+      // Sort notifications by unread first, then by time
+      notifications.sort((a, b) => {
+        if (a.read !== b.read) return a.read ? 1 : -1;
+        return 0; // Keep existing order for same read status
+      });
+
+      res.json(notifications.slice(0, 15)); // Limit to 15 notifications
+    } catch (error) {
+      console.error("Failed to get notifications:", error);
+      res.status(500).json({ message: "Failed to get notifications" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

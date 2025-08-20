@@ -21,6 +21,7 @@ import OrderPaymentModal from "@/components/modals/OrderPaymentModal";
 import OrderDateEditModal from "@/components/modals/OrderDateEditModal";
 import { processCustomerPayment } from "@/lib/customer-service";
 import { useToast } from "@/hooks/use-toast";
+import { Calendar, Eye, IndianRupee, MessageSquare, Trash2, Check, Clock, Hourglass } from 'lucide-react';
 
 interface OrdersListProps {
   orders: Order[];
@@ -203,7 +204,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                                 }
                               }}
                             >
-                              <i className="fab fa-whatsapp text-lg"></i>
+                              <MessageSquare className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -246,7 +247,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                               size="sm" 
                               onClick={() => viewOrderDetails(order)}
                             >
-                              <i className="fas fa-eye"></i>
+                              <Eye className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -265,7 +266,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                                 className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
                                 onClick={() => setDateEditOrder(order)}
                               >
-                                <i className="fas fa-calendar-edit"></i>
+                                <Calendar className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -285,7 +286,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                                 className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 onClick={() => setPaymentOrder(order)}
                               >
-                                <i className="fas fa-rupee-sign"></i>
+                                <IndianRupee className="h-4 w-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
@@ -304,7 +305,10 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                               className={order.paymentStatus === 'paid' ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}
                               onClick={() => onUpdateStatus?.(order)}
                             >
-                              <i className={`fas ${order.paymentStatus === 'paid' ? 'fa-hourglass' : 'fa-check'}`}></i>
+                              {order.paymentStatus === 'paid' ? 
+                                <Clock className="h-4 w-4" /> : 
+                                <Check className="h-4 w-4" />
+                              }
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -322,7 +326,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                               className="text-red-600 hover:text-red-700 hover:bg-red-50" 
                               onClick={() => onDeleteOrder?.(order)}
                             >
-                              <i className="fas fa-trash"></i>
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -368,7 +372,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                               }
                             }}
                           >
-                            <i className="fab fa-whatsapp text-lg"></i>
+                            <MessageSquare className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -496,7 +500,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                       setSelectedOrder(null);
                     }}
                   >
-                    <i className="fas fa-rupee-sign mr-2"></i>
+                    <IndianRupee className="h-4 w-4 mr-2" />
                     Record Payment
                   </Button>
                 )}

@@ -204,7 +204,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                                 }
                               }}
                             >
-                              <MessageSquare className="h-4 w-4" />
+                              <i className="fab fa-whatsapp text-lg"></i>
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -372,7 +372,7 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                               }
                             }}
                           >
-                            <MessageSquare className="h-4 w-4" />
+                            <i className="fab fa-whatsapp text-lg"></i>
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent>

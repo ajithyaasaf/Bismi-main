@@ -7,6 +7,13 @@ This is a full-stack web application designed for comprehensive management of a 
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+### August 20, 2025 - Order Date Editing Feature
+- **Feature**: Added ability to edit order dates after creation
+- **Implementation**: Created responsive OrderDateEditModal with calendar picker and added purple edit date button to orders table
+- **Components**: New OrderDateEditModal.tsx, updated OrdersList.tsx and OrdersPage.tsx with date editing functionality
+- **UX**: Mobile-first responsive design with tooltips, proper validation, and intuitive calendar interface
+- **Impact**: Users can now correct order dates when mistakes are made during creation
+
 ### August 19, 2025 - PDF Order Date Sorting Fix
 - **Issue**: Orders in customer PDF invoices were not sorted chronologically by date
 - **Root Cause**: Filtered orders array was not being sorted before rendering in both preview and PDF generation

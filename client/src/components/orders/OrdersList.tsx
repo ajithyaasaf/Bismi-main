@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { createOrderWhatsAppMessage } from "@/lib/whatsapp-service";
 import OrderPaymentModal from "@/components/modals/OrderPaymentModal";
+import OrderDateEditModal from "@/components/modals/OrderDateEditModal";
 import { processCustomerPayment } from "@/lib/customer-service";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,11 +27,13 @@ interface OrdersListProps {
   customers: Customer[];
   onUpdateStatus?: (order: Order) => void;
   onDeleteOrder?: (order: Order) => void;
+  onEditDate?: (orderId: string, newDate: string) => Promise<void>;
 }
 
-export default function OrdersList({ orders, customers, onUpdateStatus, onDeleteOrder }: OrdersListProps) {
+export default function OrdersList({ orders, customers, onUpdateStatus, onDeleteOrder, onEditDate }: OrdersListProps) {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
+  const [dateEditOrder, setDateEditOrder] = useState<Order | null>(null);
   const { toast } = useToast();
   
   // Sort orders by date (newest first) - Enterprise level timestamp handling
@@ -234,40 +237,99 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
                     {getPaymentStatusBadge(order)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => viewOrderDetails(order)}
-                      >
-                        <i className="fas fa-eye"></i>
-                      </Button>
-                      {order.paymentStatus !== 'paid' && (
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-blue-600"
-                          onClick={() => setPaymentOrder(order)}
-                        >
-                          <i className="fas fa-rupee-sign"></i>
-                        </Button>
+                    <div className="flex justify-center gap-1 flex-wrap">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => viewOrderDetails(order)}
+                            >
+                              <i className="fas fa-eye"></i>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>View details</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      {onEditDate && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                onClick={() => setDateEditOrder(order)}
+                              >
+                                <i className="fas fa-calendar-edit"></i>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit date</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className={order.paymentStatus === 'paid' ? 'text-yellow-600' : 'text-green-600'}
-                        onClick={() => onUpdateStatus?.(order)}
-                      >
-                        <i className={`fas ${order.paymentStatus === 'paid' ? 'fa-hourglass' : 'fa-check'}`}></i>
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-red-600" 
-                        onClick={() => onDeleteOrder?.(order)}
-                      >
-                        <i className="fas fa-trash"></i>
-                      </Button>
+
+                      {order.paymentStatus !== 'paid' && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => setPaymentOrder(order)}
+                              >
+                                <i className="fas fa-rupee-sign"></i>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Record payment</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className={order.paymentStatus === 'paid' ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}
+                              onClick={() => onUpdateStatus?.(order)}
+                            >
+                              <i className={`fas ${order.paymentStatus === 'paid' ? 'fa-hourglass' : 'fa-check'}`}></i>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>{order.paymentStatus === 'paid' ? 'Mark unpaid' : 'Mark paid'}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50" 
+                              onClick={() => onDeleteOrder?.(order)}
+                            >
+                              <i className="fas fa-trash"></i>
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Delete order</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -452,6 +514,16 @@ export default function OrdersList({ orders, customers, onUpdateStatus, onDelete
           onSubmit={handlePaymentSubmit}
           order={paymentOrder}
           customerName={getCustomerName(paymentOrder.customerId)}
+        />
+      )}
+
+      {/* Order Date Edit Modal */}
+      {dateEditOrder && onEditDate && (
+        <OrderDateEditModal
+          isOpen={Boolean(dateEditOrder)}
+          onClose={() => setDateEditOrder(null)}
+          order={dateEditOrder}
+          onSave={onEditDate}
         />
       )}
     </>

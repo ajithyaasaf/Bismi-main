@@ -140,6 +140,32 @@ export default function OrdersPage() {
     setOrderToDelete(null);
   };
 
+  const handleEditDate = async (orderId: string, newDate: string) => {
+    try {
+      const response = await apiRequest('PUT', `/api/orders/${orderId}`, {
+        createdAt: newDate
+      });
+      
+      if (response.ok) {
+        toast({
+          title: "Date updated",
+          description: "Order date has been successfully updated.",
+        });
+        
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      } else {
+        throw new Error('Failed to update order date');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update the order date. Please try again.",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to let modal handle the error
+    }
+  };
+
   if (showSkeleton) {
     return <OrdersSkeleton />;
   }
@@ -158,6 +184,7 @@ export default function OrdersPage() {
         customers={customers}
         onUpdateStatus={handleUpdateStatus}
         onDeleteOrder={handleDeleteOrder}
+        onEditDate={handleEditDate}
       />
 
       <NewOrderModal 

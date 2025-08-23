@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Order, Customer, Inventory } from "@shared/types";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Filter } from "lucide-react";
 import OrdersList from "@/components/orders/OrdersList";
 import NewOrderModal from "@/components/modals/NewOrderModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
@@ -14,6 +16,7 @@ export default function OrdersPage() {
   const [isNewOrderModalOpen, setIsNewOrderModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -32,6 +35,29 @@ export default function OrdersPage() {
   const { data: inventory = [] } = useQuery<Inventory[]>({
     queryKey: ['/api/inventory'],
   });
+
+  // Filter orders based on selected customer
+  const filteredOrders = useMemo(() => {
+    if (selectedCustomerId === "all") {
+      return orders;
+    }
+    return orders.filter(order => order.customerId === selectedCustomerId);
+  }, [orders, selectedCustomerId]);
+
+  // Get customer order counts for display
+  const customerOrderCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    orders.forEach(order => {
+      counts[order.customerId] = (counts[order.customerId] || 0) + 1;
+    });
+    return counts;
+  }, [orders]);
+
+  // Get customer name by ID
+  const getCustomerName = (customerId: string) => {
+    const customer = customers.find(c => c.id === customerId);
+    return customer ? customer.name : 'Unknown Customer';
+  };
 
   const openNewOrderModal = () => setIsNewOrderModalOpen(true);
   const closeNewOrderModal = () => {
@@ -179,8 +205,37 @@ export default function OrdersPage() {
         </Button>
       </div>
 
+      {/* Customer Filter */}
+      <div className="mb-4 flex items-center gap-2">
+        <Filter className="h-4 w-4 text-gray-500" />
+        <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Filter by customer" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">
+              All Customers ({orders.length} orders)
+            </SelectItem>
+            {customers
+              .filter(customer => customerOrderCounts[customer.id] > 0)
+              .sort((a, b) => (customerOrderCounts[b.id] || 0) - (customerOrderCounts[a.id] || 0))
+              .map(customer => (
+                <SelectItem key={customer.id} value={customer.id}>
+                  {customer.name} ({customerOrderCounts[customer.id]} orders)
+                </SelectItem>
+              ))
+            }
+          </SelectContent>
+        </Select>
+        {selectedCustomerId !== "all" && (
+          <span className="text-sm text-gray-600">
+            Showing {filteredOrders.length} of {orders.length} orders
+          </span>
+        )}
+      </div>
+
       <OrdersList 
-        orders={orders}
+        orders={filteredOrders}
         customers={customers}
         onUpdateStatus={handleUpdateStatus}
         onDeleteOrder={handleDeleteOrder}

@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Order, Customer, Inventory } from "@shared/types";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Filter, Search, X } from "lucide-react";
 import OrdersList from "@/components/orders/OrdersList";
 import NewOrderModal from "@/components/modals/NewOrderModal";
 import ConfirmationDialog from "@/components/modals/ConfirmationDialog";
@@ -17,6 +18,8 @@ export default function OrdersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -53,10 +56,43 @@ export default function OrdersPage() {
     return counts;
   }, [orders]);
 
+  // Filter customers based on search term
+  const filteredCustomers = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return customers.filter(customer => customerOrderCounts[customer.id] > 0);
+    }
+    return customers.filter(customer => 
+      customerOrderCounts[customer.id] > 0 && 
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [customers, customerOrderCounts, searchTerm]);
+
   // Get customer name by ID
   const getCustomerName = (customerId: string) => {
     const customer = customers.find(c => c.id === customerId);
     return customer ? customer.name : 'Unknown Customer';
+  };
+
+  // Get selected customer display text
+  const getSelectedCustomerText = () => {
+    if (selectedCustomerId === "all") {
+      return "All Customers";
+    }
+    const customer = customers.find(c => c.id === selectedCustomerId);
+    return customer ? customer.name : "Select customer...";
+  };
+
+  // Handle customer selection
+  const handleCustomerSelect = (customerId: string) => {
+    setSelectedCustomerId(customerId);
+    setSearchTerm("");
+    setIsPopoverOpen(false);
+  };
+
+  // Clear filter
+  const clearFilter = () => {
+    setSelectedCustomerId("all");
+    setSearchTerm("");
   };
 
   const openNewOrderModal = () => setIsNewOrderModalOpen(true);
@@ -205,28 +241,79 @@ export default function OrdersPage() {
         </Button>
       </div>
 
-      {/* Customer Filter */}
+      {/* Searchable Customer Filter */}
       <div className="mb-4 flex items-center gap-2">
         <Filter className="h-4 w-4 text-gray-500" />
-        <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Filter by customer" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              All Customers ({orders.length} orders)
-            </SelectItem>
-            {customers
-              .filter(customer => customerOrderCounts[customer.id] > 0)
-              .sort((a, b) => (customerOrderCounts[b.id] || 0) - (customerOrderCounts[a.id] || 0))
-              .map(customer => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.name} ({customerOrderCounts[customer.id]} orders)
-                </SelectItem>
-              ))
-            }
-          </SelectContent>
-        </Select>
+        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-64 justify-start text-left font-normal"
+              onClick={() => setIsPopoverOpen(true)}
+            >
+              <Search className="h-4 w-4 mr-2" />
+              {getSelectedCustomerText()}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-0" align="start">
+            <div className="p-2">
+              <Input
+                placeholder="Search customers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="mb-2"
+                autoFocus
+              />
+              <div className="max-h-60 overflow-y-auto">
+                {/* All Customers Option */}
+                <div
+                  className={`px-2 py-2 text-sm cursor-pointer hover:bg-gray-100 rounded ${
+                    selectedCustomerId === "all" ? "bg-gray-100 font-medium" : ""
+                  }`}
+                  onClick={() => handleCustomerSelect("all")}
+                >
+                  All Customers ({orders.length} orders)
+                </div>
+                
+                {/* Filtered Customers */}
+                {filteredCustomers
+                  .sort((a, b) => (customerOrderCounts[b.id] || 0) - (customerOrderCounts[a.id] || 0))
+                  .map(customer => (
+                    <div
+                      key={customer.id}
+                      className={`px-2 py-2 text-sm cursor-pointer hover:bg-gray-100 rounded ${
+                        selectedCustomerId === customer.id ? "bg-gray-100 font-medium" : ""
+                      }`}
+                      onClick={() => handleCustomerSelect(customer.id)}
+                    >
+                      {customer.name} ({customerOrderCounts[customer.id]} orders)
+                    </div>
+                  ))
+                }
+                
+                {/* No results */}
+                {searchTerm.trim() && filteredCustomers.length === 0 && (
+                  <div className="px-2 py-2 text-sm text-gray-500">
+                    No customers found matching "{searchTerm}"
+                  </div>
+                )}
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+        
+        {/* Clear filter button */}
+        {selectedCustomerId !== "all" && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilter}
+            className="h-8 px-2"
+          >
+            <X className="h-3 w-3" />
+          </Button>
+        )}
+        
         {selectedCustomerId !== "all" && (
           <span className="text-sm text-gray-600">
             Showing {filteredOrders.length} of {orders.length} orders

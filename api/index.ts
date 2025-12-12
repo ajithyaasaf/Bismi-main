@@ -4,16 +4,20 @@
  * This file serves as the entry point for all API routes when deployed to Vercel.
  * It wraps the existing Express application for serverless execution.
  * 
- * Key optimizations:
+ * Key features:
+ * - Proper Vercel handler export
  * - Pre-warms Firebase connection on cold start
  * - Uses singleton storage manager for connection reuse
- * - Optimized CORS for same-origin requests
  */
 
+import type { VercelRequest, VercelResponse } from '@vercel/node';
 import express, { type Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import compression from 'compression';
-import { registerRoutes } from '../server/routes-serverless';
+
+// Initialize dotenv for environment variables
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Create Express app
 const app = express();
@@ -21,15 +25,8 @@ const app = express();
 // ============================================
 // CORS Configuration
 // ============================================
-// Optimized for same-origin (Vercel) + preview deployments
 const corsOptions = {
-    origin: [
-        // Vercel deployments (production + previews)
-        /\.vercel\.app$/,
-        // Local development
-        /localhost/,
-        /127\.0\.0\.1/,
-    ],
+    origin: true, // Allow all origins for serverless
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
@@ -42,7 +39,6 @@ app.use(cors(corsOptions));
 // Cache Control for API Responses
 // ============================================
 app.use((req: Request, res: Response, next: NextFunction) => {
-    // Disable caching for all API endpoints to ensure fresh data
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -73,56 +69,46 @@ app.use(compression({
         }
         return compression.filter(req, res);
     },
-    level: 1, // Fast compression for serverless
+    level: 1,
     threshold: 512,
-    memLevel: 8,
 }));
 
 // ============================================
-// Request Logging (for serverless debugging)
+// Request Logging
 // ============================================
 app.use((req: Request, res: Response, next: NextFunction) => {
-    const start = Date.now();
-
-    res.on('finish', () => {
-        const duration = Date.now() - start;
-        // Only log slow requests or errors
-        if (duration > 500 || res.statusCode >= 400) {
-            console.log(`[API] ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
-        }
-    });
-
+    console.log(`[API] ${req.method} ${req.url}`);
     next();
 });
 
 // ============================================
-// Cold Start Optimization
+// Initialize Storage and Routes
 // ============================================
-// Pre-warm Firebase connection on cold start
-let isWarmed = false;
+let isInitialized = false;
 
-async function warmUp(): Promise<void> {
-    if (isWarmed) return;
+async function initializeApp() {
+    if (isInitialized) return;
 
     try {
-        // Dynamic import to avoid issues during build
-        const { storageManager } = await import('../server/storage-manager');
-        await storageManager.initialize();
-        isWarmed = true;
-        console.log('[Warm-up] Firebase connection ready');
+        console.log('[Init] Starting app initialization...');
+        console.log('[Init] Environment check:', {
+            hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+            hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+            hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+            nodeEnv: process.env.NODE_ENV
+        });
+
+        // Import and register routes
+        const { registerRoutes } = await import('../server/routes-serverless');
+        registerRoutes(app);
+
+        isInitialized = true;
+        console.log('[Init] App initialized successfully');
     } catch (error) {
-        console.error('[Warm-up] Failed:', error);
-        // Don't throw - let requests still attempt to work
+        console.error('[Init] Failed to initialize:', error);
+        throw error;
     }
 }
-
-// Trigger warm-up immediately (runs during cold start)
-warmUp();
-
-// ============================================
-// Register All API Routes
-// ============================================
-registerRoutes(app);
 
 // ============================================
 // Global Error Handler
@@ -136,20 +122,39 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     res.status(statusCode).json({
         success: false,
         message,
+        error: process.env.NODE_ENV === 'development' ? err.stack : undefined,
         timestamp: new Date().toISOString()
     });
 });
 
 // ============================================
-// 404 Handler
+// Vercel Handler Export
 // ============================================
-app.use((_req: Request, res: Response) => {
-    res.status(404).json({
-        success: false,
-        message: 'API endpoint not found',
-        timestamp: new Date().toISOString()
-    });
-});
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+    try {
+        // Initialize on first request
+        await initializeApp();
 
-// Export for Vercel
-export default app;
+        // Let Express handle the request
+        return new Promise((resolve, reject) => {
+            app(req as any, res as any, (err: any) => {
+                if (err) {
+                    console.error('[Handler] Error:', err);
+                    res.status(500).json({
+                        success: false,
+                        message: 'Internal server error',
+                        error: err.message
+                    });
+                }
+                resolve(undefined);
+            });
+        });
+    } catch (error) {
+        console.error('[Handler] Initialization error:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Failed to initialize API',
+            error: error instanceof Error ? error.message : 'Unknown error'
+        });
+    }
+}

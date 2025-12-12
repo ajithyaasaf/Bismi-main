@@ -98,8 +98,8 @@ async function initializeApp() {
             nodeEnv: process.env.NODE_ENV
         });
 
-        // Import and register routes
-        const { registerRoutes } = await import('../server/routes-serverless');
+        // Import and register routes (ESM requires .js extension)
+        const { registerRoutes } = await import('../server/routes-serverless.js');
         registerRoutes(app);
 
         isInitialized = true;

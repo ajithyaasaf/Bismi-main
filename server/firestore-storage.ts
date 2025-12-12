@@ -1,6 +1,6 @@
 import admin from 'firebase-admin';
 import { IStorage } from './storage.js';
-import { roundCurrency, calculateOrderBalance, determinePaymentStatus } from '@shared/currency-utils';
+import { roundCurrency, calculateOrderBalance, determinePaymentStatus } from '../shared/currency-utils.js';
 import {
   User,
   InsertUser,

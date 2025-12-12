@@ -1,5 +1,6 @@
 import admin from 'firebase-admin';
 import { IStorage } from './storage.js';
+import { roundCurrency, calculateOrderBalance, determinePaymentStatus } from '@shared/currency-utils';
 import {
   User,
   InsertUser,
@@ -42,14 +43,9 @@ export class FirestoreStorage implements IStorage {
           console.log('[Firebase] Using individual environment variables');
           console.log('[Firebase] Project ID:', projectId);
 
-          // Replace literal \n strings with actual newlines
-          // Vercel sometimes stores multiline text as \n escape sequences
-          let formattedPrivateKey = privateKey;
-
-          // If the key doesn't have actual newlines but has \n strings
-          if (!formattedPrivateKey.includes('\n') && formattedPrivateKey.includes('\\n')) {
-            formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, '\n');
-          }
+          // Vercel stores multiline env vars as literal \n text (backslash + n)
+          // We need to convert these to actual newline characters for Firebase
+          const formattedPrivateKey = privateKey.split('\\n').join('\n');
 
           admin.initializeApp({
             credential: admin.credential.cert({
@@ -559,9 +555,7 @@ export class FirestoreStorage implements IStorage {
 
   async createOrder(order: InsertOrder & { createdAt?: Date }): Promise<Order> {
     try {
-      // Import currency utilities for precise calculations
-      const { roundCurrency, calculateOrderBalance, determinePaymentStatus } = await import('@shared/currency-utils');
-
+      // Use currency utilities for precise calculations
       // Ensure precise currency amounts
       const totalAmount = roundCurrency(order.totalAmount || 0);
       const paidAmount = roundCurrency(order.paidAmount || 0);

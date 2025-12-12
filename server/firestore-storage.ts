@@ -42,8 +42,14 @@ export class FirestoreStorage implements IStorage {
           console.log('[Firebase] Using individual environment variables');
           console.log('[Firebase] Project ID:', projectId);
 
-          // Replace escaped newlines with actual newlines
-          const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+          // Replace literal \n strings with actual newlines
+          // Vercel sometimes stores multiline text as \n escape sequences
+          let formattedPrivateKey = privateKey;
+
+          // If the key doesn't have actual newlines but has \n strings
+          if (!formattedPrivateKey.includes('\n') && formattedPrivateKey.includes('\\n')) {
+            formattedPrivateKey = formattedPrivateKey.replace(/\\n/g, '\n');
+          }
 
           admin.initializeApp({
             credential: admin.credential.cert({

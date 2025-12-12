@@ -1,6 +1,6 @@
-import { IStorage } from './storage';
-import type { 
-  User, InsertUser, 
+import { IStorage } from './storage.js';
+import type {
+  User, InsertUser,
   Supplier, InsertSupplier,
   Inventory, InsertInventory,
   Customer, InsertCustomer,
@@ -25,7 +25,7 @@ export class MockStorage implements IStorage {
 
   private initializeMockData() {
     console.log('[MockStorage] Initializing mock data for development');
-    
+
     // Create sample customers
     this.customers = [
       {
@@ -37,7 +37,7 @@ export class MockStorage implements IStorage {
         createdAt: new Date('2025-06-25')
       },
       {
-        id: 'customer2', 
+        id: 'customer2',
         name: 'Retail Customer John',
         contact: '+91-9876543211',
         type: 'retail',
@@ -74,7 +74,7 @@ export class MockStorage implements IStorage {
       {
         id: 'supplier2',
         name: 'Poultry Direct',
-        contact: '+91-9876543221', 
+        contact: '+91-9876543221',
         pendingAmount: 1500,
         createdAt: new Date('2025-06-26')
       }
@@ -103,7 +103,7 @@ export class MockStorage implements IStorage {
         orderStatus: 'completed',
         createdAt: new Date() // Today
       },
-      
+
       // Yesterday's orders
       {
         id: 'order3',
@@ -115,7 +115,7 @@ export class MockStorage implements IStorage {
         orderStatus: 'completed',
         createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000) // Yesterday
       },
-      
+
       // This week's orders
       {
         id: 'order4',
@@ -127,7 +127,7 @@ export class MockStorage implements IStorage {
         orderStatus: 'completed',
         createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
       },
-      
+
       // Ajith's paid order (should NOT count toward debt)
       {
         id: 'order5',
@@ -139,7 +139,7 @@ export class MockStorage implements IStorage {
         orderStatus: 'completed',
         createdAt: new Date('2025-07-27')
       },
-      
+
       // Ajith's partially paid order (should count toward debt)
       {
         id: 'order6',
@@ -152,7 +152,7 @@ export class MockStorage implements IStorage {
         originalPaidAmount: undefined, // Not set initially
         createdAt: new Date('2025-07-28')
       },
-      
+
       // Last month's orders
       {
         id: 'order7',
@@ -264,7 +264,7 @@ export class MockStorage implements IStorage {
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     const index = this.suppliers.findIndex(s => s.id === id);
     if (index === -1) return undefined;
-    
+
     this.suppliers[index] = { ...this.suppliers[index], ...supplier };
     return this.suppliers[index];
   }
@@ -272,7 +272,7 @@ export class MockStorage implements IStorage {
   async deleteSupplier(id: string): Promise<boolean> {
     const index = this.suppliers.findIndex(s => s.id === id);
     if (index === -1) return false;
-    
+
     this.suppliers.splice(index, 1);
     return true;
   }
@@ -302,7 +302,7 @@ export class MockStorage implements IStorage {
   async updateInventoryItem(id: string, item: Partial<InsertInventory>): Promise<Inventory | undefined> {
     const index = this.inventory.findIndex(i => i.id === id);
     if (index === -1) return undefined;
-    
+
     this.inventory[index] = { ...this.inventory[index], ...item };
     return this.inventory[index];
   }
@@ -310,7 +310,7 @@ export class MockStorage implements IStorage {
   async deleteInventoryItem(id: string): Promise<boolean> {
     const index = this.inventory.findIndex(i => i.id === id);
     if (index === -1) return false;
-    
+
     this.inventory.splice(index, 1);
     return true;
   }
@@ -338,7 +338,7 @@ export class MockStorage implements IStorage {
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     const index = this.customers.findIndex(c => c.id === id);
     if (index === -1) return undefined;
-    
+
     this.customers[index] = { ...this.customers[index], ...customer };
     return this.customers[index];
   }
@@ -346,7 +346,7 @@ export class MockStorage implements IStorage {
   async deleteCustomer(id: string): Promise<boolean> {
     const index = this.customers.findIndex(c => c.id === id);
     if (index === -1) return false;
-    
+
     this.customers.splice(index, 1);
     return true;
   }
@@ -378,7 +378,7 @@ export class MockStorage implements IStorage {
   async updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined> {
     const index = this.orders.findIndex(o => o.id === id);
     if (index === -1) return undefined;
-    
+
     this.orders[index] = { ...this.orders[index], ...order };
     return this.orders[index];
   }
@@ -386,7 +386,7 @@ export class MockStorage implements IStorage {
   async deleteOrder(id: string): Promise<boolean> {
     const index = this.orders.findIndex(o => o.id === id);
     if (index === -1) return false;
-    
+
     this.orders.splice(index, 1);
     return true;
   }
@@ -417,7 +417,7 @@ export class MockStorage implements IStorage {
   async updateTransaction(id: string, transaction: Partial<InsertTransaction>): Promise<Transaction | undefined> {
     const index = this.transactions.findIndex(t => t.id === id);
     if (index === -1) return undefined;
-    
+
     this.transactions[index] = { ...this.transactions[index], ...transaction };
     return this.transactions[index];
   }
@@ -425,7 +425,7 @@ export class MockStorage implements IStorage {
   async deleteTransaction(id: string): Promise<boolean> {
     const index = this.transactions.findIndex(t => t.id === id);
     if (index === -1) return false;
-    
+
     this.transactions.splice(index, 1);
     return true;
   }
@@ -457,7 +457,7 @@ export class MockStorage implements IStorage {
   async updateDebtAdjustment(id: string, adjustment: Partial<InsertDebtAdjustment>): Promise<DebtAdjustment | undefined> {
     const index = this.debtAdjustments.findIndex(d => d.id === id);
     if (index === -1) return undefined;
-    
+
     this.debtAdjustments[index] = { ...this.debtAdjustments[index], ...adjustment };
     return this.debtAdjustments[index];
   }
@@ -465,7 +465,7 @@ export class MockStorage implements IStorage {
   async deleteDebtAdjustment(id: string): Promise<boolean> {
     const index = this.debtAdjustments.findIndex(d => d.id === id);
     if (index === -1) return false;
-    
+
     this.debtAdjustments.splice(index, 1);
     return true;
   }
@@ -534,7 +534,7 @@ export class MockStorage implements IStorage {
 
     const orders = await this.getOrdersByCustomer(customerId);
     const recentActivity = await this.getHotelLedgerEntries(customerId, 10);
-    
+
     // Calculate total owed from all orders minus payments
     let totalOwed = 0;
     orders.forEach(order => {
@@ -547,7 +547,7 @@ export class MockStorage implements IStorage {
       totalOwed += adjustment.type === 'debit' ? adjustment.amount : -adjustment.amount;
     });
 
-    const lastOrderDate = orders.length > 0 ? 
+    const lastOrderDate = orders.length > 0 ?
       new Date(Math.max(...orders.map(o => o.createdAt.getTime()))) : undefined;
 
     return {

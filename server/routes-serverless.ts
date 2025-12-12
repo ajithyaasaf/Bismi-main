@@ -1,6 +1,6 @@
 import express, { type Express, Request, Response } from "express";
-import { storageManager } from "./storage-manager";
-import { createPendingCalculator } from "./utils/pending-calculator";
+import { storageManager } from "./storage-manager.js";
+import { createPendingCalculator } from "./utils/pending-calculator.js";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 

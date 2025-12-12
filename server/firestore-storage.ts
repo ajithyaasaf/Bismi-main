@@ -1,5 +1,5 @@
 import admin from 'firebase-admin';
-import { IStorage } from './storage';
+import { IStorage } from './storage.js';
 import {
   User,
   InsertUser,
@@ -87,7 +87,7 @@ export class FirestoreStorage implements IStorage {
     try {
       const doc = await this.db.collection('users').doc(id.toString()).get();
       if (!doc.exists) return undefined;
-      
+
       const data = doc.data();
       return {
         id: parseInt(doc.id),
@@ -147,14 +147,14 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('suppliers').get();
       return snapshot.docs.map((doc) => {
         const data = doc.data();
-        
+
         // Debug logging
         console.log('Supplier data from Firestore:', {
           id: doc.id,
           name: data.name,
           pendingAmount: data.debt || 0
         });
-        
+
         return {
           id: doc.id,
           name: data.name || '',
@@ -228,13 +228,13 @@ export class FirestoreStorage implements IStorage {
   async updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier | undefined> {
     try {
       const updateData: any = { ...supplier, updatedAt: new Date() };
-      
+
       // Handle pending amount updates by maintaining debt in Firestore
       if (updateData.pendingAmount !== undefined) {
         updateData.debt = updateData.pendingAmount;
         delete updateData.pendingAmount;
       }
-      
+
       await this.db.collection('suppliers').doc(id).update(updateData);
       return this.getSupplier(id);
     } catch (error) {
@@ -259,7 +259,7 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('inventory').get();
       return snapshot.docs.map((doc) => {
         const data = doc.data();
-        
+
         return {
           id: doc.id,
           name: data.name || data.type || 'Item',
@@ -335,7 +335,7 @@ export class FirestoreStorage implements IStorage {
         updateData.rate = updateData.price;
         delete updateData.price;
       }
-      
+
       await this.db.collection('inventory').doc(id).update(updateData);
       return this.getInventoryItem(id);
     } catch (error) {
@@ -360,14 +360,14 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('customers').get();
       return snapshot.docs.map((doc) => {
         const data = doc.data();
-        
+
         // Debug logging
         console.log('Customer data from Firestore:', {
           id: doc.id,
           name: data.name,
           type: data.type
         });
-        
+
         return {
           id: doc.id,
           name: data.name || '',
@@ -431,7 +431,7 @@ export class FirestoreStorage implements IStorage {
   async updateCustomer(id: string, customer: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
       const updateData: any = { ...customer, updatedAt: new Date() };
-      
+
       await this.db.collection('customers').doc(id).update(updateData);
       return this.getCustomer(id);
     } catch (error) {
@@ -521,22 +521,22 @@ export class FirestoreStorage implements IStorage {
     try {
       // Import currency utilities for precise calculations
       const { roundCurrency, calculateOrderBalance, determinePaymentStatus } = await import('@shared/currency-utils');
-      
+
       // Ensure precise currency amounts
       const totalAmount = roundCurrency(order.totalAmount || 0);
       const paidAmount = roundCurrency(order.paidAmount || 0);
       const orderBalance = calculateOrderBalance(totalAmount, paidAmount);
-      
+
       // Validate payment status consistency
       const calculatedPaymentStatus = determinePaymentStatus(totalAmount, paidAmount);
       const finalPaymentStatus = order.paymentStatus || calculatedPaymentStatus;
-      
+
       console.log(`[ORDER CREATION] Order balance: ₹${orderBalance}, Payment status: ${finalPaymentStatus}`);
-      
+
       // Use the provided createdAt date - it should never be undefined due to schema validation
       const createdAt = order.createdAt || new Date();
       console.log(`[ORDER CREATION] Using order date: ${createdAt.toISOString()}, Schema provided: ${order.createdAt ? 'Yes' : 'No (fallback used)'}`);
-      
+
       const docRef = await this.db.collection('orders').add({
         customerId: order.customerId,
         items: order.items,
@@ -549,19 +549,19 @@ export class FirestoreStorage implements IStorage {
 
       // Get current inventory state once to avoid race conditions
       const allInventory = await this.getAllInventory();
-      
+
       // Update inventory quantities for ordered items (batch operation)
       const inventoryUpdates: Promise<any>[] = [];
       for (const item of order.items) {
         const inventoryItem = allInventory.find(inv => inv.type === item.type);
-        
+
         if (inventoryItem) {
           const currentQuantity = roundCurrency(inventoryItem.quantity);
           const itemQuantity = roundCurrency(item.quantity || 0);
           const newQuantity = roundCurrency(currentQuantity - itemQuantity);
-          
+
           console.log(`[INVENTORY UPDATE] ${item.type}: ${currentQuantity} - ${itemQuantity} = ${newQuantity}`);
-          
+
           inventoryUpdates.push(
             this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity })
           );
@@ -569,7 +569,7 @@ export class FirestoreStorage implements IStorage {
           console.warn(`[INVENTORY WARNING] No inventory found for type: ${item.type}`);
         }
       }
-      
+
       // Execute inventory updates in parallel
       await Promise.all(inventoryUpdates);
 
@@ -580,9 +580,9 @@ export class FirestoreStorage implements IStorage {
         if (customer) {
           const currentPending = roundCurrency(customer.pendingAmount || 0);
           const newPendingAmount = roundCurrency(currentPending + orderBalance);
-          
+
           console.log(`[CUSTOMER UPDATE] Pending: ₹${currentPending} + ₹${orderBalance} = ₹${newPendingAmount}`);
-          
+
           await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
         }
       }
@@ -609,7 +609,7 @@ export class FirestoreStorage implements IStorage {
         orderStatus: order.orderStatus,
         createdAt: createdAt, // Use the properly processed createdAt variable
       };
-      
+
       console.log(`[ORDER RETURN] Returning order with createdAt: ${returnOrder.createdAt.toISOString()}`);
       return returnOrder;
     } catch (error) {
@@ -622,9 +622,9 @@ export class FirestoreStorage implements IStorage {
     try {
       // Get existing order to compare payment status changes
       const existingOrder = await this.getOrder(id);
-      
+
       await this.db.collection('orders').doc(id).update(order);
-      
+
       // Handle payment amount and status changes
       if (existingOrder) {
         const customer = await this.getCustomer(existingOrder.customerId);
@@ -633,7 +633,7 @@ export class FirestoreStorage implements IStorage {
           const oldBalance = (existingOrder.totalAmount || 0) - (existingOrder.paidAmount || 0);
           const newPaidAmount = order.paidAmount !== undefined ? order.paidAmount : existingOrder.paidAmount || 0;
           const newBalance = (existingOrder.totalAmount || 0) - newPaidAmount;
-          
+
           // Update customer pending amount based on balance change
           const balanceChange = newBalance - oldBalance;
           if (balanceChange !== 0) {
@@ -642,7 +642,7 @@ export class FirestoreStorage implements IStorage {
           }
         }
       }
-      
+
       return this.getOrder(id);
     } catch (error) {
       console.error('Error updating order:', error);
@@ -660,7 +660,7 @@ export class FirestoreStorage implements IStorage {
       for (const item of order.items) {
         const allInventory = await this.getAllInventory();
         const inventoryItem = allInventory.find(inv => inv.type === item.type);
-        
+
         if (inventoryItem) {
           const newQuantity = inventoryItem.quantity + item.quantity;
           await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
@@ -699,7 +699,7 @@ export class FirestoreStorage implements IStorage {
       const snapshot = await this.db.collection('transactions').get();
       const transactions = snapshot.docs.map((doc) => {
         const data = doc.data();
-        
+
         // Safely parse each field to prevent data corruption
         const transaction = {
           id: doc.id,
@@ -710,10 +710,10 @@ export class FirestoreStorage implements IStorage {
           description: String(data.description || ''),
           createdAt: this.convertTimestamp(data.createdAt || data.date),
         };
-        
+
         return transaction;
       });
-      
+
       console.log(`Firestore: Successfully retrieved ${transactions.length} transactions`);
       return transactions;
     } catch (error) {
@@ -851,7 +851,7 @@ export class FirestoreStorage implements IStorage {
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
-      
+
       // Sort in memory to avoid Firestore index requirement
       return adjustments.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     } catch (error) {
@@ -936,7 +936,7 @@ export class FirestoreStorage implements IStorage {
 
       // Get all orders for this customer
       const orders = await this.getOrdersByCustomer(customerId);
-      
+
       // Get all debt adjustments for this customer
       const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
 
@@ -994,7 +994,7 @@ export class FirestoreStorage implements IStorage {
 
       // Calculate total owed
       const orderDebt = orders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
-      const adjustmentBalance = adjustments.reduce((sum, adj) => 
+      const adjustmentBalance = adjustments.reduce((sum, adj) =>
         sum + (adj.type === 'debit' ? adj.amount : -adj.amount), 0
       );
       const totalOwed = orderDebt + adjustmentBalance;
@@ -1004,7 +1004,7 @@ export class FirestoreStorage implements IStorage {
         totalOwed,
         totalOrders: orders.length,
         recentActivity: ledgerEntries,
-        lastOrderDate: orders.length > 0 ? orders.sort((a, b) => 
+        lastOrderDate: orders.length > 0 ? orders.sort((a, b) =>
           b.createdAt.getTime() - a.createdAt.getTime())[0].createdAt : undefined,
       };
     } catch (error) {
@@ -1017,7 +1017,7 @@ export class FirestoreStorage implements IStorage {
     try {
       const customers = await this.getAllCustomers();
       const hotels = customers.filter(c => c.type === 'hotel');
-      
+
       const summaries: HotelDebtSummary[] = [];
       for (const hotel of hotels) {
         const summary = await this.getHotelDebtSummary(hotel.id);
@@ -1025,7 +1025,7 @@ export class FirestoreStorage implements IStorage {
           summaries.push(summary);
         }
       }
-      
+
       return summaries;
     } catch (error) {
       console.error('Error getting all hotel debt summaries:', error);

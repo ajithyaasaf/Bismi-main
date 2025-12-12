@@ -1,7 +1,7 @@
 import express, { type Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storageManager } from "./storage-manager";
-import { createPendingCalculator } from "./utils/pending-calculator";
+import { storageManager } from "./storage-manager.js";
+import { createPendingCalculator } from "./utils/pending-calculator.js";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 
@@ -75,25 +75,25 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   // Add middleware to ensure all API responses are JSON with standardized format
   app.use('/api', (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
-    
+
     // Override res.json to standardize responses
     const originalJson = res.json.bind(res);
-    res.json = function(data: any) {
+    res.json = function (data: any) {
       // If already standardized, use as-is
       if (data && typeof data === 'object' && 'success' in data) {
         return originalJson(data);
       }
-      
+
       // Standardize successful responses
       const standardizedResponse = {
         success: true,
         data: data,
         timestamp: new Date().toISOString()
       };
-      
+
       return originalJson(standardizedResponse);
     };
-    
+
     next();
   });
 
@@ -123,13 +123,13 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const { requests } = req.body;
       const results: Record<string, any> = {};
-      
+
       // Process requests in parallel for better performance
       const promises = Object.entries(requests).map(async ([key, requestData]: [string, any]) => {
         try {
           const storage = await getStorage();
           let result;
-          
+
           switch (requestData.endpoint) {
             case '/suppliers':
               result = await storage.getAllSuppliers();
@@ -149,27 +149,27 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
             default:
               throw new Error(`Unsupported endpoint: ${requestData.endpoint}`);
           }
-          
+
           return { key, success: true, data: result };
         } catch (error) {
-          return { 
-            key, 
-            success: false, 
-            error: error instanceof Error ? error.message : 'Unknown error' 
+          return {
+            key,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
           };
         }
       });
-      
+
       const responses = await Promise.all(promises);
       responses.forEach(({ key, success, data, error }) => {
         results[key] = success ? { success: true, data } : { success: false, error };
       });
-      
+
       res.json(results);
     } catch (error) {
       console.error("Batch request failed:", error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: "Batch request failed",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -179,15 +179,15 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.get("/health", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      
+
       // Generate deployment version based on server start time or environment
-      const deploymentVersion = process.env.VERCEL_GIT_COMMIT_SHA || 
-                               process.env.DEPLOYMENT_ID || 
-                               process.env.SERVER_START_TIME || 
-                               Date.now().toString();
-      
-      res.status(200).json({ 
-        status: "healthy", 
+      const deploymentVersion = process.env.VERCEL_GIT_COMMIT_SHA ||
+        process.env.DEPLOYMENT_ID ||
+        process.env.SERVER_START_TIME ||
+        Date.now().toString();
+
+      res.status(200).json({
+        status: "healthy",
         storage: storageManager.getStorageType(),
         timestamp: new Date().toISOString(),
         version: deploymentVersion,
@@ -199,7 +199,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         }
       });
     } catch (error) {
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Health check failed",
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -285,7 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.post("/suppliers/:id/payment", async (req: Request, res: Response) => {
     try {
       const { amount, description } = req.body;
-      
+
       if (!amount || isNaN(parseFloat(amount))) {
         return res.status(400).json({ message: "Valid amount is required" });
       }
@@ -293,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
       const supplier = await storage.getSupplier(req.params.id);
-      
+
       if (!supplier) {
         return res.status(404).json({ message: "Supplier not found" });
       }
@@ -398,26 +398,26 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.post("/add-stock", async (req: Request, res: Response) => {
     try {
       const { type, quantity, price, supplierId } = req.body;
-      
+
       if (!type || !quantity || quantity <= 0 || !price || price <= 0 || !supplierId) {
         return res.status(400).json({ message: "Valid item type, quantity, price, and supplier are required" });
       }
 
       const storage = await getStorage();
-      
+
       // Check if supplier exists
       const supplier = await storage.getSupplier(supplierId);
       if (!supplier) {
         return res.status(404).json({ message: "Supplier not found" });
       }
-      
+
       // Find existing inventory item of this type
       const allInventory = await storage.getAllInventory();
       const existingItem = allInventory.find(item => item.type === type);
-      
+
       let updatedItem;
       const totalCost = parseFloat(quantity) * parseFloat(price);
-      
+
       if (existingItem) {
         // Update existing inventory item
         const newQuantity = existingItem.quantity + parseFloat(quantity);
@@ -437,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           supplierId: supplierId
         });
       }
-      
+
       // Create transaction record first
       await storage.createTransaction({
         entityId: supplierId,
@@ -450,7 +450,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       // Update supplier pending amount after transaction
       const pendingCalculator = await getPendingCalculator();
       await pendingCalculator.syncSupplierPendingAmount(supplierId);
-      
+
       res.json(updatedItem);
     } catch (error) {
       console.error("Failed to add stock:", error);
@@ -463,15 +463,15 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const storage = await getStorage();
       const customers = await storage.getAllCustomers();
-      
+
       // Support query filtering to reduce data transfer
       const { type, fields } = req.query;
       let filteredCustomers = customers;
-      
+
       if (type) {
         filteredCustomers = customers.filter(customer => customer.type === type);
       }
-      
+
       // Support field selection to reduce payload size
       if (fields && typeof fields === 'string') {
         const selectedFields = fields.split(',');
@@ -485,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           return filtered;
         });
       }
-      
+
       res.json(filteredCustomers);
     } catch (error) {
       console.error("Failed to get customers:", error);
@@ -496,12 +496,12 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.get("/customers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      
+
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       // Return stored pending amount to match UI display
       res.json(customer);
     } catch (error) {
@@ -515,11 +515,11 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const pendingCalculator = await getPendingCalculator();
       const customerData = await pendingCalculator.getCustomerForWhatsApp(req.params.id);
-      
+
       if (!customerData) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       res.json(customerData);
     } catch (error) {
       console.error("Failed to get customer:", error);
@@ -577,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.post("/customers/:id/payment", async (req: Request, res: Response) => {
     try {
       const { amount, description, targetOrderId } = req.body;
-      
+
       if (!amount || isNaN(parseFloat(amount))) {
         return res.status(400).json({ message: "Valid amount is required" });
       }
@@ -585,7 +585,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
       const customer = await storage.getCustomer(req.params.id);
-      
+
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
@@ -616,20 +616,20 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const storage = await getStorage();
       const { customerId, status, limit } = req.query;
-      
+
       if (customerId) {
         // Optimized endpoint for customer-specific orders
         const orders = await storage.getOrdersByCustomer(customerId as string);
         return res.json(orders);
       }
-      
+
       let orders = await storage.getAllOrders();
-      
+
       // Server-side filtering to reduce data transfer
       if (status) {
         orders = orders.filter(order => order.orderStatus === status);
       }
-      
+
       // Limit results for pagination
       if (limit) {
         const limitNum = parseInt(limit as string, 10);
@@ -637,7 +637,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           orders = orders.slice(0, limitNum);
         }
       }
-      
+
       res.json(orders);
     } catch (error) {
       console.error("Failed to get orders:", error);
@@ -664,19 +664,19 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       console.log('[ORDERS API] Received order creation request:', JSON.stringify(req.body, null, 2));
       const validatedData = insertOrderSchema.parse(req.body);
       console.log('[ORDERS API] Validated order data:', JSON.stringify(validatedData, null, 2));
-      
+
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
-      
+
       // Create the order
       const order = await storage.createOrder(validatedData);
       console.log('[ORDERS API] Created order response:', JSON.stringify(order, null, 2));
-      
+
       // If order is pending, update customer's pending amount
       if (order.paymentStatus === 'pending') {
         await pendingCalculator.syncCustomerPendingAmount(order.customerId);
       }
-      
+
       res.status(201).json(order);
     } catch (error) {
       console.error("Failed to create order:", error);
@@ -692,24 +692,24 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       const validatedData = insertOrderSchema.partial().parse(req.body);
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
-      
+
       // Get original order to track payment status changes
       const originalOrder = await storage.getOrder(req.params.id);
       if (!originalOrder) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       // Update the order
       const order = await storage.updateOrder(req.params.id, validatedData);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       // If payment status changed, recalculate customer pending amount
       if (validatedData.paymentStatus && validatedData.paymentStatus !== originalOrder.paymentStatus) {
         await pendingCalculator.syncCustomerPendingAmount(order.customerId);
       }
-      
+
       res.json(order);
     } catch (error) {
       console.error("Failed to update order:", error);
@@ -739,12 +739,12 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     // Set JSON headers immediately to prevent HTML responses
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'no-cache');
-    
+
     try {
       console.log("[TRANSACTIONS API] GET /api/transactions called");
-      
+
       const storage = await getStorage();
-      
+
       // Get all transactions with extensive error handling
       let transactions: any[] = [];
       try {
@@ -752,7 +752,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         console.log(`[TRANSACTIONS API] Retrieved ${transactions.length} transactions from storage`);
       } catch (storageError) {
         console.error("[TRANSACTIONS API] Storage error:", storageError);
-        return res.status(500).json({ 
+        return res.status(500).json({
           success: false,
           message: "Database connection failed",
           error: "Could not retrieve transactions from storage",
@@ -776,7 +776,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
             type: String(transaction.type || ''),
             amount: Number(transaction.amount) || 0,
             description: String(transaction.description || ''),
-            createdAt: transaction.createdAt instanceof Date 
+            createdAt: transaction.createdAt instanceof Date
               ? transaction.createdAt.toISOString()
               : (transaction.createdAt ? new Date(transaction.createdAt).toISOString() : new Date().toISOString())
           };
@@ -787,13 +787,13 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       }).filter(Boolean); // Remove any null entries
 
       console.log(`[TRANSACTIONS API] Successfully serialized ${safeTransactions.length} transactions`);
-      
+
       // Return the response
       res.status(200).json(safeTransactions);
-      
+
     } catch (error) {
       console.error("[TRANSACTIONS API] Unexpected error:", error);
-      
+
       // Always return JSON, never HTML
       const errorResponse = {
         success: false,
@@ -801,7 +801,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         timestamp: new Date().toISOString()
       };
-      
+
       try {
         res.status(500).json(errorResponse);
       } catch (finalError) {
@@ -813,20 +813,20 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.get("/transactions/:id", async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
-    
+
     try {
       console.log(`[TRANSACTIONS API] GET /api/transactions/${req.params.id}`);
-      
+
       const storage = await getStorage();
       const transaction = await storage.getTransaction(req.params.id);
-      
+
       if (!transaction) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "Transaction not found" 
+          message: "Transaction not found"
         });
       }
-      
+
       // Safely serialize the transaction
       const safeTransaction = {
         id: String(transaction.id || ''),
@@ -835,15 +835,15 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         type: String(transaction.type || ''),
         amount: Number(transaction.amount) || 0,
         description: String(transaction.description || ''),
-        createdAt: transaction.createdAt instanceof Date 
-          ? transaction.createdAt.toISOString() 
+        createdAt: transaction.createdAt instanceof Date
+          ? transaction.createdAt.toISOString()
           : new Date(transaction.createdAt || Date.now()).toISOString()
       };
-      
+
       res.status(200).json(safeTransaction);
     } catch (error) {
       console.error("[TRANSACTIONS API] Failed to get transaction:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Failed to get transaction",
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -853,16 +853,16 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/transactions", async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
-    
+
     try {
       console.log("[TRANSACTIONS API] POST /api/transactions", req.body);
-      
+
       // Validate request data
       const validatedData = insertTransactionSchema.parse(req.body);
-      
+
       const storage = await getStorage();
       const transaction = await storage.createTransaction(validatedData);
-      
+
       // Safely serialize the new transaction
       const safeTransaction = {
         id: String(transaction.id || ''),
@@ -871,26 +871,26 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         type: String(transaction.type || ''),
         amount: Number(transaction.amount) || 0,
         description: String(transaction.description || ''),
-        createdAt: transaction.createdAt instanceof Date 
-          ? transaction.createdAt.toISOString() 
+        createdAt: transaction.createdAt instanceof Date
+          ? transaction.createdAt.toISOString()
           : new Date(transaction.createdAt || Date.now()).toISOString()
       };
-      
+
       console.log("[TRANSACTIONS API] Transaction created successfully:", safeTransaction.id);
       res.status(201).json(safeTransaction);
-      
+
     } catch (error) {
       console.error("[TRANSACTIONS API] Failed to create transaction:", error);
-      
+
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          message: "Invalid data provided", 
-          errors: error.errors 
+          message: "Invalid data provided",
+          errors: error.errors
         });
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         success: false,
         message: "Failed to create transaction",
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -901,28 +901,28 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   // Add DELETE endpoint for transactions
   apiRouter.delete("/transactions/:id", async (req: Request, res: Response) => {
     res.setHeader('Content-Type', 'application/json');
-    
+
     try {
       console.log(`[TRANSACTIONS API] DELETE /api/transactions/${req.params.id}`);
-      
+
       const storage = await getStorage();
       const success = await storage.deleteTransaction(req.params.id);
-      
+
       if (!success) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          message: "Transaction not found" 
+          message: "Transaction not found"
         });
       }
-      
-      res.status(200).json({ 
+
+      res.status(200).json({
         success: true,
-        message: "Transaction deleted successfully" 
+        message: "Transaction deleted successfully"
       });
-      
+
     } catch (error) {
       console.error("[TRANSACTIONS API] Failed to delete transaction:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Failed to delete transaction",
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -936,12 +936,12 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       res.setHeader('Content-Type', 'application/json');
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
-      
+
       // Parse query parameters
       const { type = 'sales', startDate, endDate } = req.query;
-      
+
       console.log(`[REPORTS API] Generating ${type} report for ${startDate} to ${endDate}`);
-      
+
       // Get all data
       const [suppliers, customers, orders, transactions] = await Promise.all([
         storage.getAllSuppliers(),
@@ -954,41 +954,41 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       let filteredOrders = orders;
       if (startDate && endDate) {
         console.log(`[REPORTS API] Filtering orders between ${startDate} and ${endDate}`);
-        
+
         // Parse dates with explicit timezone handling
         const start = new Date(startDate as string);
         const end = new Date(endDate as string);
-        
+
         // Ensure start of day for start date and end of day for end date
         start.setHours(0, 0, 0, 0);
         end.setHours(23, 59, 59, 999);
-        
+
         console.log(`[REPORTS API] Date range parsed: ${start.toISOString()} to ${end.toISOString()}`);
-        
+
         filteredOrders = orders.filter(order => {
           if (!order.createdAt) {
             console.warn(`[REPORTS API] Order ${order.id} has no createdAt date`);
             return false;
           }
-          
+
           const orderDate = new Date(order.createdAt);
           const isInRange = orderDate >= start && orderDate <= end;
-          
+
           if (!isInRange) {
             console.log(`[REPORTS API] Order ${order.id} (${orderDate.toISOString()}) outside range`);
           }
-          
+
           return isInRange;
         });
-        
+
         console.log(`[REPORTS API] Filtered ${filteredOrders.length} orders from ${orders.length} total`);
       }
 
       // Serialize dates safely
       const serializeDate = (obj: any) => ({
         ...obj,
-        createdAt: obj.createdAt instanceof Date 
-          ? obj.createdAt.toISOString() 
+        createdAt: obj.createdAt instanceof Date
+          ? obj.createdAt.toISOString()
           : new Date(obj.createdAt || Date.now()).toISOString()
       });
 
@@ -1029,14 +1029,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         const amount = order.totalAmount || 0;
         return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
       }, 0);
-      
+
       const orderCount = filteredOrders.length;
-      
+
       const totalSupplierDebt = enrichedSuppliers.reduce((sum, supplier) => {
         const amount = supplier.pendingAmount || 0;
         return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
       }, 0);
-      
+
       const totalCustomerPending = enrichedCustomers.reduce((sum, customer) => {
         const amount = customer.pendingAmount || 0;
         return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
@@ -1053,13 +1053,13 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         totalSupplierDebt,
         totalCustomerPending,
         averageOrderValue: orderCount > 0 ? totalSales / orderCount : 0,
-        
+
         // Data arrays
         orders: enrichedOrders,
         customers: customersWithPending,
         suppliers: suppliersWithDebt,
         transactions: transactions.map(serializeDate),
-        
+
         // Summary for comprehensive reporting
         summary: {
           dateRange: startDate && endDate ? `${startDate} to ${endDate}` : 'All time',
@@ -1075,11 +1075,11 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
       console.log(`[REPORTS API] Report generated: ${orderCount} orders, ₹${totalSales} total sales`);
       res.json(report);
-      
+
     } catch (error) {
       console.error("Failed to generate reports:", error);
       res.setHeader('Content-Type', 'application/json');
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: "Failed to generate reports",
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -1088,35 +1088,35 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   });
 
   // Hotel Debt Ledger API Routes
-  
+
   // Get all hotel debt summaries
   apiRouter.get("/hotels/debt-summaries", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
       const summaries = await storage.getAllHotelDebtSummaries();
-      
+
       const serializedSummaries = summaries.map(summary => ({
         ...summary,
         customer: {
           ...summary.customer,
-          createdAt: summary.customer.createdAt instanceof Date 
-            ? summary.customer.createdAt.toISOString() 
+          createdAt: summary.customer.createdAt instanceof Date
+            ? summary.customer.createdAt.toISOString()
             : new Date(summary.customer.createdAt || Date.now()).toISOString()
         },
         recentActivity: summary.recentActivity.map(entry => ({
           ...entry,
-          createdAt: entry.createdAt instanceof Date 
-            ? entry.createdAt.toISOString() 
+          createdAt: entry.createdAt instanceof Date
+            ? entry.createdAt.toISOString()
             : new Date(entry.createdAt || Date.now()).toISOString()
         })),
-        lastOrderDate: summary.lastOrderDate instanceof Date 
-          ? summary.lastOrderDate.toISOString() 
+        lastOrderDate: summary.lastOrderDate instanceof Date
+          ? summary.lastOrderDate.toISOString()
           : summary.lastOrderDate ? new Date(summary.lastOrderDate).toISOString() : undefined,
-        lastPaymentDate: summary.lastPaymentDate instanceof Date 
-          ? summary.lastPaymentDate.toISOString() 
+        lastPaymentDate: summary.lastPaymentDate instanceof Date
+          ? summary.lastPaymentDate.toISOString()
           : summary.lastPaymentDate ? new Date(summary.lastPaymentDate).toISOString() : undefined
       }));
-      
+
       res.json(serializedSummaries);
     } catch (error) {
       console.error("Failed to get hotel debt summaries:", error);
@@ -1129,33 +1129,33 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const storage = await getStorage();
       const summary = await storage.getHotelDebtSummary(req.params.id);
-      
+
       if (!summary) {
         return res.status(404).json({ message: "Hotel not found or not a hotel customer" });
       }
-      
+
       const serializedSummary = {
         ...summary,
         customer: {
           ...summary.customer,
-          createdAt: summary.customer.createdAt instanceof Date 
-            ? summary.customer.createdAt.toISOString() 
+          createdAt: summary.customer.createdAt instanceof Date
+            ? summary.customer.createdAt.toISOString()
             : new Date(summary.customer.createdAt || Date.now()).toISOString()
         },
         recentActivity: summary.recentActivity.map(entry => ({
           ...entry,
-          createdAt: entry.createdAt instanceof Date 
-            ? entry.createdAt.toISOString() 
+          createdAt: entry.createdAt instanceof Date
+            ? entry.createdAt.toISOString()
             : new Date(entry.createdAt || Date.now()).toISOString()
         })),
-        lastOrderDate: summary.lastOrderDate instanceof Date 
-          ? summary.lastOrderDate.toISOString() 
+        lastOrderDate: summary.lastOrderDate instanceof Date
+          ? summary.lastOrderDate.toISOString()
           : summary.lastOrderDate ? new Date(summary.lastOrderDate).toISOString() : undefined,
-        lastPaymentDate: summary.lastPaymentDate instanceof Date 
-          ? summary.lastPaymentDate.toISOString() 
+        lastPaymentDate: summary.lastPaymentDate instanceof Date
+          ? summary.lastPaymentDate.toISOString()
           : summary.lastPaymentDate ? new Date(summary.lastPaymentDate).toISOString() : undefined
       };
-      
+
       res.json(serializedSummary);
     } catch (error) {
       console.error("Failed to get hotel debt summary:", error);
@@ -1169,16 +1169,16 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       const storage = await getStorage();
       const { limit } = req.query;
       const limitNum = limit ? parseInt(limit as string, 10) : undefined;
-      
+
       const entries = await storage.getHotelLedgerEntries(req.params.id, limitNum);
-      
+
       const serializedEntries = entries.map(entry => ({
         ...entry,
-        createdAt: entry.createdAt instanceof Date 
-          ? entry.createdAt.toISOString() 
+        createdAt: entry.createdAt instanceof Date
+          ? entry.createdAt.toISOString()
           : new Date(entry.createdAt || Date.now()).toISOString()
       }));
-      
+
       res.json(serializedEntries);
     } catch (error) {
       console.error("Failed to get hotel ledger entries:", error);
@@ -1190,32 +1190,32 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.post("/hotels/:id/debt-adjustments", async (req: Request, res: Response) => {
     try {
       const { type, amount, reason, adjustedBy } = req.body;
-      
+
       // Validate request data
       if (!type || !amount || !reason) {
         return res.status(400).json({ message: "Type, amount, and reason are required" });
       }
-      
+
       if (type !== 'debit' && type !== 'credit') {
         return res.status(400).json({ message: "Type must be 'debit' or 'credit'" });
       }
-      
+
       if (amount <= 0) {
         return res.status(400).json({ message: "Amount must be positive" });
       }
-      
+
       const storage = await getStorage();
-      
+
       // Verify customer exists and is a hotel
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
-      
+
       if (customer.type !== 'hotel') {
         return res.status(400).json({ message: "Customer is not a hotel" });
       }
-      
+
       const adjustment = await storage.createDebtAdjustment({
         customerId: req.params.id,
         type,
@@ -1223,14 +1223,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         reason,
         adjustedBy: adjustedBy || 'System'
       });
-      
+
       const serializedAdjustment = {
         ...adjustment,
-        createdAt: adjustment.createdAt instanceof Date 
-          ? adjustment.createdAt.toISOString() 
+        createdAt: adjustment.createdAt instanceof Date
+          ? adjustment.createdAt.toISOString()
           : new Date(adjustment.createdAt || Date.now()).toISOString()
       };
-      
+
       res.status(201).json(serializedAdjustment);
     } catch (error) {
       console.error("Failed to create debt adjustment:", error);
@@ -1243,14 +1243,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const storage = await getStorage();
       const adjustments = await storage.getDebtAdjustmentsByCustomer(req.params.id);
-      
+
       const serializedAdjustments = adjustments.map(adjustment => ({
         ...adjustment,
-        createdAt: adjustment.createdAt instanceof Date 
-          ? adjustment.createdAt.toISOString() 
+        createdAt: adjustment.createdAt instanceof Date
+          ? adjustment.createdAt.toISOString()
           : new Date(adjustment.createdAt || Date.now()).toISOString()
       }));
-      
+
       res.json(serializedAdjustments);
     } catch (error) {
       console.error("Failed to get debt adjustments:", error);
@@ -1263,11 +1263,11 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     try {
       const storage = await getStorage();
       const success = await storage.deleteDebtAdjustment(req.params.id);
-      
+
       if (!success) {
         return res.status(404).json({ message: "Debt adjustment not found" });
       }
-      
+
       res.json({ message: "Debt adjustment deleted successfully" });
     } catch (error) {
       console.error("Failed to delete debt adjustment:", error);
@@ -1279,14 +1279,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.post("/deployment-webhook", async (req: Request, res: Response) => {
     try {
       const { deployment, type } = req.body;
-      
+
       // Log deployment notification
-      console.log('🚀 Deployment webhook received:', { 
-        type, 
+      console.log('🚀 Deployment webhook received:', {
+        type,
         deployment: deployment?.url,
         timestamp: new Date().toISOString()
       });
-      
+
       // Store deployment info for cache invalidation
       const deploymentInfo = {
         id: deployment?.id || Date.now().toString(),
@@ -1295,10 +1295,10 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
         timestamp: new Date().toISOString(),
         type: type || 'unknown'
       };
-      
+
       // Store latest deployment info in memory for frontend to check
       global.latestDeployment = deploymentInfo;
-      
+
       res.json({
         success: true,
         message: 'Deployment notification received',
@@ -1306,8 +1306,8 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       });
     } catch (error) {
       console.error('Error handling deployment webhook:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: 'Webhook processing failed',
         timestamp: new Date().toISOString()
       });
@@ -1332,7 +1332,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       // Check for low stock alerts
       const inventory = await storage.getAllInventory();
       const lowStockItems = inventory.filter(item => item.quantity < 5); // Less than 5kg threshold
-      
+
       if (lowStockItems.length > 0) {
         notifications.push({
           id: 'low-stock-' + Date.now(),
@@ -1347,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       // Check for pending payments
       const customers = await storage.getAllCustomers();
       const customersWithDebt = customers.filter(customer => customer.pendingAmount > 0);
-      
+
       if (customersWithDebt.length > 0) {
         const totalPending = customersWithDebt.reduce((sum, c) => sum + c.pendingAmount, 0);
         notifications.push({
@@ -1388,9 +1388,9 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
           return orderDate.toDateString() === today.toDateString();
         });
-        
+
         const todaySales = todayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
-        
+
         notifications.push({
           id: 'daily-summary-' + today.toDateString(),
           type: 'info',

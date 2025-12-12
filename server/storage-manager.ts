@@ -1,13 +1,13 @@
-import { IStorage } from './storage';
-import { createFirestoreStorage } from './firestore-storage';
-import { createMockStorage } from './mock-storage';
+import { IStorage } from './storage.js';
+import { createFirestoreStorage } from './firestore-storage.js';
+import { createMockStorage } from './mock-storage.js';
 
 class StorageManager {
   private static instance: StorageManager;
   private currentStorage: IStorage | null = null;
   private storageType: string = 'unknown';
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): StorageManager {
     if (!StorageManager.instance) {
@@ -23,9 +23,9 @@ class StorageManager {
     }
 
     // Check if Firebase credentials are available in production
-    const hasFirebaseCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || 
-                                   process.env.GOOGLE_APPLICATION_CREDENTIALS;
-    
+    const hasFirebaseCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
     if (hasFirebaseCredentials) {
       try {
         console.log('[StorageManager] Creating new Firestore storage instance');

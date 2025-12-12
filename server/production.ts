@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cors from "cors";
-import { registerRoutes } from "./routes";
+import { registerRoutes } from "./routes.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '10000', 10);
@@ -25,19 +25,19 @@ app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 app.use((req, res, next) => {
   const start = Date.now();
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  
+
   res.on("finish", () => {
     const duration = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} - ${duration}ms`);
   });
-  
+
   next();
 });
 
 (async () => {
   try {
     console.log('[Production] Starting Bismi Backend Server...');
-    
+
     const server = await registerRoutes(app);
 
     // Global error handler
@@ -45,8 +45,8 @@ app.use((req, res, next) => {
       console.error('[Production Error]:', err);
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
-      
-      res.status(status).json({ 
+
+      res.status(status).json({
         error: message,
         timestamp: new Date().toISOString()
       });
@@ -54,7 +54,7 @@ app.use((req, res, next) => {
 
     // 404 handler
     app.use('*', (req: Request, res: Response) => {
-      res.status(404).json({ 
+      res.status(404).json({
         error: 'Endpoint not found',
         path: req.originalUrl,
         timestamp: new Date().toISOString()

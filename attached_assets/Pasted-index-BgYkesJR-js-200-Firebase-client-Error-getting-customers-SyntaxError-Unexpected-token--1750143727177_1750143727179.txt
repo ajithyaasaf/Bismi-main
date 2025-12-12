@@ -1,0 +1,56 @@
+index-BgYkesJR.js:200 Firebase client: Error getting customers: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+getCustomers @ index-BgYkesJR.js:200
+await in getCustomers
+Tu @ index-BgYkesJR.js:200
+le @ index-BgYkesJR.js:200
+await in le
+(anonymous) @ index-BgYkesJR.js:200
+RE @ index-BgYkesJR.js:40
+Qg @ index-BgYkesJR.js:40
+vF @ index-BgYkesJR.js:40
+Wd @ index-BgYkesJR.js:38
+Mne @ index-BgYkesJR.js:40
+Th @ index-BgYkesJR.js:40
+WU @ index-BgYkesJR.js:40
+B @ index-BgYkesJR.js:25
+k @ index-BgYkesJR.js:25
+index-BgYkesJR.js:200 Retrieved 0 customers via Firebase client
+index-BgYkesJR.js:200 Loaded customers directly from Firestore: []
+index-BgYkesJR.js:200 Getting all orders via Firebase client SDK
+index-BgYkesJR.js:200 Firebase client: Error getting orders: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+getOrders @ index-BgYkesJR.js:200
+await in getOrders
+xg @ index-BgYkesJR.js:200
+le @ index-BgYkesJR.js:200
+await in le
+(anonymous) @ index-BgYkesJR.js:200
+RE @ index-BgYkesJR.js:40
+Qg @ index-BgYkesJR.js:40
+vF @ index-BgYkesJR.js:40
+Wd @ index-BgYkesJR.js:38
+Mne @ index-BgYkesJR.js:40
+Th @ index-BgYkesJR.js:40
+WU @ index-BgYkesJR.js:40
+B @ index-BgYkesJR.js:25
+k @ index-BgYkesJR.js:25
+index-BgYkesJR.js:200 Retrieved 0 orders via Firebase client
+index-BgYkesJR.js:200 Loaded orders directly from Firestore: []
+index-BgYkesJR.js:200 Getting all transactions via Firebase client SDK
+index-BgYkesJR.js:200 Firebase client: Error getting transactions: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+getTransactions @ index-BgYkesJR.js:200
+await in getTransactions
+M7 @ index-BgYkesJR.js:200
+le @ index-BgYkesJR.js:200
+await in le
+(anonymous) @ index-BgYkesJR.js:200
+RE @ index-BgYkesJR.js:40
+Qg @ index-BgYkesJR.js:40
+vF @ index-BgYkesJR.js:40
+Wd @ index-BgYkesJR.js:38
+Mne @ index-BgYkesJR.js:40
+Th @ index-BgYkesJR.js:40
+WU @ index-BgYkesJR.js:40
+B @ index-BgYkesJR.js:25
+k @ index-BgYkesJR.js:25
+index-BgYkesJR.js:200 Retrieved 0 transactions via Firebase client
+index-BgYkesJR.js:200 Loaded transactions directly from Firestore: []

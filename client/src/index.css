@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+/* Mobile-friendly touch targets */
+@media (max-width: 768px) {
+  .touch-target {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+  
+  .touch-target-lg {
+    min-height: 48px !important;
+    padding: 12px 16px !important;
+  }
+}

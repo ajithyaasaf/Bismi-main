@@ -1,0 +1,105 @@
+my application i host frontend in vercel backend in render it work super in front end backend everything i made some recent changes based on the calculation logical mistakes in customer ,orders page whats message template dynamic now after redeoplyin in my production it show this error in the console
+
+but i already properly se environment variables in my vercel and render
+
+index-CeDcX47X.js:48
+
+
+GET https://bismi-main.onrender.com/api/inventory 500 (Internal Server Error)
+(anonymous) @ index-CeDcX47X.js:48
+await in (anonymous)
+i @ index-CeDcX47X.js:48
+g @ index-CeDcX47X.js:48
+start @ index-CeDcX47X.js:48
+fetch @ index-CeDcX47X.js:48
+da @ index-CeDcX47X.js:48
+onSubscribe @ index-CeDcX47X.js:48
+subscribe @ index-CeDcX47X.js:48
+(anonymous) @ index-CeDcX47X.js:48
+uw @ index-CeDcX47X.js:38
+ed @ index-CeDcX47X.js:40
+Yi @ index-CeDcX47X.js:40
+Gx @ index-CeDcX47X.js:40
+kr @ index-CeDcX47X.js:38
+oE @ index-CeDcX47X.js:40
+Lr @ index-CeDcX47X.js:40
+Bw @ index-CeDcX47X.js:40
+_ @ index-CeDcX47X.js:25
+A @ index-CeDcX47X.js:25
+index-CeDcX47X.js:48 API Error Details: {status: 500, statusText: '', url: 'https://bismi-main.onrender.com/api/inventory', headers: {…}, responseText: '{"success":true,"data":{"message":"Failed to get inventory"},"timestamp":"2025-06-20T04:44:52.341Z"}'}
+C1 @ index-CeDcX47X.js:48
+await in C1
+(anonymous) @ index-CeDcX47X.js:48
+await in (anonymous)
+i @ index-CeDcX47X.js:48
+g @ index-CeDcX47X.js:48
+start @ index-CeDcX47X.js:48
+fetch @ index-CeDcX47X.js:48
+da @ index-CeDcX47X.js:48
+onSubscribe @ index-CeDcX47X.js:48
+subscribe @ index-CeDcX47X.js:48
+(anonymous) @ index-CeDcX47X.js:48
+uw @ index-CeDcX47X.js:38
+ed @ index-CeDcX47X.js:40
+Yi @ index-CeDcX47X.js:40
+Gx @ index-CeDcX47X.js:40
+kr @ index-CeDcX47X.js:38
+oE @ index-CeDcX47X.js:40
+Lr @ index-CeDcX47X.js:40
+Bw @ index-CeDcX47X.js:40
+_ @ index-CeDcX47X.js:25
+A @ index-CeDcX47X.js:25
+index-CeDcX47X.js:48 API Error: Error: 500: {"success":true,"data":{"message":"Failed to get inventory"},"timestamp":"2025-06-20T04:44:52.341Z"}
+at C1 (index-CeDcX47X.js:48:43231)
+at async index-CeDcX47X.js:48:44408
+
+index-CeDcX47X.js:48
+
+
+GET https://bismi-main.onrender.com/api/inventory 500 (Internal Server Error)
+(anonymous) @ index-CeDcX47X.js:48
+await in (anonymous)
+i @ index-CeDcX47X.js:48
+g @ index-CeDcX47X.js:48
+start @ index-CeDcX47X.js:48
+fetch @ index-CeDcX47X.js:48
+da @ index-CeDcX47X.js:48
+onSubscribe @ index-CeDcX47X.js:48
+subscribe @ index-CeDcX47X.js:48
+(anonymous) @ index-CeDcX47X.js:48
+uw @ index-CeDcX47X.js:38
+ed @ index-CeDcX47X.js:40
+Yi @ index-CeDcX47X.js:40
+Gx @ index-CeDcX47X.js:40
+kr @ index-CeDcX47X.js:38
+oE @ index-CeDcX47X.js:40
+Lr @ index-CeDcX47X.js:40
+Bw @ index-CeDcX47X.js:40
+_ @ index-CeDcX47X.js:25
+A @ index-CeDcX47X.js:25
+index-CeDcX47X.js:48 API Error Details: {status: 500, statusText: '', url: 'https://bismi-main.onrender.com/api/inventory', headers: {…}, responseText: '{"success":true,"data":{"message":"Failed to get inventory"},"timestamp":"2025-06-20T04:44:54.350Z"}'}
+C1 @ index-CeDcX47X.js:48
+await in C1
+(anonymous) @ index-CeDcX47X.js:48
+await in (anonymous)
+i @ index-CeDcX47X.js:48
+g @ index-CeDcX47X.js:48
+start @ index-CeDcX47X.js:48
+fetch @ index-CeDcX47X.js:48
+da @ index-CeDcX47X.js:48
+onSubscribe @ index-CeDcX47X.js:48
+subscribe @ index-CeDcX47X.js:48
+(anonymous) @ index-CeDcX47X.js:48
+uw @ index-CeDcX47X.js:38
+ed @ index-CeDcX47X.js:40
+Yi @ index-CeDcX47X.js:40
+Gx @ index-CeDcX47X.js:40
+kr @ index-CeDcX47X.js:38
+oE @ index-CeDcX47X.js:40
+Lr @ index-CeDcX47X.js:40
+Bw @ index-CeDcX47X.js:40
+_ @ index-CeDcX47X.js:25
+A @ index-CeDcX47X.js:25
+index-CeDcX47X.js:48 API Error: Error: 500: {"success":true,"data":{"message":"Failed to get inventory"},"timestamp":"2025-06-20T04:44:54.350Z"}
+at C1 (index-CeDcX47X.js:48:43231)
+at async index-CeDcX47X.js:48:44408

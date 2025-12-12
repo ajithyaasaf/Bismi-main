@@ -1,0 +1,37 @@
+performance-monitor.ts:48 Slow api operation detected: 
+{name: 'API: dashboard-parallel', duration: '1137.00ms'}
+
+DashboardPage.tsx:38 Dashboard Data Debug: 
+{suppliers: undefined, inventory: undefined, customers: undefined, orders: undefined, transactions: undefined, …}
+DashboardPage.tsx:38 Dashboard Data Debug: 
+{suppliers: undefined, inventory: undefined, customers: undefined, orders: undefined, transactions: undefined, …}
+DashboardPage.tsx:49 Uncaught TypeError: inventory.reduce is not a function
+    at DashboardPage (DashboardPage.tsx:49:32)
+DashboardPage.tsx:38 Dashboard Data Debug: 
+{suppliers: undefined, inventory: undefined, customers: undefined, orders: undefined, transactions: undefined, …}
+DashboardPage.tsx:38 Dashboard Data Debug: 
+{suppliers: undefined, inventory: undefined, customers: undefined, orders: undefined, transactions: undefined, …}
+DashboardPage.tsx:49 Uncaught TypeError: inventory.reduce is not a function
+    at DashboardPage (DashboardPage.tsx:49:32)
+chunk-RPCDYKBN.js?v=1a60d09d:14032 The above error occurred in the <DashboardPage> component:
+
+    at DashboardPage (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.dev/src/pages/DashboardPage.tsx:28:57)
+    at Route (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=1a60d09d:323:16)
+    at Switch (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.d…/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=1a60d09d:379:17)
+    at div
+    at main
+    at div
+    at div
+    at Layout (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.dev/src/components/layout/Layout.tsx:21:34)
+    at Router
+    at Provider (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.d…unner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=1a60d09d:38:15)
+    at TooltipProvider (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.d…rkspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=1a60d09d:61:5)
+    at QueryClientProvider (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.d…rkspace/node_modules/.vite/deps/@tanstack_react-query.js?v=1a60d09d:2805:3)
+    at ErrorBoundary (https://1e508c68-d29d-451c-b261-2236aa3a8dc4-00-2wrao8ewy7bk8.pike.replit.dev/src/utils/error-boundary.tsx:7:5)
+    at App
+
+React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+error-boundary.tsx:25 ErrorBoundary caught an error: TypeError: inventory.reduce is not a function
+    at DashboardPage (DashboardPage.tsx:49:32)
+ 
+{componentStack: '\n    at DashboardPage (https://1e508c68-d29d-451c-….dev/src/utils/error-boundary.tsx:7:5)\n    at App'}

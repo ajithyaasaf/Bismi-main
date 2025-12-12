@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Background -->
+  <rect width="192" height="192" fill="#E53935" rx="24" ry="24"/>
+  
+  <!-- Chicken body -->
+  <ellipse cx="97" cy="108" rx="45" ry="49" fill="#FFECB3"/>
+  
+  <!-- Chicken wing -->
+  <path d="M127 108 Q 146 101 150 120 Q 139 124 127 120 Z" fill="#FFE082"/>
+  
+  <!-- Chicken head -->
+  <circle cx="82" cy="73" r="20" fill="#FFECB3"/>
+  
+  <!-- Chicken eye -->
+  <circle cx="75" cy="67" r="4" fill="#212121"/>
+  
+  <!-- Chicken beak -->
+  <path d="M67 69 L 56 73 L 67 77 Z" fill="#FF8F00"/>
+  
+  <!-- Chicken comb -->
+  <path d="M79 51 Q 82 45 86 47 Q 90 43 94 45 Q 97 41 101 45 Q 105 41 109 49 Q 94 52 79 51 Z" fill="#E53935"/>
+  
+  <!-- Chicken legs -->
+  <path d="M82 142 L 79 169 L 86 169 L 90 142 Z" fill="#FF8F00"/>
+  <path d="M109 142 L 105 169 L 112 169 L 116 142 Z" fill="#FF8F00"/>
+
+  <!-- Chicken tail feathers -->
+  <path d="M131 86 Q 150 75 157 94 Q 142 97 131 94 Z" fill="#FFE082"/>
+  <path d="M135 101 Q 157 97 161 112 Q 146 112 135 109 Z" fill="#FFE082"/>
+  <path d="M131 116 Q 154 120 157 131 Q 142 127 131 124 Z" fill="#FFE082"/>
+</svg>

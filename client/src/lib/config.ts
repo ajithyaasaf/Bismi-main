@@ -1,9 +1,16 @@
-// API Configuration
+/**
+ * API Configuration
+ * 
+ * Production: Uses same-origin (empty BASE_URL) since API is on Vercel
+ * Development: Uses localhost:5000 for local backend
+ * 
+ * Note: After Vercel migration, no cross-origin requests needed!
+ */
 export const API_CONFIG = {
-  // Use localhost in development, Render backend URL in production
+  // Same domain in production (Vercel serverless), localhost in dev
   BASE_URL: import.meta.env.DEV
     ? 'http://localhost:5000'
-    : (import.meta.env.VITE_API_BASE_URL || 'https://bismi-main-76ww.onrender.com'),
+    : '',  // Empty = same origin on Vercel, no CORS issues!
 
   // Environment detection
   IS_PRODUCTION: import.meta.env.PROD,

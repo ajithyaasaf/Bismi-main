@@ -14,7 +14,7 @@ export async function diagnoseApiConnection() {
   for (const endpoint of endpoints) {
     try {
       console.log(`Testing endpoint: ${endpoint}`);
-      
+
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
@@ -27,10 +27,10 @@ export async function diagnoseApiConnection() {
 
       const contentType = response.headers.get('content-type') || 'unknown';
       const statusText = response.statusText;
-      
+
       let responseData = null;
       let responseText = '';
-      
+
       try {
         if (contentType.includes('application/json')) {
           responseData = await response.json();
@@ -52,10 +52,11 @@ export async function diagnoseApiConnection() {
         success: response.ok && contentType.includes('application/json')
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       results.push({
         endpoint,
-        error: error.message,
+        error: errorMessage,
         success: false
       });
     }
@@ -68,11 +69,11 @@ export async function diagnoseApiConnection() {
 // Simple transaction fetch with detailed logging
 export async function fetchTransactionsWithDiagnostics() {
   console.log('Starting transaction fetch with diagnostics...');
-  
+
   try {
     const url = getApiUrl('/api/transactions');
     console.log(`Fetching from: ${url}`);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
@@ -85,25 +86,25 @@ export async function fetchTransactionsWithDiagnostics() {
 
     console.log(`Response status: ${response.status}`);
     console.log(`Response headers:`, Object.fromEntries(response.headers.entries()));
-    
+
     const contentType = response.headers.get('content-type');
     console.log(`Content-Type: ${contentType}`);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`HTTP Error ${response.status}:`, errorText);
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    
+
     if (!contentType?.includes('application/json')) {
       const text = await response.text();
       console.error('Non-JSON response received:', text.substring(0, 500));
       throw new Error('Server returned HTML instead of JSON');
     }
-    
+
     const data = await response.json();
     console.log(`Received data type: ${typeof data}, isArray: ${Array.isArray(data)}`);
-    
+
     if (Array.isArray(data)) {
       console.log(`Successfully fetched ${data.length} transactions`);
       return data;
@@ -111,7 +112,7 @@ export async function fetchTransactionsWithDiagnostics() {
       console.error('Data is not an array:', data);
       throw new Error('Invalid data format received');
     }
-    
+
   } catch (error) {
     console.error('Transaction fetch failed:', error);
     throw error;

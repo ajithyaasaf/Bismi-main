@@ -31,31 +31,65 @@ export class FirestoreStorage implements IStorage {
   private initializeFirebase() {
     try {
       if (admin.apps.length === 0) {
+        console.log('[Firebase] Initializing Admin SDK...');
+
+        // Try individual environment variables first (preferred for Vercel)
+        const projectId = process.env.FIREBASE_PROJECT_ID;
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+        if (projectId && clientEmail && privateKey) {
+          console.log('[Firebase] Using individual environment variables');
+          console.log('[Firebase] Project ID:', projectId);
+
+          // Replace escaped newlines with actual newlines
+          const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+
+          admin.initializeApp({
+            credential: admin.credential.cert({
+              projectId,
+              clientEmail,
+              privateKey: formattedPrivateKey,
+            }),
+          });
+
+          console.log('[Firebase] Admin SDK initialized successfully with project:', projectId);
+          return;
+        }
+
+        // Fallback to FIREBASE_SERVICE_ACCOUNT_KEY (for backward compatibility)
         const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountKey) {
-          throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set');
+        if (serviceAccountKey) {
+          console.log('[Firebase] Using FIREBASE_SERVICE_ACCOUNT_KEY (legacy method)');
+
+          let serviceAccount;
+          try {
+            serviceAccount = JSON.parse(serviceAccountKey);
+            console.log('[Firebase] Service account parsed successfully for project:', serviceAccount.project_id);
+          } catch (parseError) {
+            console.error('[Firebase] Service account JSON parse error:', parseError);
+            throw new Error('Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY');
+          }
+
+          admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+          });
+
+          console.log('[Firebase] Admin SDK initialized successfully with project:', serviceAccount.project_id);
+          return;
         }
 
-        let serviceAccount;
-        try {
-          serviceAccount = JSON.parse(serviceAccountKey);
-          console.log('Firebase service account parsed successfully for project:', serviceAccount.project_id);
-        } catch (parseError) {
-          console.error('Firebase service account JSON parse error:', parseError);
-          throw new Error('Invalid JSON in FIREBASE_SERVICE_ACCOUNT_KEY');
-        }
-
-        console.log('Initializing Firebase Admin SDK...');
-        admin.initializeApp({
-          credential: admin.credential.cert(serviceAccount),
-        });
-
-        console.log('Firebase Admin SDK initialized successfully with project:', serviceAccount.project_id);
+        // No credentials found
+        throw new Error(
+          'Firebase credentials not found. Please set either:\n' +
+          '1. FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY (recommended), or\n' +
+          '2. FIREBASE_SERVICE_ACCOUNT_KEY with full JSON'
+        );
       } else {
-        console.log('Firebase Admin SDK already initialized');
+        console.log('[Firebase] Admin SDK already initialized');
       }
     } catch (error) {
-      console.error('Failed to initialize Firebase Admin SDK:', error);
+      console.error('[Firebase] Failed to initialize Admin SDK:', error);
       throw new Error(`Firebase Admin SDK initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

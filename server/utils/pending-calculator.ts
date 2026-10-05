@@ -82,60 +82,57 @@ export class PendingAmountCalculator {
 
   /**
    * Calculate supplier's actual pending amount from transactions only
-   * Formula: Sum of all debt-increasing transactions - sum of all payments
+   * Formula: Sum of all debt-increasing transactions (initial debt, purchases, expenses) - sum of all payments
    */
   async calculateSupplierPendingAmount(supplierId: string): Promise<number> {
     try {
       // Get all transactions for this supplier
       const transactions = await this.storage.getTransactionsByEntity(supplierId);
 
-      // Calculate total debt increases (purchases, expenses, initial debt)
-      const debtIncreases = transactions
-        .filter(t => t.type === 'expense' || t.type === 'purchase' || t.type === 'initial_debt')
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      // Calculate total debt increases from purchases and expenses
+      const purchasesAndExpenses = (transactions || [])
+        .filter(t => t.type === 'expense' || t.type === 'purchase')
+        .reduce((sum, t) => roundCurrency(sum + (t.amount || 0)), 0);
 
       // Calculate total payments (reduces debt)
-      const payments = transactions
+      const payments = (transactions || [])
         .filter(t => t.type === 'payment')
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
+        .reduce((sum, t) => roundCurrency(sum + (t.amount || 0)), 0);
 
-      // If no initial_debt transaction exists but there are other transactions,
-      // we need to account for the original debt amount
-      const hasInitialDebt = transactions.some(t => t.type === 'initial_debt');
-      let originalDebt = 0;
+      // Check for initial debt transaction
+      const initialDebtTx = (transactions || []).find(t => t.type === 'initial_debt');
+      let initialDebt = 0;
 
-      if (!hasInitialDebt && transactions.length > 0) {
-        // Get the original debt amount from the supplier record
+      if (initialDebtTx) {
+        initialDebt = roundCurrency(initialDebtTx.amount || 0);
+      } else {
         const supplier = await this.storage.getSupplier(supplierId);
-        // Use the initial debt that was set when supplier was created
-        // We need to reverse-calculate this: current + payments - purchases = original
-        originalDebt = (supplier?.pendingAmount || 0) + payments - (debtIncreases);
-        console.log(`Supplier ${supplierId} calculated original debt: ${originalDebt}`);
+        const storedPending = roundCurrency(supplier?.pendingAmount || 0);
+
+        if ((transactions || []).length === 0) {
+          return Math.max(0, storedPending);
+        }
+
+        // Auto-heal: If supplier has stored balance but no initial_debt transaction,
+        // reconstruct and persist the initial debt transaction for audit trail
+        if (storedPending > 0 || payments > 0) {
+          initialDebt = roundCurrency(Math.max(0, storedPending + payments - purchasesAndExpenses));
+          if (initialDebt > 0) {
+            await this.storage.createTransaction({
+              entityId: supplierId,
+              entityType: 'supplier',
+              type: 'initial_debt',
+              amount: initialDebt,
+              description: `Initial debt for supplier: ${supplier?.name || supplierId}`
+            });
+          }
+        }
       }
 
-      // If no transactions exist at all, use the stored pending amount
-      if (transactions.length === 0) {
-        const supplier = await this.storage.getSupplier(supplierId);
-        const initialDebt = supplier?.pendingAmount || 0;
+      const totalDebtIncreases = roundCurrency(initialDebt + purchasesAndExpenses);
+      const finalAmount = roundCurrency(totalDebtIncreases - payments);
 
-        console.log(`Supplier ${supplierId} debt calculation (no transactions):`, {
-          initialDebt,
-          finalAmount: Math.max(0, initialDebt)
-        });
-
-        return Math.max(0, initialDebt);
-      }
-
-      // Calculate based on transaction history + original debt if needed
-      const finalAmount = (debtIncreases + originalDebt) - payments;
-
-      console.log(`Supplier ${supplierId} debt calculation:`, {
-        debtIncreases,
-        payments,
-        transactionCount: transactions.length,
-        finalAmount: Math.max(0, finalAmount),
-        transactions: transactions.map(t => ({ type: t.type, amount: t.amount, description: t.description }))
-      });
+      console.log(`[SUPPLIER PENDING CALC] Supplier ${supplierId}: InitialDebt=₹${initialDebt}, Purchases=₹${purchasesAndExpenses}, Payments=₹${payments} -> FinalPending=₹${Math.max(0, finalAmount)}`);
 
       return Math.max(0, finalAmount);
     } catch (error) {

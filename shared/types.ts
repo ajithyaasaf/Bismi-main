@@ -94,7 +94,7 @@ export interface Order {
   paidAmount: number; // Track how much has been paid for this specific order
   paymentStatus: string;
   orderStatus: string;
-  originalPaidAmount?: number; // Tracks partial payment before completion
+  originalPaidAmount?: number | null; // Tracks partial payment before completion
   createdAt: Date;
 }
 
@@ -105,7 +105,7 @@ export interface InsertOrder {
   paidAmount?: number; // Optional, defaults to 0 for new orders
   paymentStatus: string;
   orderStatus: string;
-  originalPaidAmount?: number; // Tracks partial payment before completion
+  originalPaidAmount?: number | null; // Tracks partial payment before completion
 }
 
 export interface Transaction {

@@ -232,10 +232,12 @@ export class FirestoreStorage implements IStorage {
   async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
     try {
       const now = new Date();
+      const initialPending = roundCurrency(supplier.pendingAmount || 0);
       const docRef = await this.db.collection('suppliers').add({
         name: supplier.name,
         contact: supplier.contact,
-        debt: supplier.pendingAmount || 0,
+        debt: initialPending,
+        pendingAmount: initialPending,
         createdAt: now,
         updatedAt: now,
       });
@@ -244,17 +246,17 @@ export class FirestoreStorage implements IStorage {
         id: docRef.id,
         name: supplier.name,
         contact: supplier.contact,
-        pendingAmount: supplier.pendingAmount || 0,
+        pendingAmount: initialPending,
         createdAt: now,
       };
 
       // If there's an initial pending amount, create an initial debt transaction
-      if (supplier.pendingAmount && supplier.pendingAmount > 0) {
+      if (initialPending > 0) {
         await this.createTransaction({
           entityId: docRef.id,
           entityType: 'supplier',
           type: 'initial_debt',
-          amount: supplier.pendingAmount,
+          amount: initialPending,
           description: `Initial debt for supplier: ${supplier.name}`
         });
       }
@@ -270,10 +272,11 @@ export class FirestoreStorage implements IStorage {
     try {
       const updateData: any = { ...supplier, updatedAt: new Date() };
 
-      // Handle pending amount updates by maintaining debt in Firestore
+      // Synchronize both pendingAmount and legacy debt in Firestore so neither goes stale
       if (updateData.pendingAmount !== undefined) {
-        updateData.debt = updateData.pendingAmount;
-        delete updateData.pendingAmount;
+        const rounded = roundCurrency(updateData.pendingAmount);
+        updateData.pendingAmount = rounded;
+        updateData.debt = rounded;
       }
 
       await this.db.collection('suppliers').doc(id).update(updateData);
@@ -521,6 +524,7 @@ export class FirestoreStorage implements IStorage {
           paidAmount: data.paidAmount || 0,
           paymentStatus: data.paymentStatus || 'pending',
           orderStatus: data.orderStatus || 'pending',
+          originalPaidAmount: data?.originalPaidAmount !== undefined ? data.originalPaidAmount : undefined,
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
@@ -543,6 +547,7 @@ export class FirestoreStorage implements IStorage {
           paidAmount: data.paidAmount || 0,
           paymentStatus: data.paymentStatus || 'pending',
           orderStatus: data.orderStatus || 'pending',
+          originalPaidAmount: data?.originalPaidAmount !== undefined ? data.originalPaidAmount : undefined,
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
@@ -566,6 +571,7 @@ export class FirestoreStorage implements IStorage {
         paidAmount: data?.paidAmount || 0,
         paymentStatus: data?.paymentStatus || 'pending',
         orderStatus: data?.orderStatus || 'pending',
+        originalPaidAmount: data?.originalPaidAmount !== undefined ? data.originalPaidAmount : undefined,
         createdAt: this.convertTimestamp(data?.createdAt),
       };
     } catch (error) {
@@ -590,7 +596,7 @@ export class FirestoreStorage implements IStorage {
 
       // 1. Order document reference
       const orderRef = this.db.collection('orders').doc();
-      batch.set(orderRef, {
+      const orderDocData: any = {
         customerId: order.customerId,
         items: order.items,
         totalAmount,
@@ -598,7 +604,11 @@ export class FirestoreStorage implements IStorage {
         paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
         createdAt,
-      });
+      };
+      if (order.originalPaidAmount !== undefined) {
+        orderDocData.originalPaidAmount = order.originalPaidAmount;
+      }
+      batch.set(orderRef, orderDocData);
 
       // 2. Inventory updates inside batch using aggregated decrements (prevents duplicate document write error in single batch)
       const allInventory = await this.getAllInventory();
@@ -669,6 +679,7 @@ export class FirestoreStorage implements IStorage {
         paidAmount,
         paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
+        originalPaidAmount: order.originalPaidAmount,
         createdAt: createdAt,
       };
     } catch (error) {
@@ -682,10 +693,12 @@ export class FirestoreStorage implements IStorage {
       // Get existing order to compare payment status changes
       const existingOrder = await this.getOrder(id);
 
-      // Clean update object: ignore undefined properties
+      // Clean update object: ignore undefined properties, handle null as FieldValue.delete()
       const updateData: any = {};
       for (const [key, value] of Object.entries(order)) {
-        if (value !== undefined) {
+        if (value === null) {
+          updateData[key] = admin.firestore.FieldValue.delete();
+        } else if (value !== undefined) {
           updateData[key] = value;
         }
       }
@@ -1210,6 +1223,7 @@ export class FirestoreStorage implements IStorage {
       if (roundedDelta === 0) return;
       await this.db.collection('suppliers').doc(supplierId).update({
         debt: admin.firestore.FieldValue.increment(roundedDelta),
+        pendingAmount: admin.firestore.FieldValue.increment(roundedDelta),
         updatedAt: new Date()
       });
       console.log(`[ATOMIC] Updated supplier ${supplierId} debt by ₹${roundedDelta}`);

@@ -26,6 +26,11 @@ export class FirestoreStorage implements IStorage {
   constructor() {
     this.initializeFirebase();
     this.db = admin.firestore();
+    try {
+      this.db.settings({ ignoreUndefinedProperties: true });
+    } catch (e) {
+      // Already configured or not supported in mock
+    }
     console.log('FirestoreStorage constructor completed successfully');
   }
 
@@ -676,21 +681,31 @@ export class FirestoreStorage implements IStorage {
       // Get existing order to compare payment status changes
       const existingOrder = await this.getOrder(id);
 
-      await this.db.collection('orders').doc(id).update(order);
+      // Clean update object: ignore undefined properties
+      const updateData: any = {};
+      for (const [key, value] of Object.entries(order)) {
+        if (value !== undefined) {
+          updateData[key] = value;
+        }
+      }
+      updateData.updatedAt = new Date();
+
+      await this.db.collection('orders').doc(id).update(updateData);
 
       // Handle payment amount and status changes
       if (existingOrder) {
         const customer = await this.getCustomer(existingOrder.customerId);
         if (customer) {
           // Calculate old and new balances
-          const oldBalance = (existingOrder.totalAmount || 0) - (existingOrder.paidAmount || 0);
-          const newPaidAmount = order.paidAmount !== undefined ? order.paidAmount : existingOrder.paidAmount || 0;
-          const newBalance = (existingOrder.totalAmount || 0) - newPaidAmount;
+          const oldBalance = roundCurrency((existingOrder.totalAmount || 0) - (existingOrder.paidAmount || 0));
+          const newPaidAmount = order.paidAmount !== undefined ? order.paidAmount : (existingOrder.paidAmount || 0);
+          const newTotalAmount = order.totalAmount !== undefined ? order.totalAmount : (existingOrder.totalAmount || 0);
+          const newBalance = roundCurrency(newTotalAmount - newPaidAmount);
 
           // Update customer pending amount based on balance change
-          const balanceChange = newBalance - oldBalance;
+          const balanceChange = roundCurrency(newBalance - oldBalance);
           if (balanceChange !== 0) {
-            const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) + balanceChange);
+            const newPendingAmount = Math.max(0, roundCurrency((customer.pendingAmount || 0) + balanceChange));
             await this.updateCustomer(existingOrder.customerId, { pendingAmount: newPendingAmount });
           }
         }

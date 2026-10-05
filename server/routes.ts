@@ -744,6 +744,23 @@ export async function registerRoutes(app: Express): Promise<void> {
           amount: paymentDelta,
           description: `Payment for Order #${String(originalOrder.id).slice(0, 8)} (${validatedData.paymentStatus || 'paid'})`
         });
+      } else if (newPaid < oldPaid) {
+        const revertDelta = roundCurrency(oldPaid - newPaid);
+        // Find matching payment transaction for this order to reverse
+        const transactions = await storage.getTransactionsByEntity(originalOrder.customerId);
+        const matchingTx = transactions
+          .filter(t => t.type === 'payment' && t.description.includes(`Order #${String(originalOrder.id).slice(0, 8)}`))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+
+        if (matchingTx) {
+          if (matchingTx.amount <= revertDelta) {
+            await storage.deleteTransaction(matchingTx.id);
+          } else {
+            await storage.updateTransaction(matchingTx.id, {
+              amount: roundCurrency(matchingTx.amount - revertDelta)
+            });
+          }
+        }
       }
 
       // Update the order

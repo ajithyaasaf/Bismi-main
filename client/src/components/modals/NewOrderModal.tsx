@@ -332,6 +332,9 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
       
       // Close modal and reset form
       resetForm();

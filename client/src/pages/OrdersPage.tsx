@@ -135,6 +135,9 @@ export default function OrdersPage() {
           
           queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
           queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
         } else {
           throw new Error('Failed to update order status');
         }
@@ -154,6 +157,9 @@ export default function OrdersPage() {
           
           queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
           queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
         } else {
           throw new Error('Failed to update order status');
         }
@@ -182,6 +188,9 @@ export default function OrdersPage() {
         queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
         queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
         queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
       } else {
         throw new Error('Failed to delete order');
       }

@@ -594,16 +594,17 @@ export class FirestoreStorage implements IStorage {
         createdAt,
       });
 
-      // 2. Inventory updates inside batch
+      // 2. Inventory updates inside batch using atomic decrement
       const allInventory = await this.getAllInventory();
       for (const item of order.items) {
         const inventoryItem = allInventory.find(inv => inv.type === item.type);
         if (inventoryItem) {
           const invRef = this.db.collection('inventory').doc(inventoryItem.id);
-          const currentQuantity = roundCurrency(inventoryItem.quantity);
           const itemQuantity = roundCurrency(item.quantity || 0);
-          const newQuantity = Math.max(0, roundCurrency(currentQuantity - itemQuantity));
-          batch.update(invRef, { quantity: newQuantity, updatedAt: new Date() });
+          batch.update(invRef, {
+            quantity: admin.firestore.FieldValue.increment(-itemQuantity),
+            updatedAt: new Date()
+          });
         }
       }
 
@@ -616,7 +617,7 @@ export class FirestoreStorage implements IStorage {
         });
       }
 
-      // 4. Transaction record inside batch
+      // 4. Commercial sales charge transaction inside batch
       const transactionRef = this.db.collection('transactions').doc();
       const transactionAmount = finalPaymentStatus === 'paid' ? totalAmount : orderBalance;
       batch.set(transactionRef, {
@@ -625,8 +626,23 @@ export class FirestoreStorage implements IStorage {
         type: finalPaymentStatus === 'paid' ? 'sale' : 'credit',
         amount: transactionAmount,
         description: `Order #${orderRef.id} - ${order.items.length} items (${finalPaymentStatus})`,
-        createdAt: new Date(),
+        createdAt: createdAt,
+        date: createdAt,
       });
+
+      // 5. If upfront cash payment was made, record payment transaction atomically in same batch
+      if (paidAmount > 0) {
+        const paymentTxRef = this.db.collection('transactions').doc();
+        batch.set(paymentTxRef, {
+          entityId: order.customerId,
+          entityType: 'customer',
+          type: 'payment',
+          amount: paidAmount,
+          description: `Payment received for Order #${orderRef.id}`,
+          createdAt: createdAt,
+          date: createdAt,
+        });
+      }
 
       // Atomically commit all changes together
       await batch.commit();
@@ -1150,6 +1166,204 @@ export class FirestoreStorage implements IStorage {
     } catch (error) {
       console.error(`Error atomically updating supplier pending for ${supplierId}:`, error);
       throw new Error(`Failed to update supplier debt atomically: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async atomicProcessMultipleCustomerPayments(
+    customerId: string,
+    payments: Array<{ orderId: string; amount: number; description?: string }>
+  ): Promise<{ appliedAmount: number; updatedOrders: string[] }> {
+    try {
+      const customer = await this.getCustomer(customerId);
+      if (!customer) {
+        throw new Error(`Customer ${customerId} not found`);
+      }
+
+      // Fetch all customer orders once in a single query
+      const orders = await this.getOrdersByCustomer(customerId);
+      const ordersMap = new Map(orders.map(o => [String(o.id).trim(), o]));
+
+      const batch = this.db.batch();
+      let totalApplied = 0;
+      const updatedOrders: string[] = [];
+      const now = new Date();
+
+      for (const payment of payments) {
+        const allocAmount = roundCurrency(parseFloat(String(payment.amount)) || 0);
+        if (allocAmount <= 0) continue;
+
+        const orderIdStr = String(payment.orderId || '').trim();
+        const order = ordersMap.get(orderIdStr);
+
+        if (!order || orderIdStr === 'account' || orderIdStr === 'general') {
+          // Account-level payment allocation (e.g. towards opening debt or manual adjustments)
+          const actualAlloc = allocAmount;
+          const txRef = this.db.collection('transactions').doc();
+          batch.set(txRef, {
+            entityId: customerId,
+            entityType: 'customer',
+            type: 'payment',
+            amount: actualAlloc,
+            description: payment.description || `Payment towards account balance`,
+            createdAt: now,
+            date: now
+          });
+
+          totalApplied = roundCurrency(totalApplied + actualAlloc);
+          continue;
+        }
+
+        const currentPaid = roundCurrency(order.paidAmount || 0);
+        const totalAmount = roundCurrency(order.totalAmount || 0);
+        const remainingBalance = Math.max(0, roundCurrency(totalAmount - currentPaid));
+
+        if (remainingBalance <= 0) {
+          console.log(`[SMART PAYMENT] Order ${order.id} already paid. Skipping.`);
+          continue;
+        }
+
+        // Strictly cap payment to remaining order balance
+        const actualAlloc = Math.min(allocAmount, remainingBalance);
+        const newPaid = roundCurrency(currentPaid + actualAlloc);
+        const newStatus = determinePaymentStatus(totalAmount, newPaid);
+
+        // Add order update to batch
+        const orderRef = this.db.collection('orders').doc(order.id);
+        batch.update(orderRef, {
+          paidAmount: newPaid,
+          paymentStatus: newStatus,
+          updatedAt: now
+        });
+
+        // Add payment transaction to batch
+        const txRef = this.db.collection('transactions').doc();
+        batch.set(txRef, {
+          entityId: customerId,
+          entityType: 'customer',
+          type: 'payment',
+          amount: actualAlloc,
+          description: payment.description || `Payment for order #${orderIdStr.slice(0, 8)}`,
+          createdAt: now,
+          date: now
+        });
+
+        // Update local object to reflect in subsequent loop iterations if order repeated
+        order.paidAmount = newPaid;
+        order.paymentStatus = newStatus;
+
+        totalApplied = roundCurrency(totalApplied + actualAlloc);
+        updatedOrders.push(order.id);
+      }
+
+      if (totalApplied > 0) {
+        // Decrement customer pending amount atomically in the same batch
+        const customerRef = this.db.collection('customers').doc(customerId);
+        batch.update(customerRef, {
+          pendingAmount: admin.firestore.FieldValue.increment(-totalApplied),
+          updatedAt: now
+        });
+      }
+
+      // Single atomic commit for everything (instant, ACID compliant)
+      await batch.commit();
+
+      console.log(`[ATOMIC SMART PAYMENT] Customer ${customerId}: Applied ₹${totalApplied} across ${updatedOrders.length} orders in 1 batch`);
+
+      return {
+        appliedAmount: totalApplied,
+        updatedOrders
+      };
+    } catch (error) {
+      console.error(`Error in atomicProcessMultipleCustomerPayments for ${customerId}:`, error);
+      throw new Error(`Failed to process payments atomically: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async atomicAddStock(data: {
+    type: string;
+    quantity: number;
+    price: number;
+    supplierId: string;
+  }): Promise<Inventory> {
+    try {
+      const { type, quantity, price, supplierId } = data;
+      const supplier = await this.getSupplier(supplierId);
+      if (!supplier) {
+        throw new Error(`Supplier ${supplierId} not found`);
+      }
+
+      const allInventory = await this.getAllInventory();
+      const existingItem = allInventory.find(item => item.type === type);
+      const totalCost = roundCurrency(quantity * price);
+      const now = new Date();
+      const batch = this.db.batch();
+
+      let targetInventoryId: string;
+      let finalQuantity: number;
+
+      if (existingItem) {
+        targetInventoryId = existingItem.id;
+        finalQuantity = roundCurrency(existingItem.quantity + quantity);
+        const invRef = this.db.collection('inventory').doc(existingItem.id);
+        batch.update(invRef, {
+          quantity: admin.firestore.FieldValue.increment(quantity),
+          price,
+          supplierId,
+          updatedAt: now
+        });
+      } else {
+        const invRef = this.db.collection('inventory').doc();
+        targetInventoryId = invRef.id;
+        finalQuantity = quantity;
+        batch.set(invRef, {
+          name: type,
+          type,
+          quantity,
+          unit: 'kg',
+          price,
+          supplierId,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+
+      // Purchase transaction inside batch
+      const txRef = this.db.collection('transactions').doc();
+      batch.set(txRef, {
+        entityId: supplierId,
+        entityType: 'supplier',
+        type: 'purchase',
+        amount: totalCost,
+        description: `Stock purchase: ${quantity}kg ${type} @ ₹${price}/kg`,
+        createdAt: now,
+        date: now
+      });
+
+      // Increment supplier pending debt inside batch
+      const supplierRef = this.db.collection('suppliers').doc(supplierId);
+      batch.update(supplierRef, {
+        debt: admin.firestore.FieldValue.increment(totalCost),
+        pendingAmount: admin.firestore.FieldValue.increment(totalCost),
+        updatedAt: now
+      });
+
+      await batch.commit();
+
+      console.log(`[ATOMIC ADD STOCK] Item: ${type}, Qty: ${quantity}kg, Supplier: ${supplier.name}, Cost: ₹${totalCost}`);
+
+      return {
+        id: targetInventoryId,
+        name: type,
+        type,
+        quantity: finalQuantity,
+        unit: 'kg',
+        price,
+        supplierId,
+        createdAt: existingItem ? existingItem.createdAt : now
+      };
+    } catch (error) {
+      console.error('Error in atomicAddStock:', error);
+      throw new Error(`Failed to add stock atomically: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

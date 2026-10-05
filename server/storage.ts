@@ -69,4 +69,14 @@ export interface IStorage {
   // Atomic & Concurrency-Safe Operations
   atomicUpdateCustomerPending(customerId: string, delta: number): Promise<void>;
   atomicUpdateSupplierPending(supplierId: string, delta: number): Promise<void>;
+  atomicProcessMultipleCustomerPayments(
+    customerId: string,
+    payments: Array<{ orderId: string; amount: number; description?: string }>
+  ): Promise<{ appliedAmount: number; updatedOrders: string[] }>;
+  atomicAddStock(data: {
+    type: string;
+    quantity: number;
+    price: number;
+    supplierId: string;
+  }): Promise<Inventory>;
 }

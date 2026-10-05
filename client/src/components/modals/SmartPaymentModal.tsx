@@ -47,27 +47,43 @@ export default function SmartPaymentModal({
     order && order.customerId === customer?.id && order.paymentStatus !== 'paid'
   );
 
-  const totalPending = unpaidOrders.reduce((sum, order) => {
+  const unpaidOrdersTotal = unpaidOrders.reduce((sum, order) => {
     const totalAmount = order.totalAmount || 0;
     const paidAmount = order.paidAmount || 0;
     const remaining = Math.round((totalAmount - paidAmount + Number.EPSILON) * 100) / 100;
     return Math.round((sum + remaining + Number.EPSILON) * 100) / 100;
   }, 0);
 
-  const totalAllocated = orderEntries.reduce((sum, entry) => {
+  const customerPending = Math.round(((customer?.pendingAmount || 0) + Number.EPSILON) * 100) / 100;
+  const totalPending = Math.max(customerPending, unpaidOrdersTotal);
+
+  const ordersAllocated = orderEntries.reduce((sum, entry) => {
     const amount = entry.selected ? entry.paymentAmount : 0;
     return Math.round((sum + amount + Number.EPSILON) * 100) / 100;
   }, 0);
 
+  // If there are no unpaid orders, totalAllocated is the entered paymentAmount
+  const extraAllocated = unpaidOrders.length === 0 
+    ? (parseFloat(paymentAmount) || 0)
+    : Math.max(0, Math.round(((parseFloat(paymentAmount) || 0) - ordersAllocated + Number.EPSILON) * 100) / 100);
+
+  const totalAllocated = unpaidOrders.length === 0
+    ? (parseFloat(paymentAmount) || 0)
+    : Math.min(totalPending, Math.round((ordersAllocated + extraAllocated + Number.EPSILON) * 100) / 100);
+
   useEffect(() => {
-    if (isOpen && unpaidOrders.length > 0) {
-      const entries = unpaidOrders.map(order => ({
-        order,
-        paymentAmount: 0,
-        selected: false,
-        remainingBalance: Math.round(((order.totalAmount || 0) - (order.paidAmount || 0) + Number.EPSILON) * 100) / 100
-      }));
-      setOrderEntries(entries);
+    if (isOpen) {
+      if (unpaidOrders.length > 0) {
+        const entries = unpaidOrders.map(order => ({
+          order,
+          paymentAmount: 0,
+          selected: false,
+          remainingBalance: Math.round(((order.totalAmount || 0) - (order.paidAmount || 0) + Number.EPSILON) * 100) / 100
+        }));
+        setOrderEntries(entries);
+      } else {
+        setOrderEntries([]);
+      }
       setPaymentAmount('');
     }
   }, [isOpen, unpaidOrders.length]);
@@ -76,6 +92,8 @@ export default function SmartPaymentModal({
     setPaymentAmount(value);
     const amount = parseFloat(value) || 0;
     
+    if (unpaidOrders.length === 0) return;
+
     if (amount === 0) {
       // Clear all selections
       setOrderEntries(entries => entries.map(entry => ({
@@ -147,30 +165,58 @@ export default function SmartPaymentModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const selectedPayments = orderEntries
-      .filter(entry => entry.selected && entry.paymentAmount > 0)
-      .map(entry => ({
-        orderId: entry.order.id,
-        amount: entry.paymentAmount,
-        description: `Payment for Order #${entry.order.id.substring(0, 8)}`
-      }));
+    let allocations: PaymentAllocation[] = [];
 
-    if (selectedPayments.length === 0) {
-      toast({
-        title: "No orders selected",
-        description: "Please select at least one order to process payment.",
-        variant: "destructive",
-      });
-      return;
+    if (unpaidOrders.length === 0) {
+      const amountNum = parseFloat(paymentAmount) || 0;
+      if (amountNum <= 0) {
+        toast({
+          title: "Invalid Amount",
+          description: "Please enter a valid payment amount.",
+          variant: "destructive",
+        });
+        return;
+      }
+      allocations = [{
+        orderId: 'account',
+        amount: amountNum,
+        description: `Payment towards account balance for ${customer.name}`
+      }];
+    } else {
+      allocations = orderEntries
+        .filter(entry => entry.selected && entry.paymentAmount > 0)
+        .map(entry => ({
+          orderId: entry.order.id,
+          amount: entry.paymentAmount,
+          description: `Payment for Order #${entry.order.id.substring(0, 8)}`
+        }));
+
+      // If user provided a payment that exceeds selected orders and customer has remaining non-order debt
+      if (extraAllocated > 0 && customerPending > unpaidOrdersTotal) {
+        allocations.push({
+          orderId: 'account',
+          amount: extraAllocated,
+          description: `Payment towards account balance for ${customer.name}`
+        });
+      }
+
+      if (allocations.length === 0) {
+        toast({
+          title: "No orders selected",
+          description: "Please select at least one order to process payment.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
-      await onSubmit(selectedPayments);
+      await onSubmit(allocations);
       onClose();
       toast({
         title: "Payment processed successfully",
-        description: `₹${totalAllocated.toFixed(2)} allocated across ${selectedPayments.length} order(s)`,
+        description: `₹${totalAllocated.toFixed(2)} applied successfully`,
       });
     } catch (error: any) {
       console.error('Payment error:', error);
@@ -263,10 +309,16 @@ export default function SmartPaymentModal({
                 </div>
               </div>
 
-              {/* Orders List */}
+              {/* Orders List / Account Balance Notice */}
               {unpaidOrders.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No pending orders found</p>
+                <div className="rounded-xl border border-blue-200 bg-blue-50/60 p-5 text-center space-y-2">
+                  <div className="font-semibold text-blue-900 text-base">Account Balance Settlement</div>
+                  <p className="text-sm text-blue-700">
+                    This customer has an outstanding balance of <span className="font-bold">₹{customerPending.toFixed(2)}</span> (opening balance or manual adjustments).
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Enter the payment amount above and click &quot;Process Payment&quot; to credit their account directly.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">

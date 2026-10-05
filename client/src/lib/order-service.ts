@@ -31,6 +31,7 @@ export async function addOrder(orderData: any) {
       queryClient.invalidateQueries({ queryKey: ['/api/customers', orderData.customerId] }),
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] }),
       queryClient.invalidateQueries({ queryKey: [`/api/customers/${orderData.customerId}/whatsapp`] })
     ]);
     
@@ -53,7 +54,8 @@ export async function updateOrder(id: string, orderData: any) {
       queryClient.invalidateQueries({ queryKey: ['/api/orders', id] }),
       queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] })
     ]);
     
     return result;
@@ -75,7 +77,8 @@ export async function deleteOrder(id: string) {
         queryClient.invalidateQueries({ queryKey: ['/api/orders'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/customers'] }),
         queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-        queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+        queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] })
       ]);
     }
     

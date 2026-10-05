@@ -53,7 +53,8 @@ export async function processSupplierPayment(supplierId: string, amount: number,
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers', supplierId] }),
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] })
     ]);
     console.log(`[Payment] Cache invalidation completed for supplier ${supplierId}`);
     

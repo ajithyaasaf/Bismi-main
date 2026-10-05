@@ -587,6 +587,112 @@ export class MockStorage implements IStorage {
       supplier.pendingAmount = Math.max(0, Math.round(((supplier.pendingAmount || 0) + delta + Number.EPSILON) * 100) / 100);
     }
   }
+
+  async atomicProcessMultipleCustomerPayments(
+    customerId: string,
+    payments: Array<{ orderId: string; amount: number; description?: string }>
+  ): Promise<{ appliedAmount: number; updatedOrders: string[] }> {
+    const customer = this.customers.find(c => c.id === customerId);
+    if (!customer) throw new Error(`Customer ${customerId} not found`);
+
+    let totalApplied = 0;
+    const updatedOrders: string[] = [];
+
+    for (const payment of payments) {
+      const allocAmount = Math.round((parseFloat(String(payment.amount)) || 0) * 100) / 100;
+      if (allocAmount <= 0) continue;
+
+      const orderIdStr = String(payment.orderId || '').trim();
+      const order = this.orders.find(o => o.id === orderIdStr);
+
+      if (!order || orderIdStr === 'account' || orderIdStr === 'general') {
+        this.transactions.push({
+          id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          entityId: customerId,
+          entityType: 'customer',
+          type: 'payment',
+          amount: allocAmount,
+          description: payment.description || `Payment towards account balance`,
+          createdAt: new Date()
+        });
+        totalApplied = Math.round((totalApplied + allocAmount) * 100) / 100;
+        continue;
+      }
+
+      const currentPaid = order.paidAmount || 0;
+      const totalAmount = order.totalAmount || 0;
+      const remainingBalance = Math.max(0, totalAmount - currentPaid);
+      const actualAlloc = Math.min(allocAmount, remainingBalance);
+
+      order.paidAmount = Math.round((currentPaid + actualAlloc) * 100) / 100;
+      order.paymentStatus = order.paidAmount >= totalAmount ? 'paid' : (order.paidAmount > 0 ? 'partially_paid' : 'pending');
+
+      this.transactions.push({
+        id: `tx-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        entityId: customerId,
+        entityType: 'customer',
+        type: 'payment',
+        amount: actualAlloc,
+        description: payment.description || `Payment for order #${String(payment.orderId).slice(0, 8)}`,
+        createdAt: new Date()
+      });
+
+      totalApplied = Math.round((totalApplied + actualAlloc) * 100) / 100;
+      updatedOrders.push(order.id);
+    }
+
+    if (totalApplied > 0) {
+      customer.pendingAmount = Math.max(0, Math.round(((customer.pendingAmount || 0) - totalApplied) * 100) / 100);
+    }
+
+    return { appliedAmount: totalApplied, updatedOrders };
+  }
+
+  async atomicAddStock(data: {
+    type: string;
+    quantity: number;
+    price: number;
+    supplierId: string;
+  }): Promise<Inventory> {
+    const { type, quantity, price, supplierId } = data;
+    const supplier = this.suppliers.find(s => s.id === supplierId);
+    if (!supplier) throw new Error(`Supplier ${supplierId} not found`);
+
+    let item = this.inventory.find(i => i.type === type);
+    const totalCost = Math.round(quantity * price * 100) / 100;
+
+    if (item) {
+      item.quantity += quantity;
+      item.price = price;
+      item.supplierId = supplierId;
+    } else {
+      item = {
+        id: `inv-${Date.now()}`,
+        name: type,
+        type,
+        quantity,
+        unit: 'kg',
+        price,
+        supplierId,
+        createdAt: new Date()
+      };
+      this.inventory.push(item);
+    }
+
+    this.transactions.push({
+      id: `tx-${Date.now()}`,
+      entityId: supplierId,
+      entityType: 'supplier',
+      type: 'purchase',
+      amount: totalCost,
+      description: `Stock purchase: ${quantity}kg ${type} @ ₹${price}/kg`,
+      createdAt: new Date()
+    });
+
+    supplier.pendingAmount = Math.round(((supplier.pendingAmount || 0) + totalCost) * 100) / 100;
+
+    return item;
+  }
 }
 
 export const createMockStorage = () => new MockStorage();

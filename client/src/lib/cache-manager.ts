@@ -75,8 +75,8 @@ export class CacheManager {
 
   async performDeepVersionCheck(): Promise<void> {
     try {
-      // Multi-endpoint version checking for maximum reliability
-      const endpoints = ['/api/health', '/api/suppliers', '/api/customers'];
+      // Only check health endpoint for deployment version, not dynamic data endpoints!
+      const endpoints = ['/api/health'];
       
       for (const endpoint of endpoints) {
         const response = await fetch(`${endpoint}?v=${Date.now()}`, {

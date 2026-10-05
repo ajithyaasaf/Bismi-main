@@ -11,7 +11,6 @@ console.log('🚀 Service Worker loaded with deployment version:', CACHE_VERSION
 const CRITICAL_RESOURCES = [
   '/',
   '/index.html',
-  '/api/',
 ];
 
 // Static resources that can be cached longer
@@ -64,7 +63,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Network-first strategy for critical resources (API calls, HTML)
+  // Bypass cache completely for all API requests to ensure fresh financial data
+  if (url.pathname.startsWith('/api') || url.pathname.includes('/api/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
+  // Network-first strategy for critical resources (HTML)
   if (isCriticalResource(event.request.url)) {
     event.respondWith(networkFirstStrategy(event.request));
   } 
@@ -144,7 +149,6 @@ async function cacheFirstStrategy(request) {
 // Helper functions
 function isCriticalResource(url) {
   return CRITICAL_RESOURCES.some(resource => url.includes(resource)) ||
-         url.includes('/api/') ||
          url.endsWith('.html') ||
          url.endsWith('/');
 }

@@ -62,16 +62,43 @@ export default function HotelDebtPageEnhanced() {
     enabled: !!selectedHotelId,
   });
 
+  // Get authoritative debt summary from backend double-entry ledger
+  const { data: debtSummary, isLoading: loadingSummary } = useQuery<{
+    customer: Customer;
+    totalOwed: number;
+    totalOrders: number;
+    recentActivity: Array<{
+      id: string;
+      customerId: string;
+      entryType: 'order' | 'payment' | 'adjustment';
+      amount: number;
+      runningBalance: number;
+      description: string;
+      createdAt: string;
+    }>;
+    lastOrderDate?: string;
+    lastPaymentDate?: string;
+  }>({
+    queryKey: [`/api/hotels/${selectedHotelId}/debt-summary`],
+    enabled: !!selectedHotelId,
+  });
+
   // Calculate hotel debt
+  const selectedHotel = hotels.find(h => h.id === selectedHotelId);
   const hotelOrders = orders?.filter(order => order.customerId === selectedHotelId) || [];
+  const unpaidOrders = hotelOrders.filter(order => order.paymentStatus !== 'paid');
   const hotelAdjustments = adjustments || [];
   
   // Calculate total debt: unpaid order amounts + adjustments
-  const orderDebt = hotelOrders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
+  const orderDebt = unpaidOrders.reduce((sum, order) => sum + (order.totalAmount - (order.paidAmount || 0)), 0);
   const adjustmentBalance = hotelAdjustments.reduce((sum, adj) => 
     sum + (adj.type === 'debit' ? adj.amount : -adj.amount), 0
   );
-  const totalOwed = orderDebt + adjustmentBalance;
+
+  // Authoritative total debt from backend ledger or customer record
+  const totalOwed = debtSummary?.totalOwed !== undefined 
+    ? debtSummary.totalOwed 
+    : (selectedHotel?.pendingAmount !== undefined ? selectedHotel.pendingAmount : (orderDebt + adjustmentBalance));
 
   // Auto-select Ar Rahman Hotel if available
   useEffect(() => {
@@ -107,8 +134,13 @@ export default function HotelDebtPageEnhanced() {
       setAmount('');
       setReason('');
       setAdjustedBy('');
-      // Refresh data
+      // Refresh all related data dynamically
       queryClient.invalidateQueries({ queryKey: [`/api/hotels/${selectedHotelId}/debt-adjustments`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/hotels/${selectedHotelId}/debt-summary`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/hotels/${selectedHotelId}/ledger`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
     },
     onError: (error: any) => {
       toast({
@@ -149,8 +181,7 @@ export default function HotelDebtPageEnhanced() {
     });
   };
 
-  const selectedHotel = hotels.find(h => h.id === selectedHotelId);
-  const isLoading = loadingCustomers || loadingOrders || loadingAdjustments;
+  const isLoading = loadingCustomers || loadingOrders || loadingAdjustments || loadingSummary;
 
   if (loadingCustomers) {
     return (
@@ -287,7 +318,7 @@ export default function HotelDebtPageEnhanced() {
                           ₹{orderDebt.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                         </div>
                         <p className="text-xs md:text-sm text-muted-foreground">
-                          From {hotelOrders.length} unpaid order{hotelOrders.length !== 1 ? 's' : ''}
+                          From {unpaidOrders.length} unpaid order{unpaidOrders.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                     </div>
@@ -519,7 +550,7 @@ export default function HotelDebtPageEnhanced() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 md:px-6">
-                  {loadingAdjustments ? (
+                  {loadingAdjustments || loadingSummary ? (
                     <div className="space-y-4">
                       {[1, 2, 3].map(i => (
                         <div key={i} className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 p-4 rounded-lg border">
@@ -531,22 +562,41 @@ export default function HotelDebtPageEnhanced() {
                         </div>
                       ))}
                     </div>
-                  ) : hotelAdjustments.length === 0 ? (
+                  ) : (!debtSummary?.recentActivity || debtSummary.recentActivity.length === 0) && hotelAdjustments.length === 0 ? (
                     <div className="text-center py-8 md:py-12">
                       <div className="p-3 md:p-4 bg-gray-100 rounded-full w-12 h-12 md:w-16 md:h-16 mx-auto mb-4">
                         <FileText className="h-6 w-6 md:h-8 md:w-8 text-gray-400" />
                       </div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Adjustments Yet</h3>
-                      <p className="text-sm md:text-base text-muted-foreground">Start by adding your first manual adjustment above.</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Activity Yet</h3>
+                      <p className="text-sm md:text-base text-muted-foreground">Orders, payments, and adjustments will appear here in chronological order.</p>
                     </div>
                   ) : (
                     <div className="space-y-3 md:space-y-4 max-h-96 overflow-y-auto">
-                      {hotelAdjustments.slice(0, 10).map((adjustment) => (
-                        <div key={adjustment.id} className="p-4 md:p-5 rounded-xl border bg-gradient-to-r from-white to-gray-50/30 hover:shadow-md transition-all duration-200">
+                      {(debtSummary?.recentActivity && debtSummary.recentActivity.length > 0
+                        ? debtSummary.recentActivity
+                        : hotelAdjustments.map(adj => ({
+                            id: adj.id,
+                            customerId: adj.customerId,
+                            entryType: 'adjustment' as const,
+                            amount: adj.type === 'debit' ? adj.amount : -adj.amount,
+                            runningBalance: 0,
+                            description: `${adj.type === 'debit' ? 'Charge' : 'Credit'}: ${adj.reason}`,
+                            createdAt: adj.createdAt
+                          }))
+                      ).slice(0, 15).map((activity) => (
+                        <div key={activity.id} className="p-4 md:p-5 rounded-xl border bg-gradient-to-r from-white to-gray-50/30 hover:shadow-md transition-all duration-200">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4">
                             <div className="flex-1 space-y-2">
                               <div className="flex items-start gap-3">
-                                {adjustment.type === 'debit' ? (
+                                {activity.entryType === 'order' ? (
+                                  <div className="p-1.5 bg-blue-100 rounded-lg flex-shrink-0 mt-0.5">
+                                    <Receipt className="h-3 w-3 text-blue-600" />
+                                  </div>
+                                ) : activity.entryType === 'payment' ? (
+                                  <div className="p-1.5 bg-green-100 rounded-lg flex-shrink-0 mt-0.5">
+                                    <Banknote className="h-3 w-3 text-green-600" />
+                                  </div>
+                                ) : activity.amount >= 0 ? (
                                   <div className="p-1.5 bg-red-100 rounded-lg flex-shrink-0 mt-0.5">
                                     <Plus className="h-3 w-3 text-red-600" />
                                   </div>
@@ -555,32 +605,35 @@ export default function HotelDebtPageEnhanced() {
                                     <Minus className="h-3 w-3 text-green-600" />
                                   </div>
                                 )}
-                                <span className="font-medium text-sm md:text-base leading-relaxed text-gray-900">
-                                  {adjustment.reason}
-                                </span>
+                                <div>
+                                  <span className="font-medium text-sm md:text-base leading-relaxed text-gray-900">
+                                    {activity.description}
+                                  </span>
+                                  {activity.runningBalance !== 0 && (
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                      Running balance: ₹{activity.runningBalance.toLocaleString('en-IN')}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs md:text-sm text-muted-foreground ml-8">
                                 <div className="flex items-center gap-1.5">
-                                  <User className="h-3 w-3" />
-                                  <span>{adjustment.adjustedBy}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
                                   <Calendar className="h-3 w-3" />
-                                  <span>{formatDistanceToNow(new Date(adjustment.createdAt), { addSuffix: true })}</span>
+                                  <span>{formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}</span>
                                 </div>
                               </div>
                             </div>
                             <div className="text-left sm:text-right space-y-1 flex-shrink-0">
                               <div className={`text-lg md:text-xl font-bold ${
-                                adjustment.type === 'debit' ? 'text-red-600' : 'text-green-600'
+                                activity.entryType === 'payment' || activity.amount < 0 ? 'text-green-600' : 'text-red-600'
                               }`}>
-                                {adjustment.type === 'debit' ? '+' : '-'}₹{adjustment.amount.toLocaleString('en-IN')}
+                                {activity.entryType === 'payment' || activity.amount < 0 ? '-' : '+'}₹{Math.abs(activity.amount).toLocaleString('en-IN')}
                               </div>
                               <Badge 
-                                variant={adjustment.type === 'debit' ? 'destructive' : 'default'} 
+                                variant={activity.entryType === 'payment' || activity.amount < 0 ? 'default' : 'destructive'} 
                                 className="text-xs px-2 py-1"
                               >
-                                {adjustment.type === 'debit' ? 'Charge' : 'Credit'}
+                                {activity.entryType === 'order' ? 'Order' : activity.entryType === 'payment' ? 'Payment' : (activity.amount >= 0 ? 'Charge' : 'Credit')}
                               </Badge>
                             </div>
                           </div>

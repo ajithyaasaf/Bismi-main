@@ -47,8 +47,8 @@ export class PendingAmountCalculator {
 
       if (initialDebtTx) {
         initialDebt = roundCurrency(initialDebtTx.amount || 0);
-      } else if ((!transactions || transactions.length === 0) && (!orders || orders.length === 0)) {
-        // Customer created with opening pendingAmount but no orders or transactions yet
+      } else if (!transactions || transactions.length === 0) {
+        // Customer created with opening pendingAmount but no transactions yet
         const customer = await this.storage.getCustomer(customerId);
         initialDebt = roundCurrency(customer?.pendingAmount || 0);
       }
@@ -64,11 +64,14 @@ export class PendingAmountCalculator {
       );
 
       const unallocatedPayments = Math.max(0, roundCurrency(totalPayments - orderPayments));
-      const remainingInitialDebt = Math.max(0, roundCurrency(initialDebt - unallocatedPayments));
+      
+      // Total non-order debt is initial opening debt plus net manual adjustments
+      const nonOrderDebt = roundCurrency(initialDebt + adjustmentBalance);
+      const remainingNonOrderDebt = roundCurrency(nonOrderDebt - unallocatedPayments);
 
-      const totalPending = roundCurrency(ordersPending + adjustmentBalance + remainingInitialDebt);
+      const totalPending = roundCurrency(ordersPending + remainingNonOrderDebt);
 
-      console.log(`[CUSTOMER PENDING CALC] Customer ${customerId}: OrdersPending=₹${ordersPending}, Adjustments=₹${adjustmentBalance}, RemainingInitialDebt=₹${remainingInitialDebt} -> Total=₹${totalPending}`);
+      console.log(`[CUSTOMER PENDING CALC] Customer ${customerId}: OrdersPending=₹${ordersPending}, Adjustments=₹${adjustmentBalance}, InitialDebt=₹${initialDebt}, UnallocatedPayments=₹${unallocatedPayments} -> Total=₹${totalPending}`);
 
       return Math.max(0, totalPending);
     } catch (error) {
@@ -329,7 +332,7 @@ export class PendingAmountCalculator {
 
         // Find the target order
         let order = orders.find(o => String(o.id).trim() === String(payment.orderId).trim());
-        if (!order) {
+        if (!order && payment.orderId && payment.orderId !== 'account' && payment.orderId !== 'general') {
           order = await this.storage.getOrder(payment.orderId);
         }
 
@@ -350,6 +353,9 @@ export class PendingAmountCalculator {
 
           totalApplied = roundCurrency(totalApplied + allocAmount);
           updatedOrders.push(order.id);
+        } else {
+          // Account-level payment (not tied to a specific order)
+          totalApplied = roundCurrency(totalApplied + allocAmount);
         }
 
         // Create individual transaction record for audit trail
@@ -358,7 +364,7 @@ export class PendingAmountCalculator {
           entityType: 'customer',
           type: 'payment',
           amount: allocAmount,
-          description: payment.description || `Payment for order #${payment.orderId.substring(0, 8)}`
+          description: payment.description || (order ? `Payment for order #${payment.orderId.substring(0, 8)}` : `Payment towards account balance`)
         });
       }
 

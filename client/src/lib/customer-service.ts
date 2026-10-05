@@ -56,6 +56,7 @@ export async function processCustomerPayment(customerId: string, amount: number,
     queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] });
     queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
     queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
     queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] });
     
     return result;
@@ -84,6 +85,7 @@ export async function processCustomerSmartPayment(
     queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] });
     queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
     queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] });
     queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] });
     
     return result;

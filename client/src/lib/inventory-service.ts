@@ -41,7 +41,8 @@ export async function addStock(stockData: any) {
       queryClient.invalidateQueries({ queryKey: ['/api/inventory'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/suppliers'] }),
       queryClient.invalidateQueries({ queryKey: ['/api/transactions'] }),
-      queryClient.invalidateQueries({ queryKey: ['/api/reports'] })
+      queryClient.invalidateQueries({ queryKey: ['/api/reports'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard-batch'] })
     ]);
     
     return result;

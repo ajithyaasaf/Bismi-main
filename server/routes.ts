@@ -5,6 +5,12 @@ import { roundCurrency } from "../shared/currency-utils.js";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 
+// Stable server boot version (evaluates once at process startup)
+const SERVER_BOOT_TIME = process.env.VERCEL_GIT_COMMIT_SHA ||
+  process.env.DEPLOYMENT_ID ||
+  process.env.SERVER_START_TIME ||
+  Date.now().toString();
+
 // Declare global variable for deployment tracking
 declare global {
   var latestDeployment: any;
@@ -59,6 +65,27 @@ const insertOrderSchema = z.object({
       return new Date();
     }
   }) // Accept ISO string and convert to Date with validation
+});
+
+// Dedicated schema for updating orders that preserves original createdAt date when omitted
+const updateOrderSchema = z.object({
+  customerId: z.string().optional(),
+  items: z.array(z.object({
+    type: z.string().min(1),
+    quantity: z.number().min(0.001),
+    rate: z.number().min(0),
+    details: z.string().optional()
+  })).optional(),
+  totalAmount: z.number().min(0).optional(),
+  paidAmount: z.number().min(0).optional(),
+  paymentStatus: z.string().optional(),
+  orderStatus: z.string().optional(),
+  originalPaidAmount: z.number().nullable().optional().transform(v => v === null ? undefined : v),
+  createdAt: z.string().optional().transform(str => {
+    if (!str) return undefined; // Never overwrite date with current date on update!
+    const date = new Date(str);
+    return isNaN(date.getTime()) ? undefined : date;
+  })
 });
 
 const insertTransactionSchema = z.object({
@@ -180,17 +207,11 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const storage = await getStorage();
 
-      // Generate deployment version based on server start time or environment
-      const deploymentVersion = process.env.VERCEL_GIT_COMMIT_SHA ||
-        process.env.DEPLOYMENT_ID ||
-        process.env.SERVER_START_TIME ||
-        Date.now().toString();
-
       res.status(200).json({
         status: "healthy",
         storage: storageManager.getStorageType(),
         timestamp: new Date().toISOString(),
-        version: deploymentVersion,
+        version: SERVER_BOOT_TIME,
         deployment: {
           sha: process.env.VERCEL_GIT_COMMIT_SHA,
           branch: process.env.VERCEL_GIT_COMMIT_REF,
@@ -204,7 +225,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         message: "Health check failed",
         error: error instanceof Error ? error.message : 'Unknown error',
         timestamp: new Date().toISOString(),
-        version: process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString()
+        version: SERVER_BOOT_TIME
       });
     }
   });
@@ -271,6 +292,17 @@ export async function registerRoutes(app: Express): Promise<void> {
   apiRouter.delete("/suppliers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      const supplier = await storage.getSupplier(req.params.id);
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+
+      if ((supplier.pendingAmount || 0) > 0) {
+        return res.status(400).json({
+          message: `Cannot delete supplier with outstanding debt of ₹${supplier.pendingAmount.toFixed(2)}. Please settle debt first.`
+        });
+      }
+
       const success = await storage.deleteSupplier(req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Supplier not found" });
@@ -411,50 +443,18 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ message: "Supplier not found" });
       }
 
-      // Find existing inventory item of this type
-      const allInventory = await storage.getAllInventory();
-      const existingItem = allInventory.find(item => item.type === type);
-
-      let updatedItem;
-      const totalCost = parseFloat(quantity) * parseFloat(price);
-
-      if (existingItem) {
-        // Update existing inventory item
-        const newQuantity = existingItem.quantity + parseFloat(quantity);
-        updatedItem = await storage.updateInventoryItem(existingItem.id, {
-          quantity: newQuantity,
-          price: parseFloat(price), // Update price to latest
-          supplierId: supplierId // Update supplier relationship
-        });
-      } else {
-        // Create new inventory item with proper supplier relationship
-        updatedItem = await storage.createInventoryItem({
-          name: type,
-          type,
-          quantity: parseFloat(quantity),
-          unit: "kg",
-          price: parseFloat(price),
-          supplierId: supplierId
-        });
-      }
-
-      // Create transaction record first
-      await storage.createTransaction({
-        entityId: supplierId,
-        entityType: "supplier",
-        type: "purchase",
-        amount: totalCost,
-        description: `Stock purchase: ${quantity}kg ${type} @ ₹${price}/kg`
+      // Execute inventory increment, purchase transaction, and supplier debt atomically
+      const updatedItem = await storage.atomicAddStock({
+        type,
+        quantity: parseFloat(quantity),
+        price: parseFloat(price),
+        supplierId
       });
-
-      // Update supplier pending amount after transaction
-      const pendingCalculator = await getPendingCalculator();
-      await pendingCalculator.syncSupplierPendingAmount(supplierId);
 
       res.json(updatedItem);
     } catch (error) {
       console.error("Failed to add stock:", error);
-      res.status(500).json({ message: "Failed to add stock" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to add stock" });
     }
   });
 
@@ -563,6 +563,17 @@ export async function registerRoutes(app: Express): Promise<void> {
   apiRouter.delete("/customers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      const customer = await storage.getCustomer(req.params.id);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
+      if ((customer.pendingAmount || 0) > 0) {
+        return res.status(400).json({
+          message: `Cannot delete customer with outstanding balance of ₹${customer.pendingAmount.toFixed(2)}. Please settle balance first.`
+        });
+      }
+
       const success = await storage.deleteCustomer(req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Customer not found" });
@@ -586,9 +597,9 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      // Support atomic smart payment across multiple orders
+      // Support atomic smart payment across multiple orders in a single fast batch
       if (Array.isArray(payments) && payments.length > 0) {
-        const result = await pendingCalculator.processMultipleCustomerPayments(
+        const result = await storage.atomicProcessMultipleCustomerPayments(
           req.params.id,
           payments
         );
@@ -622,7 +633,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
     } catch (error) {
       console.error("Failed to process customer payment:", error);
-      res.status(500).json({ message: "Failed to process payment" });
+      res.status(500).json({ message: error instanceof Error ? error.message : "Failed to process payment" });
     }
   });
 
@@ -704,7 +715,7 @@ export async function registerRoutes(app: Express): Promise<void> {
 
   apiRouter.put("/orders/:id", async (req: Request, res: Response) => {
     try {
-      const validatedData = insertOrderSchema.partial().parse(req.body);
+      const validatedData = updateOrderSchema.parse(req.body);
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
 
@@ -714,16 +725,29 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ message: "Order not found" });
       }
 
+      // If paidAmount increased (e.g. marked as paid via Orders UI or partial payment added),
+      // record a payment transaction for the differential amount received
+      const oldPaid = originalOrder.paidAmount || 0;
+      const newPaid = validatedData.paidAmount !== undefined ? validatedData.paidAmount : oldPaid;
+      if (newPaid > oldPaid) {
+        const paymentDelta = roundCurrency(newPaid - oldPaid);
+        await storage.createTransaction({
+          entityId: originalOrder.customerId,
+          entityType: 'customer',
+          type: 'payment',
+          amount: paymentDelta,
+          description: `Payment for Order #${String(originalOrder.id).slice(0, 8)} (${validatedData.paymentStatus || 'paid'})`
+        });
+      }
+
       // Update the order
       const order = await storage.updateOrder(req.params.id, validatedData);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      // If payment status changed, recalculate customer pending amount
-      if (validatedData.paymentStatus && validatedData.paymentStatus !== originalOrder.paymentStatus) {
-        await pendingCalculator.syncCustomerPendingAmount(order.customerId);
-      }
+      // Always re-sync customer pending amount on order financial changes
+      await pendingCalculator.syncCustomerPendingAmount(order.customerId);
 
       res.json(order);
     } catch (error) {
@@ -1295,10 +1319,19 @@ export async function registerRoutes(app: Express): Promise<void> {
   apiRouter.delete("/debt-adjustments/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
-      const success = await storage.deleteDebtAdjustment(req.params.id);
+      const adjustment = await storage.getDebtAdjustment(req.params.id);
+      if (!adjustment) {
+        return res.status(404).json({ message: "Debt adjustment not found" });
+      }
 
+      const success = await storage.deleteDebtAdjustment(req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Debt adjustment not found" });
+      }
+
+      if (adjustment.customerId) {
+        const pendingCalculator = await getPendingCalculator();
+        await pendingCalculator.syncCustomerPendingAmount(adjustment.customerId);
       }
 
       res.json({ message: "Debt adjustment deleted successfully" });

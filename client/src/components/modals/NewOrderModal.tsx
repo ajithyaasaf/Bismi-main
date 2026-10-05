@@ -300,7 +300,7 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         customerId: orderCustomerId,
         items: validItems,
         totalAmount: total,
-        paidAmount: paidAmount,
+        paidAmount: Math.min(total, Math.max(0, paidAmount)),
         paymentStatus: paymentStatus,
         orderStatus: 'pending',
         createdAt: finalOrderDate.toISOString() // Send as ISO string for consistent parsing
@@ -310,12 +310,25 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
       console.log(`API request completed in ${endTime - startTime}ms`);
       console.log('Response:', response.status, response.statusText);
       
-      // Parse response if needed
+      // Parse response with structured error extraction
       if (response.ok) {
         const responseData = await response.json();
         console.log('Order created successfully:', responseData);
       } else {
-        throw new Error(`API returned ${response.status}: ${response.statusText}`);
+        let errorMsg = `API returned ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData && errData.message) {
+            errorMsg = errData.message;
+            if (Array.isArray(errData.errors) && errData.errors.length > 0) {
+              const details = errData.errors.map((e: any) => e.message || e.path?.join('.')).filter(Boolean).join(', ');
+              if (details) errorMsg += `: ${details}`;
+            }
+          }
+        } catch {
+          // ignore json parse error
+        }
+        throw new Error(errorMsg);
       }
       
 
@@ -398,7 +411,12 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
             </Label>
             <Select 
               value={customerType} 
-              onValueChange={setCustomerType}
+              onValueChange={(val) => {
+                setCustomerType(val);
+                setCustomerId('');
+                setCustomerName('');
+                setCustomerPhone('');
+              }}
             >
               <SelectTrigger className="w-full h-11 text-base sm:text-sm">
                 <SelectValue placeholder="Select customer type" />

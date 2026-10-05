@@ -200,7 +200,7 @@ export class FirestoreStorage implements IStorage {
           id: doc.id,
           name: data.name || '',
           contact: data.contact || '',
-          pendingAmount: data.debt || 0,
+          pendingAmount: Math.max(0, data.pendingAmount !== undefined ? data.pendingAmount : (data.debt || 0)),
           createdAt: this.convertTimestamp(data.updatedAt),
         };
       });
@@ -220,7 +220,7 @@ export class FirestoreStorage implements IStorage {
         id: doc.id,
         name: data?.name || '',
         contact: data?.contact || '',
-        pendingAmount: data?.debt || 0,
+        pendingAmount: Math.max(0, data?.pendingAmount !== undefined ? data?.pendingAmount : (data?.debt || 0)),
         createdAt: this.convertTimestamp(data?.updatedAt),
       };
     } catch (error) {
@@ -414,7 +414,7 @@ export class FirestoreStorage implements IStorage {
           name: data.name || '',
           contact: data.contact || '',
           type: data.type || 'hotel',
-          pendingAmount: data.pendingAmount || 0,
+          pendingAmount: Math.max(0, data.pendingAmount || 0),
           createdAt: this.convertTimestamp(data.createdAt),
         };
       });
@@ -435,7 +435,7 @@ export class FirestoreStorage implements IStorage {
         name: data?.name || '',
         contact: data?.contact || '',
         type: data?.type || 'hotel',
-        pendingAmount: data?.pendingAmount || 0,
+        pendingAmount: Math.max(0, data?.pendingAmount || 0),
         createdAt: this.convertTimestamp(data?.createdAt),
       };
     } catch (error) {
@@ -577,8 +577,9 @@ export class FirestoreStorage implements IStorage {
   async createOrder(order: InsertOrder & { createdAt?: Date }): Promise<Order> {
     try {
       const totalAmount = roundCurrency(order.totalAmount || 0);
-      const paidAmount = roundCurrency(order.paidAmount || 0);
-      const orderBalance = calculateOrderBalance(totalAmount, paidAmount);
+      const rawPaidAmount = roundCurrency(order.paidAmount || 0);
+      const paidAmount = Math.min(totalAmount, Math.max(0, rawPaidAmount));
+      const orderBalance = Math.max(0, calculateOrderBalance(totalAmount, paidAmount));
 
       const calculatedPaymentStatus = determinePaymentStatus(totalAmount, paidAmount);
       const finalPaymentStatus = order.paymentStatus || calculatedPaymentStatus;
@@ -724,24 +725,41 @@ export class FirestoreStorage implements IStorage {
       const order = await this.getOrder(id);
       if (!order) return false;
 
-      // Reverse inventory quantity changes
-      const allInventory = await this.getAllInventory();
-      for (const item of order.items) {
-        const inventoryItem = allInventory.find(inv => inv.type === item.type);
+      const batch = this.db.batch();
+      const now = new Date();
 
+      // Aggregate inventory quantity reversals (prevents multiple batch writes if multiple items of same type)
+      const allInventory = await this.getAllInventory();
+      const inventoryDeltas = new Map<string, number>();
+
+      for (const item of (order.items || [])) {
+        const inventoryItem = allInventory.find(inv => inv.type === item.type);
         if (inventoryItem) {
-          const newQuantity = roundCurrency(inventoryItem.quantity + (item.quantity || 0));
-          await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
+          const itemQuantity = roundCurrency(item.quantity || 0);
+          const current = inventoryDeltas.get(inventoryItem.id) || 0;
+          inventoryDeltas.set(inventoryItem.id, roundCurrency(current + itemQuantity));
         }
       }
 
+      inventoryDeltas.forEach((totalQty, invId) => {
+        const invRef = this.db.collection('inventory').doc(invId);
+        batch.update(invRef, {
+          quantity: admin.firestore.FieldValue.increment(totalQty),
+          updatedAt: now
+        });
+      });
+
       // Reverse customer pending amount for any unpaid balance
-      if (order.paymentStatus !== 'paid') {
+      if (order.paymentStatus !== 'paid' && order.customerId) {
         const customer = await this.getCustomer(order.customerId);
         if (customer) {
           const orderBalance = roundCurrency((order.totalAmount || 0) - (order.paidAmount || 0));
           const newPendingAmount = Math.max(0, roundCurrency((customer.pendingAmount || 0) - orderBalance));
-          await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
+          const customerRef = this.db.collection('customers').doc(order.customerId);
+          batch.update(customerRef, {
+            pendingAmount: newPendingAmount,
+            updatedAt: now
+          });
         }
       }
 
@@ -749,17 +767,22 @@ export class FirestoreStorage implements IStorage {
       const transactions = await this.getTransactionsByEntity(order.customerId);
       for (const transaction of transactions) {
         if (transaction.description.includes(`Order #${id}`)) {
+          const txRef = this.db.collection('transactions').doc(transaction.id);
           if (transaction.type === 'payment') {
-            await this.updateTransaction(transaction.id, {
-              description: `Credit balance from cancelled Order #${id.slice(0, 8)} (${transaction.description})`
+            batch.update(txRef, {
+              description: `Credit balance from cancelled Order #${id.slice(0, 8)} (${transaction.description})`,
+              updatedAt: now
             });
           } else {
-            await this.deleteTransaction(transaction.id);
+            batch.delete(txRef);
           }
         }
       }
 
-      await this.db.collection('orders').doc(id).delete();
+      const orderRef = this.db.collection('orders').doc(id);
+      batch.delete(orderRef);
+
+      await batch.commit();
       return true;
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -1215,6 +1238,10 @@ export class FirestoreStorage implements IStorage {
       const updatedOrders: string[] = [];
       const now = new Date();
 
+      // Track aggregated updates per order to prevent Firestore batch collision
+      // (A document cannot be written more than once in a single batch)
+      const orderUpdates = new Map<string, { newPaid: number; newStatus: string }>();
+
       for (const payment of payments) {
         const allocAmount = roundCurrency(parseFloat(String(payment.amount)) || 0);
         if (allocAmount <= 0) continue;
@@ -1254,13 +1281,8 @@ export class FirestoreStorage implements IStorage {
         const newPaid = roundCurrency(currentPaid + actualAlloc);
         const newStatus = determinePaymentStatus(totalAmount, newPaid);
 
-        // Add order update to batch
-        const orderRef = this.db.collection('orders').doc(order.id);
-        batch.update(orderRef, {
-          paidAmount: newPaid,
-          paymentStatus: newStatus,
-          updatedAt: now
-        });
+        // Record aggregated update per order to apply once in the batch
+        orderUpdates.set(order.id, { newPaid, newStatus });
 
         // Add payment transaction to batch
         const txRef = this.db.collection('transactions').doc();
@@ -1279,14 +1301,28 @@ export class FirestoreStorage implements IStorage {
         order.paymentStatus = newStatus;
 
         totalApplied = roundCurrency(totalApplied + actualAlloc);
-        updatedOrders.push(order.id);
+        if (!updatedOrders.includes(order.id)) {
+          updatedOrders.push(order.id);
+        }
       }
 
+      // Apply aggregated order updates to batch (each orderRef updated exactly once)
+      orderUpdates.forEach((update, orderId) => {
+        const orderRef = this.db.collection('orders').doc(orderId);
+        batch.update(orderRef, {
+          paidAmount: update.newPaid,
+          paymentStatus: update.newStatus,
+          updatedAt: now
+        });
+      });
+
       if (totalApplied > 0) {
-        // Decrement customer pending amount atomically in the same batch
+        // Decrement customer pending amount safely (guarantee never negative)
+        const currentPending = roundCurrency(customer.pendingAmount || 0);
+        const newPending = Math.max(0, roundCurrency(currentPending - totalApplied));
         const customerRef = this.db.collection('customers').doc(customerId);
         batch.update(customerRef, {
-          pendingAmount: admin.firestore.FieldValue.increment(-totalApplied),
+          pendingAmount: newPending,
           updatedAt: now
         });
       }

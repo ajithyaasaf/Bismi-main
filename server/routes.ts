@@ -19,7 +19,7 @@ declare global {
 // Validation schemas
 const insertSupplierSchema = z.object({
   name: z.string().min(1),
-  contact: z.string().min(1),
+  contact: z.string().optional().default(""),
   pendingAmount: z.number().optional().default(0)
 });
 
@@ -34,7 +34,7 @@ const insertInventorySchema = z.object({
 
 const insertCustomerSchema = z.object({
   name: z.string().min(1),
-  contact: z.string().min(1),
+  contact: z.string().optional().default(""),
   type: z.string().min(1),
   pendingAmount: z.number().optional().default(0)
 });
@@ -292,14 +292,18 @@ export async function registerRoutes(app: Express): Promise<void> {
   apiRouter.delete("/suppliers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
       const supplier = await storage.getSupplier(req.params.id);
       if (!supplier) {
         return res.status(404).json({ message: "Supplier not found" });
       }
 
-      if ((supplier.pendingAmount || 0) > 0) {
+      // Check true outstanding debt from transactions to ensure no debt is erased
+      const actualSupplierDebt = await pendingCalculator.calculateSupplierPendingAmount(req.params.id);
+      const effectiveDebt = Math.max(actualSupplierDebt, supplier.pendingAmount || 0);
+      if (effectiveDebt > 0) {
         return res.status(400).json({
-          message: `Cannot delete supplier with outstanding debt of ₹${supplier.pendingAmount.toFixed(2)}. Please settle debt first.`
+          message: `Cannot delete supplier with outstanding debt of ₹${effectiveDebt.toFixed(2)}. Please settle debt first.`
         });
       }
 
@@ -563,14 +567,18 @@ export async function registerRoutes(app: Express): Promise<void> {
   apiRouter.delete("/customers/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      const pendingCalculator = await getPendingCalculator();
       const customer = await storage.getCustomer(req.params.id);
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
       }
 
-      if ((customer.pendingAmount || 0) > 0) {
+      // Check true outstanding debt from orders and transactions to ensure no debt is erased
+      const actualCustomerDebt = await pendingCalculator.calculateCustomerPendingAmount(req.params.id);
+      const effectiveDebt = Math.max(actualCustomerDebt, customer.pendingAmount || 0);
+      if (effectiveDebt > 0) {
         return res.status(400).json({
-          message: `Cannot delete customer with outstanding balance of ₹${customer.pendingAmount.toFixed(2)}. Please settle balance first.`
+          message: `Cannot delete customer with outstanding balance of ₹${effectiveDebt.toFixed(2)}. Please settle balance first.`
         });
       }
 
@@ -603,6 +611,9 @@ export async function registerRoutes(app: Express): Promise<void> {
           req.params.id,
           payments
         );
+
+        // Sync customer pending amount to guarantee ledger consistency
+        await pendingCalculator.syncCustomerPendingAmount(req.params.id);
 
         return res.status(201).json({
           message: "Payments processed successfully",
@@ -704,10 +715,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       const order = await storage.createOrder(validatedData);
       console.log('[ORDERS API] Created order response:', JSON.stringify(order, null, 2));
 
-      // If order is pending, update customer's pending amount
-      if (order.paymentStatus === 'pending') {
-        await pendingCalculator.syncCustomerPendingAmount(order.customerId);
-      }
+      // Always sync customer pending amount so double-entry ledger is updated for pending and partially_paid orders
+      await pendingCalculator.syncCustomerPendingAmount(order.customerId);
 
       res.status(201).json(order);
     } catch (error) {

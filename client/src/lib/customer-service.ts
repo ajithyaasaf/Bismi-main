@@ -1,5 +1,4 @@
 import { apiRequest, safeJsonResponse, queryClient } from './queryClient';
-import * as OrderService from './order-service';
 
 // Get all customers from API
 export async function getCustomers() {
@@ -37,21 +36,7 @@ export async function deleteCustomer(id: string) {
   return response.ok;
 }
 
-// Recalculate a customer's pending amount based on their pending orders
-export async function recalculateCustomerPendingAmount(customerId: string) {
-  const customerOrders = await OrderService.getOrdersByCustomer(customerId);
-  
-  const pendingAmount = customerOrders
-    .filter((order: any) => order.paymentStatus !== 'paid')
-    .reduce((sum: number, order: any) => {
-      const totalAmount = order.totalAmount || 0;
-      const paidAmount = order.paidAmount || 0;
-      const balance = Math.round((totalAmount - paidAmount + Number.EPSILON) * 100) / 100;
-      return Math.round((sum + balance + Number.EPSILON) * 100) / 100;
-    }, 0);
-  
-  return await updateCustomer(customerId, { pendingAmount });
-}
+
 
 // Process customer payment with comprehensive cache invalidation
 export async function processCustomerPayment(customerId: string, amount: number, description?: string, targetOrderId?: string) {

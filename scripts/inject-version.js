@@ -5,9 +5,13 @@
  * Injects build time and deployment hash into service worker for instant cache invalidation
  */
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function injectVersionInfo() {
   const serviceWorkerPath = path.join(__dirname, '../client/public/service-worker.js');

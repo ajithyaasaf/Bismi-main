@@ -19,45 +19,57 @@ export class PendingAmountCalculator {
    */
   async calculateCustomerPendingAmount(customerId: string): Promise<number> {
     try {
+      // 1. Calculate unpaid order balances
       const orders = await this.storage.getOrdersByCustomer(customerId);
-      console.log(`Calculate pending - Found ${orders.length} orders for customer ${customerId}`);
+      const unpaidOrders = (orders || []).filter(order => order.paymentStatus !== 'paid');
 
-      // CRITICAL BUG FIX: Check if orders array is empty or malformed
-      if (!orders || orders.length === 0) {
-        console.log(`No orders found for customer ${customerId} - returning 0 pending amount`);
-        return 0;
-      }
-
-      const unpaidOrders = orders.filter(order => order.paymentStatus !== 'paid');
-      console.log(`Unpaid orders: ${unpaidOrders.length}`);
-
-      let totalPending = 0;
+      let ordersPending = 0;
       for (const order of unpaidOrders) {
         const totalAmount = roundCurrency(order.totalAmount || 0);
         const paidAmount = roundCurrency(order.paidAmount || 0);
         const orderBalance = calculateOrderBalance(totalAmount, paidAmount);
 
-        console.log(`Order ${order.id}: Total=₹${totalAmount}, Paid=₹${paidAmount}, Balance=₹${orderBalance}, Status=${order.paymentStatus}`);
-
-        // Validate order data
-        if (totalAmount <= 0) {
-          console.warn(`Order ${order.id} has invalid totalAmount: ${order.totalAmount}`);
-          continue;
-        }
-
-        // Enhanced validation for payment status consistency
-        if (order.paymentStatus === 'paid' && orderBalance > 0.01) {
-          console.warn(`Order ${order.id} marked as paid but has balance ₹${orderBalance}`);
-        }
-
-        if (order.paymentStatus === 'pending' && paidAmount > 0.01) {
-          console.warn(`Order ${order.id} marked as pending but has paid amount ₹${paidAmount}`);
-        }
-
-        totalPending = roundCurrency(totalPending + orderBalance);
+        if (totalAmount <= 0) continue;
+        ordersPending = roundCurrency(ordersPending + orderBalance);
       }
 
-      console.log(`Total calculated pending amount: ₹${totalPending}`);
+      // 2. Calculate debt adjustments (charges add debt, credits reduce debt)
+      const adjustments = await this.storage.getDebtAdjustmentsByCustomer(customerId);
+      const adjustmentBalance = (adjustments || []).reduce((sum, adj) => {
+        const amt = roundCurrency(adj.amount || 0);
+        return adj.type === 'debit' ? roundCurrency(sum + amt) : roundCurrency(sum - amt);
+      }, 0);
+
+      // 3. Calculate initial debt and unallocated credits
+      const transactions = await this.storage.getTransactionsByEntity(customerId);
+      const initialDebtTx = (transactions || []).find(t => t.type === 'initial_debt');
+      let initialDebt = 0;
+
+      if (initialDebtTx) {
+        initialDebt = roundCurrency(initialDebtTx.amount || 0);
+      } else if ((!transactions || transactions.length === 0) && (!orders || orders.length === 0)) {
+        // Customer created with opening pendingAmount but no orders or transactions yet
+        const customer = await this.storage.getCustomer(customerId);
+        initialDebt = roundCurrency(customer?.pendingAmount || 0);
+      }
+
+      // Check if any payment transactions were unallocated to orders
+      const totalPayments = (transactions || [])
+        .filter(t => t.type === 'payment')
+        .reduce((sum, t) => roundCurrency(sum + (t.amount || 0)), 0);
+
+      const orderPayments = (orders || []).reduce(
+        (sum, o) => roundCurrency(sum + (o.paidAmount || 0)),
+        0
+      );
+
+      const unallocatedPayments = Math.max(0, roundCurrency(totalPayments - orderPayments));
+      const remainingInitialDebt = Math.max(0, roundCurrency(initialDebt - unallocatedPayments));
+
+      const totalPending = roundCurrency(ordersPending + adjustmentBalance + remainingInitialDebt);
+
+      console.log(`[CUSTOMER PENDING CALC] Customer ${customerId}: OrdersPending=₹${ordersPending}, Adjustments=₹${adjustmentBalance}, RemainingInitialDebt=₹${remainingInitialDebt} -> Total=₹${totalPending}`);
+
       return Math.max(0, totalPending);
     } catch (error) {
       console.error(`Error calculating pending amount for customer ${customerId}:`, error);
@@ -135,42 +147,16 @@ export class PendingAmountCalculator {
    */
   async syncCustomerPendingAmount(customerId: string): Promise<number> {
     try {
-      console.log(`\n--- SYNC PENDING AMOUNT START ---`);
+      console.log(`\n--- SYNC CUSTOMER PENDING AMOUNT START (${customerId}) ---`);
 
-      // Get current stored amount before calculation
       const customer = await this.storage.getCustomer(customerId);
       const currentStoredAmount = customer?.pendingAmount || 0;
-      console.log(`Current stored pending amount: ₹${currentStoredAmount}`);
 
       const calculatedAmount = await this.calculateCustomerPendingAmount(customerId);
-      console.log(`Calculated pending amount: ₹${calculatedAmount}`);
-
-      // CRITICAL BUG FIX: Prevent erroneous zero amounts
-      if (currentStoredAmount > 0 && calculatedAmount === 0) {
-        const orders = await this.storage.getOrdersByCustomer(customerId);
-        console.log(`WARNING: Calculated amount is 0 but stored amount was ₹${currentStoredAmount}`);
-        console.log(`Customer has ${orders.length} orders total`);
-
-        // If there are no orders but customer had pending amount, preserve it
-        if (orders.length === 0) {
-          console.log(`No orders found - preserving stored pending amount of ₹${currentStoredAmount}`);
-          return currentStoredAmount;
-        }
-
-        // If orders exist but calculation shows 0, investigate further
-        const unpaidOrders = orders.filter(o => o.paymentStatus !== 'paid');
-        console.log(`Found ${unpaidOrders.length} unpaid orders`);
-
-        if (unpaidOrders.length > 0) {
-          console.log(`ERROR: Orders exist but calculation shows 0 - this indicates a data inconsistency`);
-          console.log(`Preserving stored amount of ₹${currentStoredAmount} to prevent data loss`);
-          return currentStoredAmount;
-        }
-      }
+      console.log(`Customer ${customerId} - Current stored: ₹${currentStoredAmount}, Calculated: ₹${calculatedAmount}`);
 
       await this.storage.updateCustomer(customerId, { pendingAmount: calculatedAmount });
-      console.log(`Updated customer pending amount to: ₹${calculatedAmount}`);
-      console.log(`--- SYNC PENDING AMOUNT END ---\n`);
+      console.log(`--- SYNC CUSTOMER PENDING AMOUNT END ---\n`);
 
       return calculatedAmount;
     } catch (error) {

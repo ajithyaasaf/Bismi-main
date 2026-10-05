@@ -65,4 +65,8 @@ export interface IStorage {
   getHotelLedgerEntries(customerId: string, limit?: number): Promise<HotelLedgerEntry[]>;
   getHotelDebtSummary(customerId: string): Promise<HotelDebtSummary | undefined>;
   getAllHotelDebtSummaries(): Promise<HotelDebtSummary[]>;
+
+  // Atomic & Concurrency-Safe Operations
+  atomicUpdateCustomerPending(customerId: string, delta: number): Promise<void>;
+  atomicUpdateSupplierPending(supplierId: string, delta: number): Promise<void>;
 }

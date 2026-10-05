@@ -573,6 +573,20 @@ export class MockStorage implements IStorage {
 
     return summaries.sort((a, b) => b.totalOwed - a.totalOwed);
   }
+
+  async atomicUpdateCustomerPending(customerId: string, delta: number): Promise<void> {
+    const customer = this.customers.find(c => c.id === customerId);
+    if (customer) {
+      customer.pendingAmount = Math.max(0, Math.round(((customer.pendingAmount || 0) + delta + Number.EPSILON) * 100) / 100);
+    }
+  }
+
+  async atomicUpdateSupplierPending(supplierId: string, delta: number): Promise<void> {
+    const supplier = this.suppliers.find(s => s.id === supplierId);
+    if (supplier) {
+      supplier.pendingAmount = Math.max(0, Math.round(((supplier.pendingAmount || 0) + delta + Number.EPSILON) * 100) / 100);
+    }
+  }
 }
 
 export const createMockStorage = () => new MockStorage();

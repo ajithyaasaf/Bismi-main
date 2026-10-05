@@ -1,7 +1,7 @@
 import express, { type Express, Request, Response } from "express";
-import { createServer, type Server } from "http";
 import { storageManager } from "./storage-manager.js";
 import { createPendingCalculator } from "./utils/pending-calculator.js";
+import { roundCurrency } from "../shared/currency-utils.js";
 import { v4 as uuidv4 } from 'uuid';
 import { z } from "zod";
 
@@ -71,7 +71,7 @@ const insertTransactionSchema = z.object({
 
 // Use enterprise storage with Firestore exclusively
 
-export async function registerRoutes(app: Express): Promise<Server | void> {
+export async function registerRoutes(app: Express): Promise<void> {
   // Add middleware to ensure all API responses are JSON with standardized format
   app.use('/api', (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
@@ -1035,37 +1035,23 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           : new Date(obj.createdAt || Date.now()).toISOString()
       });
 
-      // Get customer names for orders
-      const enrichedOrders = await Promise.all(
-        filteredOrders.map(async (order) => {
-          const customer = customers.find(c => c.id === order.customerId);
-          return {
-            ...serializeDate(order),
-            customerName: customer?.name || order.customerId
-          };
-        })
-      );
+      // Create O(1) customer map for instant order enrichment
+      const customerMap = new Map(customers.map(c => [c.id, c.name]));
+      const enrichedOrders = filteredOrders.map(order => ({
+        ...serializeDate(order),
+        customerName: customerMap.get(order.customerId) || order.customerId
+      }));
 
-      // Calculate real-time pending amounts using the calculator
-      const enrichedCustomers = await Promise.all(
-        customers.map(async (customer) => {
-          const realTimePending = await pendingCalculator.calculateCustomerPendingAmount(customer.id);
-          return {
-            ...serializeDate(customer),
-            pendingAmount: realTimePending
-          };
-        })
-      );
+      // Use authoritative, atomically-maintained pending amounts from storage documents
+      const enrichedCustomers = customers.map(customer => ({
+        ...serializeDate(customer),
+        pendingAmount: roundCurrency(customer.pendingAmount || 0)
+      }));
 
-      const enrichedSuppliers = await Promise.all(
-        suppliers.map(async (supplier) => {
-          const realTimePending = await pendingCalculator.calculateSupplierPendingAmount(supplier.id);
-          return {
-            ...serializeDate(supplier),
-            pendingAmount: realTimePending
-          };
-        })
-      );
+      const enrichedSuppliers = suppliers.map(supplier => ({
+        ...serializeDate(supplier),
+        pendingAmount: roundCurrency(supplier.pendingAmount || 0)
+      }));
 
       // Calculate metrics based on filtered data with precise currency calculations
       const totalSales = filteredOrders.reduce((sum, order) => {
@@ -1274,6 +1260,10 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           : new Date(adjustment.createdAt || Date.now()).toISOString()
       };
 
+      // Sync customer pending amount so Customer page, Reports, and Hotel Debt page are completely unified
+      const pendingCalculator = await getPendingCalculator();
+      await pendingCalculator.syncCustomerPendingAmount(req.params.id);
+
       res.status(201).json(serializedAdjustment);
     } catch (error) {
       console.error("Failed to create debt adjustment:", error);
@@ -1457,6 +1447,4 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
 }

@@ -441,23 +441,39 @@ export class FirestoreStorage implements IStorage {
 
   async createCustomer(customer: InsertCustomer): Promise<Customer> {
     try {
+      const now = new Date();
+      const initialPending = roundCurrency(customer.pendingAmount || 0);
+
       const docRef = await this.db.collection('customers').add({
         name: customer.name,
         contact: customer.contact,
         type: customer.type,
-        pendingAmount: customer.pendingAmount || 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        pendingAmount: initialPending,
+        createdAt: now,
+        updatedAt: now,
       });
 
-      return {
+      const newCustomer = {
         id: docRef.id,
         name: customer.name,
         contact: customer.contact,
         type: customer.type,
-        pendingAmount: customer.pendingAmount || 0,
-        createdAt: new Date(),
+        pendingAmount: initialPending,
+        createdAt: now,
       };
+
+      // Record initial debt transaction for auditing and consistent balance calculation
+      if (initialPending > 0) {
+        await this.createTransaction({
+          entityId: docRef.id,
+          entityType: 'customer',
+          type: 'initial_debt',
+          amount: initialPending,
+          description: `Initial debt for customer: ${customer.name}`
+        });
+      }
+
+      return newCustomer;
     } catch (error) {
       console.error('Error creating customer:', error);
       throw new Error(`Failed to create customer: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -555,23 +571,20 @@ export class FirestoreStorage implements IStorage {
 
   async createOrder(order: InsertOrder & { createdAt?: Date }): Promise<Order> {
     try {
-      // Use currency utilities for precise calculations
-      // Ensure precise currency amounts
       const totalAmount = roundCurrency(order.totalAmount || 0);
       const paidAmount = roundCurrency(order.paidAmount || 0);
       const orderBalance = calculateOrderBalance(totalAmount, paidAmount);
 
-      // Validate payment status consistency
       const calculatedPaymentStatus = determinePaymentStatus(totalAmount, paidAmount);
       const finalPaymentStatus = order.paymentStatus || calculatedPaymentStatus;
-
-      console.log(`[ORDER CREATION] Order balance: ₹${orderBalance}, Payment status: ${finalPaymentStatus}`);
-
-      // Use the provided createdAt date - it should never be undefined due to schema validation
       const createdAt = order.createdAt || new Date();
-      console.log(`[ORDER CREATION] Using order date: ${createdAt.toISOString()}, Schema provided: ${order.createdAt ? 'Yes' : 'No (fallback used)'}`);
 
-      const docRef = await this.db.collection('orders').add({
+      // Use Firestore WriteBatch for ACID atomicity across orders, inventory, customer, and transaction
+      const batch = this.db.batch();
+
+      // 1. Order document reference
+      const orderRef = this.db.collection('orders').doc();
+      batch.set(orderRef, {
         customerId: order.customerId,
         items: order.items,
         totalAmount,
@@ -581,71 +594,55 @@ export class FirestoreStorage implements IStorage {
         createdAt,
       });
 
-      // Get current inventory state once to avoid race conditions
+      // 2. Inventory updates inside batch
       const allInventory = await this.getAllInventory();
-
-      // Update inventory quantities for ordered items (batch operation)
-      const inventoryUpdates: Promise<any>[] = [];
       for (const item of order.items) {
         const inventoryItem = allInventory.find(inv => inv.type === item.type);
-
         if (inventoryItem) {
+          const invRef = this.db.collection('inventory').doc(inventoryItem.id);
           const currentQuantity = roundCurrency(inventoryItem.quantity);
           const itemQuantity = roundCurrency(item.quantity || 0);
-          const newQuantity = roundCurrency(currentQuantity - itemQuantity);
-
-          console.log(`[INVENTORY UPDATE] ${item.type}: ${currentQuantity} - ${itemQuantity} = ${newQuantity}`);
-
-          inventoryUpdates.push(
-            this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity })
-          );
-        } else {
-          console.warn(`[INVENTORY WARNING] No inventory found for type: ${item.type}`);
+          const newQuantity = Math.max(0, roundCurrency(currentQuantity - itemQuantity));
+          batch.update(invRef, { quantity: newQuantity, updatedAt: new Date() });
         }
       }
 
-      // Execute inventory updates in parallel
-      await Promise.all(inventoryUpdates);
-
-      // Update customer pending amount ONLY if there's an unpaid balance
-      // This prevents double-counting since transaction will be recorded separately
+      // 3. Customer pending amount atomic increment (prevents race conditions)
       if (orderBalance > 0 && finalPaymentStatus !== 'paid') {
-        const customer = await this.getCustomer(order.customerId);
-        if (customer) {
-          const currentPending = roundCurrency(customer.pendingAmount || 0);
-          const newPendingAmount = roundCurrency(currentPending + orderBalance);
-
-          console.log(`[CUSTOMER UPDATE] Pending: ₹${currentPending} + ₹${orderBalance} = ₹${newPendingAmount}`);
-
-          await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
-        }
+        const customerRef = this.db.collection('customers').doc(order.customerId);
+        batch.update(customerRef, {
+          pendingAmount: admin.firestore.FieldValue.increment(orderBalance),
+          updatedAt: new Date()
+        });
       }
 
-      // Create transaction record - use orderBalance instead of totalAmount for accuracy
+      // 4. Transaction record inside batch
+      const transactionRef = this.db.collection('transactions').doc();
       const transactionAmount = finalPaymentStatus === 'paid' ? totalAmount : orderBalance;
-      await this.createTransaction({
+      batch.set(transactionRef, {
         entityId: order.customerId,
         entityType: 'customer',
         type: finalPaymentStatus === 'paid' ? 'sale' : 'credit',
         amount: transactionAmount,
-        description: `Order #${docRef.id} - ${order.items.length} items (${finalPaymentStatus})`
+        description: `Order #${orderRef.id} - ${order.items.length} items (${finalPaymentStatus})`,
+        createdAt: new Date(),
       });
 
-      console.log(`[ORDER CREATED] ID: ${docRef.id}, Total: ₹${totalAmount}, Paid: ₹${paidAmount}, Balance: ₹${orderBalance}`);
+      // Atomically commit all changes together
+      await batch.commit();
 
-      const returnOrder = {
-        id: docRef.id,
+      console.log(`[ORDER CREATED ATOMICALLY] ID: ${orderRef.id}, Total: ₹${totalAmount}, Paid: ₹${paidAmount}, Balance: ₹${orderBalance}`);
+
+      return {
+        id: orderRef.id,
         customerId: order.customerId,
         items: order.items,
         totalAmount,
         paidAmount,
         paymentStatus: finalPaymentStatus,
         orderStatus: order.orderStatus,
-        createdAt: createdAt, // Use the properly processed createdAt variable
+        createdAt: createdAt,
       };
-
-      console.log(`[ORDER RETURN] Returning order with createdAt: ${returnOrder.createdAt.toISOString()}`);
-      return returnOrder;
     } catch (error) {
       console.error('Error creating order:', error);
       throw new Error(`Failed to create order: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -968,49 +965,95 @@ export class FirestoreStorage implements IStorage {
       const entries: HotelLedgerEntry[] = [];
       let runningBalance = 0;
 
-      // Get all orders for this customer
-      const orders = await this.getOrdersByCustomer(customerId);
+      // Parallel fetch: orders, adjustments, and transactions
+      const [orders, adjustments, transactions] = await Promise.all([
+        this.getOrdersByCustomer(customerId),
+        this.getDebtAdjustmentsByCustomer(customerId),
+        this.getTransactionsByEntity(customerId)
+      ]);
 
-      // Get all debt adjustments for this customer
-      const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
-
-      // Combine and sort by date
-      const allEntries = [
+      // Combine all financial events into chronological stream
+      const allEvents: HotelLedgerEntry[] = [
+        // Orders: Debit (commercial sales charges)
         ...orders.map(order => ({
           id: `order-${order.id}`,
           customerId: order.customerId,
           entryType: 'order' as const,
           relatedOrderId: order.id,
-          amount: order.totalAmount - order.paidAmount,
+          amount: roundCurrency(order.totalAmount || 0),
           description: `Order: ${order.items.map(item => `${item.quantity}kg ${item.type}`).join(', ')}`,
-          runningBalance: 0, // Will be calculated
+          runningBalance: 0,
           createdAt: order.createdAt,
         })),
+
+        // Payments: Credit (funds received)
+        ...transactions
+          .filter(t => t.type === 'payment')
+          .map(t => ({
+            id: `payment-${t.id}`,
+            customerId: customerId,
+            entryType: 'payment' as const,
+            amount: -roundCurrency(t.amount || 0), // Negative amount represents credit/payment
+            description: t.description || 'Payment received',
+            runningBalance: 0,
+            createdAt: t.createdAt,
+          })),
+
+        // Initial legacy debt
+        ...transactions
+          .filter(t => t.type === 'initial_debt')
+          .map(t => ({
+            id: `initial-debt-${t.id}`,
+            customerId: customerId,
+            entryType: 'adjustment' as const,
+            amount: roundCurrency(t.amount || 0),
+            description: t.description || 'Opening Balance: Legacy debt',
+            runningBalance: 0,
+            createdAt: t.createdAt,
+          })),
+
+        // Manual debt adjustments
         ...adjustments.map(adj => ({
           id: `adjustment-${adj.id}`,
           customerId: adj.customerId,
           entryType: 'adjustment' as const,
           relatedAdjustmentId: adj.id,
-          amount: adj.type === 'debit' ? adj.amount : -adj.amount,
+          amount: adj.type === 'debit' ? roundCurrency(adj.amount) : -roundCurrency(adj.amount),
           description: `${adj.type === 'debit' ? 'Charge' : 'Credit'}: ${adj.reason}`,
-          runningBalance: 0, // Will be calculated
+          runningBalance: 0,
           createdAt: adj.createdAt,
         }))
       ].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
 
-      // Calculate running balance
-      for (const entry of allEntries) {
-        runningBalance += entry.amount;
+      // If customer has an initial pendingAmount but no transaction yet
+      if (allEvents.length === 0 || (!transactions.some(t => t.type === 'initial_debt') && orders.length === 0)) {
+        const customer = await this.getCustomer(customerId);
+        if (customer && (customer.pendingAmount || 0) > 0 && !allEvents.some(e => e.id.startsWith('initial-debt'))) {
+          allEvents.unshift({
+            id: `initial-debt-${customer.id}`,
+            customerId: customer.id,
+            entryType: 'adjustment',
+            amount: roundCurrency(customer.pendingAmount),
+            description: 'Opening balance',
+            runningBalance: 0,
+            createdAt: customer.createdAt,
+          });
+        }
+      }
+
+      // Calculate chronological running balance
+      for (const entry of allEvents) {
+        runningBalance = roundCurrency(runningBalance + entry.amount);
         entry.runningBalance = runningBalance;
         entries.push(entry);
       }
 
-      // Apply limit if specified
+      // Apply limit if specified (return most recent entries first)
       if (limit) {
-        return entries.slice(-limit).reverse(); // Get most recent entries
+        return entries.slice(-limit).reverse();
       }
 
-      return entries.reverse(); // Most recent first
+      return entries.reverse();
     } catch (error) {
       console.error('Error getting hotel ledger entries:', error);
       throw new Error(`Failed to get hotel ledger entries: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1022,24 +1065,37 @@ export class FirestoreStorage implements IStorage {
       const customer = await this.getCustomer(customerId);
       if (!customer || customer.type !== 'hotel') return undefined;
 
-      const orders = await this.getOrdersByCustomer(customerId);
-      const adjustments = await this.getDebtAdjustmentsByCustomer(customerId);
-      const ledgerEntries = await this.getHotelLedgerEntries(customerId, 10);
+      const [orders, transactions, ledgerEntries] = await Promise.all([
+        this.getOrdersByCustomer(customerId),
+        this.getTransactionsByEntity(customerId),
+        this.getHotelLedgerEntries(customerId, 15)
+      ]);
 
-      // Calculate total owed
-      const orderDebt = orders.reduce((sum, order) => sum + (order.totalAmount - order.paidAmount), 0);
-      const adjustmentBalance = adjustments.reduce((sum, adj) =>
-        sum + (adj.type === 'debit' ? adj.amount : -adj.amount), 0
-      );
-      const totalOwed = orderDebt + adjustmentBalance;
+      // Most recent running balance from double-entry ledger
+      const totalOwed = ledgerEntries.length > 0
+        ? Math.max(0, ledgerEntries[0].runningBalance)
+        : roundCurrency(customer.pendingAmount || 0);
+
+      // Latest order date
+      const sortedOrders = [...orders].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const lastOrderDate = sortedOrders.length > 0 ? sortedOrders[0].createdAt : undefined;
+
+      // Latest payment date
+      const payments = transactions
+        .filter(t => t.type === 'payment')
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      const lastPaymentDate = payments.length > 0 ? payments[0].createdAt : undefined;
 
       return {
-        customer,
+        customer: {
+          ...customer,
+          pendingAmount: totalOwed
+        },
         totalOwed,
         totalOrders: orders.length,
         recentActivity: ledgerEntries,
-        lastOrderDate: orders.length > 0 ? orders.sort((a, b) =>
-          b.createdAt.getTime() - a.createdAt.getTime())[0].createdAt : undefined,
+        lastOrderDate,
+        lastPaymentDate,
       };
     } catch (error) {
       console.error('Error getting hotel debt summary:', error);
@@ -1052,18 +1108,48 @@ export class FirestoreStorage implements IStorage {
       const customers = await this.getAllCustomers();
       const hotels = customers.filter(c => c.type === 'hotel');
 
-      const summaries: HotelDebtSummary[] = [];
-      for (const hotel of hotels) {
-        const summary = await this.getHotelDebtSummary(hotel.id);
-        if (summary) {
-          summaries.push(summary);
-        }
-      }
+      // Process in parallel to prevent N+1 serial query waterfall
+      const summaries = await Promise.all(
+        hotels.map(hotel => this.getHotelDebtSummary(hotel.id))
+      );
 
-      return summaries;
+      return summaries
+        .filter((s): s is HotelDebtSummary => s !== undefined)
+        .sort((a, b) => b.totalOwed - a.totalOwed);
     } catch (error) {
       console.error('Error getting all hotel debt summaries:', error);
       throw new Error(`Failed to get all hotel debt summaries: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  // Atomic & Concurrency-Safe Operations
+  async atomicUpdateCustomerPending(customerId: string, delta: number): Promise<void> {
+    try {
+      const roundedDelta = roundCurrency(delta);
+      if (roundedDelta === 0) return;
+      await this.db.collection('customers').doc(customerId).update({
+        pendingAmount: admin.firestore.FieldValue.increment(roundedDelta),
+        updatedAt: new Date()
+      });
+      console.log(`[ATOMIC] Updated customer ${customerId} pending by ₹${roundedDelta}`);
+    } catch (error) {
+      console.error(`Error atomically updating customer pending for ${customerId}:`, error);
+      throw new Error(`Failed to update customer balance atomically: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  async atomicUpdateSupplierPending(supplierId: string, delta: number): Promise<void> {
+    try {
+      const roundedDelta = roundCurrency(delta);
+      if (roundedDelta === 0) return;
+      await this.db.collection('suppliers').doc(supplierId).update({
+        debt: admin.firestore.FieldValue.increment(roundedDelta),
+        updatedAt: new Date()
+      });
+      console.log(`[ATOMIC] Updated supplier ${supplierId} debt by ₹${roundedDelta}`);
+    } catch (error) {
+      console.error(`Error atomically updating supplier pending for ${supplierId}:`, error);
+      throw new Error(`Failed to update supplier debt atomically: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

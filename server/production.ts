@@ -1,4 +1,5 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { createServer } from "http";
 import cors from "cors";
 import { registerRoutes } from "./routes.js";
 
@@ -38,7 +39,8 @@ app.use((req, res, next) => {
   try {
     console.log('[Production] Starting Bismi Backend Server...');
 
-    const server = await registerRoutes(app);
+    const server = createServer(app);
+    await registerRoutes(app);
 
     // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

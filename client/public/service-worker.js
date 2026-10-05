@@ -65,7 +65,19 @@ self.addEventListener('fetch', event => {
 
   // Bypass cache completely for all API requests to ensure fresh financial data
   if (url.pathname.startsWith('/api') || url.pathname.includes('/api/')) {
-    event.respondWith(fetch(event.request));
+    event.respondWith(
+      fetch(event.request).catch(error => {
+        console.warn('[SW] API fetch failed:', error);
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'Network connection failed', 
+          offline: true 
+        }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
     return;
   }
 

@@ -71,16 +71,44 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     }
   }, [paidAmount, totalAmount]);
   
+  // Reset form
+  const resetForm = () => {
+    setCustomerType('hotel');
+    setCustomerId('');
+    setCustomerName('');
+    setCustomerPhone('');
+    setOrderDate(format(new Date(), 'yyyy-MM-dd'));
+    const defaultChickenRate = inventory.find(i => i.type === 'chicken')?.price;
+    setItems([{ 
+      id: '1', 
+      type: 'chicken', 
+      quantity: '', 
+      rate: defaultChickenRate ? String(defaultChickenRate) : '', 
+      details: '' 
+    }]);
+    setPaymentStatus('pending');
+    setPaidAmount(0);
+    setIsSubmitting(false);
+  };
+
+  // Auto-reset form whenever modal opens to guarantee fresh state and date
+  React.useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
+
   // Add item to order
   const addItem = () => {
     const newItemId = String(items.length + 1);
+    const defaultChickenRate = inventory.find(i => i.type === 'chicken')?.price;
     setItems([
       ...items,
       { 
         id: newItemId, 
         type: 'chicken', 
         quantity: '', 
-        rate: '',
+        rate: defaultChickenRate ? String(defaultChickenRate) : '',
         details: '' // New field for additional item details
       }
     ]);
@@ -127,18 +155,6 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
     setItems(items.map(item => 
       item.id === id ? { ...item, type, rate } : item
     ));
-  };
-  
-  // Reset form
-  const resetForm = () => {
-    setCustomerType('hotel');
-    setCustomerId('');
-    setCustomerName('');
-    setCustomerPhone('');
-    setOrderDate(format(new Date(), 'yyyy-MM-dd'));
-    setItems([{ id: '1', type: 'chicken', quantity: '', rate: '', details: '' }]);
-    setPaymentStatus('pending');
-    setPaidAmount(0);
   };
   
   // Handle form submission
@@ -212,10 +228,10 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
         const quantity = parseFloat(item.quantity);
         const rate = parseFloat(item.rate);
         
-        if (isNaN(quantity) || quantity === 0) {
+        if (isNaN(quantity) || quantity <= 0) {
           toast({
             title: "Invalid quantity",
-            description: `Please enter a non-zero quantity for ${item.type}`,
+            description: `Please enter a positive quantity for ${item.type}`,
             variant: "destructive"
           });
           hasError = true;

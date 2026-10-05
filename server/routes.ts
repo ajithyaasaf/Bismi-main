@@ -80,7 +80,7 @@ const updateOrderSchema = z.object({
   paidAmount: z.number().min(0).optional(),
   paymentStatus: z.string().optional(),
   orderStatus: z.string().optional(),
-  originalPaidAmount: z.number().nullable().optional().transform(v => v === null ? undefined : v),
+  originalPaidAmount: z.number().nullable().optional(),
   createdAt: z.string().optional().transform(str => {
     if (!str) return undefined; // Never overwrite date with current date on update!
     const date = new Date(str);

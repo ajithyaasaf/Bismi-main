@@ -12,7 +12,7 @@ if (existsSync('dist')) {
 
 // Build only the frontend
 try {
-  execSync('vite build', { stdio: 'inherit', cwd: process.cwd() });
+  execSync('node scripts/inject-version.js && vite build', { stdio: 'inherit', cwd: process.cwd() });
   console.log('Frontend build completed successfully!');
 } catch (error) {
   console.error('Build failed:', error.message);

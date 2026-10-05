@@ -79,3 +79,31 @@ export async function processCustomerPayment(customerId: string, amount: number,
     throw error;
   }
 }
+
+// Process multiple smart payment allocations in a single atomic request
+export async function processCustomerSmartPayment(
+  customerId: string,
+  payments: Array<{ orderId: string; amount: number; description: string }>
+) {
+  try {
+    const response = await apiRequest('POST', `/api/customers/${customerId}/payment`, {
+      payments
+    });
+    
+    const result = await safeJsonResponse(response);
+    
+    // Invalidate all related cache keys for dynamic updates
+    queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/customers', customerId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/orders', customerId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/transactions'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/reports'] });
+    queryClient.invalidateQueries({ queryKey: [`/api/customers/${customerId}/whatsapp`] });
+    
+    return result;
+  } catch (error) {
+    console.error('Customer smart payment processing failed:', error);
+    throw error;
+  }
+}

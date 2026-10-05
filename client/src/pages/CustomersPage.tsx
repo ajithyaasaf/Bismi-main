@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { processCustomerPayment } from "@/lib/customer-service";
+import { processCustomerPayment, processCustomerSmartPayment } from "@/lib/customer-service";
 import CustomerForm from "@/components/customers/CustomerForm";
 import CustomersList from "@/components/customers/CustomersList";
 import SmartPaymentModal from "@/components/modals/SmartPaymentModal";
@@ -106,15 +106,8 @@ export default function CustomersPage() {
     if (!smartPaymentCustomer) return;
 
     try {
-      // Process multiple order payments in sequence
-      for (const payment of payments) {
-        await processCustomerPayment(
-          smartPaymentCustomer.id, 
-          payment.amount, 
-          payment.description,
-          payment.orderId
-        );
-      }
+      // Process payments atomically via the dedicated smart payment API
+      await processCustomerSmartPayment(smartPaymentCustomer.id, payments);
       
       setIsSmartPaymentModalOpen(false);
       setSmartPaymentCustomer(null);
@@ -126,11 +119,6 @@ export default function CustomersPage() {
       
     } catch (error) {
       console.error('Smart payment failed:', error);
-      toast({
-        title: "Payment failed",
-        description: "Failed to process payment allocation. Please try again.",
-        variant: "destructive",
-      });
       throw error; // Re-throw to let modal handle the error
     }
   };

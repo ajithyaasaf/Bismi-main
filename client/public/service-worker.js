@@ -1,7 +1,7 @@
 // Enterprise-grade cache versioning with build-time deployment detection
 const BUILD_TIME = '{{BUILD_TIME}}'; // Will be replaced during build
 const DEPLOYMENT_HASH = '{{DEPLOYMENT_HASH}}'; // Will be replaced during build  
-const CACHE_VERSION = `bismi-app-${BUILD_TIME || Date.now()}-${DEPLOYMENT_HASH || 'dev'}`;
+const CACHE_VERSION = `bismi-app-${BUILD_TIME.startsWith('{{') ? Date.now() : BUILD_TIME}-${DEPLOYMENT_HASH.startsWith('{{') ? 'dev' : DEPLOYMENT_HASH}`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

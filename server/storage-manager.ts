@@ -23,8 +23,11 @@ class StorageManager {
     }
 
     // Check if Firebase credentials are available in production
-    const hasFirebaseCredentials = process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
-      process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    const hasFirebaseCredentials = !!(
+      process.env.FIREBASE_SERVICE_ACCOUNT_KEY ||
+      process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+      (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY)
+    );
 
     if (hasFirebaseCredentials) {
       try {

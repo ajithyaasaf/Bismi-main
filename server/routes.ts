@@ -576,11 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
   apiRouter.post("/customers/:id/payment", async (req: Request, res: Response) => {
     try {
-      const { amount, description, targetOrderId } = req.body;
-
-      if (!amount || isNaN(parseFloat(amount))) {
-        return res.status(400).json({ message: "Valid amount is required" });
-      }
+      const { amount, description, targetOrderId, payments } = req.body;
 
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
@@ -588,6 +584,25 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
 
       if (!customer) {
         return res.status(404).json({ message: "Customer not found" });
+      }
+
+      // Support atomic smart payment across multiple orders
+      if (Array.isArray(payments) && payments.length > 0) {
+        const result = await pendingCalculator.processMultipleCustomerPayments(
+          req.params.id,
+          payments
+        );
+
+        return res.status(201).json({
+          message: "Payments processed successfully",
+          appliedAmount: result.appliedAmount,
+          updatedOrders: result.updatedOrders,
+          totalOrdersUpdated: result.updatedOrders.length
+        });
+      }
+
+      if (!amount || isNaN(parseFloat(amount))) {
+        return res.status(400).json({ message: "Valid amount is required" });
       }
 
       // Process payment with order-specific partial payment tracking
@@ -723,10 +738,22 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
   apiRouter.delete("/orders/:id", async (req: Request, res: Response) => {
     try {
       const storage = await getStorage();
+      const order = await storage.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
       const success = await storage.deleteOrder(req.params.id);
       if (!success) {
         return res.status(404).json({ message: "Order not found" });
       }
+
+      // Re-sync customer pending balance
+      if (order.customerId) {
+        const pendingCalculator = await getPendingCalculator();
+        await pendingCalculator.syncCustomerPendingAmount(order.customerId);
+      }
+
       res.json({ message: "Order deleted successfully" });
     } catch (error) {
       console.error("Failed to delete order:", error);
@@ -906,6 +933,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
       console.log(`[TRANSACTIONS API] DELETE /api/transactions/${req.params.id}`);
 
       const storage = await getStorage();
+      const transaction = await storage.getTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          message: "Transaction not found"
+        });
+      }
+
       const success = await storage.deleteTransaction(req.params.id);
 
       if (!success) {
@@ -913,6 +948,14 @@ export async function registerRoutes(app: Express): Promise<Server | void> {
           success: false,
           message: "Transaction not found"
         });
+      }
+
+      // Re-sync entity pending balance
+      const pendingCalculator = await getPendingCalculator();
+      if (transaction.entityType === 'supplier') {
+        await pendingCalculator.syncSupplierPendingAmount(transaction.entityId);
+      } else if (transaction.entityType === 'customer') {
+        await pendingCalculator.syncCustomerPendingAmount(transaction.entityId);
       }
 
       res.status(200).json({

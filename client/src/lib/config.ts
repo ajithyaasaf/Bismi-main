@@ -7,10 +7,10 @@
  * Note: After Vercel migration, no cross-origin requests needed!
  */
 export const API_CONFIG = {
-  // Same domain in production (Vercel serverless), localhost in dev
-  BASE_URL: import.meta.env.DEV
-    ? 'http://localhost:5000'
-    : '',  // Empty = same origin on Vercel, no CORS issues!
+  // Use VITE_API_BASE_URL if explicitly set, otherwise localhost in dev and same-origin in prod
+  BASE_URL: (import.meta.env.VITE_API_BASE_URL !== undefined && import.meta.env.VITE_API_BASE_URL !== '')
+    ? import.meta.env.VITE_API_BASE_URL.replace(/\/+$/, '')
+    : (import.meta.env.DEV ? 'http://localhost:5000' : ''),
 
   // Environment detection
   IS_PRODUCTION: import.meta.env.PROD,

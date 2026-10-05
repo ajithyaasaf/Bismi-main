@@ -11,7 +11,8 @@ fetch(testUrl)
     console.log('Response body:', text.substring(0, 200));
     try {
       const json = JSON.parse(text);
-      console.log('Valid JSON response with', json.length, 'transactions');
+      const count = Array.isArray(json.data) ? json.data.length : (Array.isArray(json) ? json.length : 0);
+      console.log('Valid JSON response with', count, 'transactions');
     } catch (e) {
       console.log('Invalid JSON response - might be HTML');
     }

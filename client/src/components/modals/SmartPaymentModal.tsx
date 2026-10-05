@@ -172,11 +172,11 @@ export default function SmartPaymentModal({
         title: "Payment processed successfully",
         description: `₹${totalAllocated.toFixed(2)} allocated across ${selectedPayments.length} order(s)`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Payment error:', error);
       toast({
         title: "Payment failed",
-        description: "Failed to process payment. Please try again.",
+        description: error?.message || "Failed to process payment. Please try again.",
         variant: "destructive",
       });
     } finally {

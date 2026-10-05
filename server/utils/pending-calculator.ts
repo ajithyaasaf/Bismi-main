@@ -1,4 +1,9 @@
 import { IStorage } from '../storage.js';
+import {
+  roundCurrency,
+  calculateOrderBalance,
+  determinePaymentStatus
+} from '../../shared/currency-utils.js';
 
 /**
  * Mathematical utility for accurate pending amount calculations
@@ -14,9 +19,6 @@ export class PendingAmountCalculator {
    */
   async calculateCustomerPendingAmount(customerId: string): Promise<number> {
     try {
-      // Import currency utilities for precise calculations
-      const { roundCurrency, calculateOrderBalance } = await import('@shared/currency-utils');
-
       const orders = await this.storage.getOrdersByCustomer(customerId);
       console.log(`Calculate pending - Found ${orders.length} orders for customer ${customerId}`);
 
@@ -218,17 +220,21 @@ export class PendingAmountCalculator {
 
       let ordersToProcess;
       if (targetOrderId) {
-        // Payment for specific order
-        ordersToProcess = orders.filter(order => order.id === targetOrderId && order.paymentStatus !== 'paid');
+        // Payment for specific order - match ID flexibly
+        ordersToProcess = orders.filter(order => String(order.id).trim() === String(targetOrderId).trim() && order.paymentStatus !== 'paid');
+        if (ordersToProcess.length === 0) {
+          // Direct fallback if not returned in customer filter
+          const directOrder = await this.storage.getOrder(targetOrderId);
+          if (directOrder && directOrder.paymentStatus !== 'paid') {
+            ordersToProcess = [directOrder];
+          }
+        }
       } else {
         // General payment - apply to unpaid orders (oldest first)
         ordersToProcess = orders
           .filter(order => order.paymentStatus !== 'paid')
           .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       }
-
-      // Import currency utilities for precise calculations
-      const { roundCurrency, calculateOrderBalance, determinePaymentStatus } = await import('@shared/currency-utils');
 
       let remainingPayment = roundCurrency(paymentAmount);
       let appliedAmount = 0;
@@ -304,6 +310,83 @@ export class PendingAmountCalculator {
       };
     } catch (error) {
       console.error(`Error processing payment for customer ${customerId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Process multiple smart payment allocations in a single atomic flow
+   */
+  async processMultipleCustomerPayments(
+    customerId: string,
+    payments: Array<{ orderId: string; amount: number; description?: string }>
+  ): Promise<{
+    appliedAmount: number;
+    updatedOrders: string[];
+  }> {
+    try {
+      console.log(`\n=== MULTIPLE PAYMENTS PROCESSING START ===`);
+      console.log(`Customer: ${customerId}, Allocations count: ${payments.length}`);
+
+      const customer = await this.storage.getCustomer(customerId);
+      if (!customer) {
+        throw new Error(`Customer ${customerId} not found`);
+      }
+
+      const orders = await this.storage.getOrdersByCustomer(customerId);
+      let totalApplied = 0;
+      const updatedOrders: string[] = [];
+
+      for (const payment of payments) {
+        const allocAmount = roundCurrency(parseFloat(String(payment.amount)) || 0);
+        if (allocAmount <= 0) continue;
+
+        // Find the target order
+        let order = orders.find(o => String(o.id).trim() === String(payment.orderId).trim());
+        if (!order) {
+          order = await this.storage.getOrder(payment.orderId);
+        }
+
+        if (order) {
+          const currentPaid = roundCurrency(order.paidAmount || 0);
+          const totalAmount = roundCurrency(order.totalAmount || 0);
+          const newPaid = Math.min(totalAmount, roundCurrency(currentPaid + allocAmount));
+          const newStatus = determinePaymentStatus(totalAmount, newPaid);
+
+          await this.storage.updateOrder(order.id, {
+            paidAmount: newPaid,
+            paymentStatus: newStatus
+          });
+
+          // Update local in-memory order object
+          order.paidAmount = newPaid;
+          order.paymentStatus = newStatus;
+
+          totalApplied = roundCurrency(totalApplied + allocAmount);
+          updatedOrders.push(order.id);
+        }
+
+        // Create individual transaction record for audit trail
+        await this.storage.createTransaction({
+          entityId: customerId,
+          entityType: 'customer',
+          type: 'payment',
+          amount: allocAmount,
+          description: payment.description || `Payment for order #${payment.orderId.substring(0, 8)}`
+        });
+      }
+
+      // Sync customer pending amount once after all allocations are applied
+      const newPending = await this.syncCustomerPendingAmount(customerId);
+      console.log(`Customer ${customerId} final pending amount after allocations: ₹${newPending}`);
+      console.log(`=== MULTIPLE PAYMENTS PROCESSING END ===\n`);
+
+      return {
+        appliedAmount: totalApplied,
+        updatedOrders
+      };
+    } catch (error) {
+      console.error(`Error processing multiple payments for customer ${customerId}:`, error);
       throw error;
     }
   }

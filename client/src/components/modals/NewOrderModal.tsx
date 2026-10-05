@@ -376,7 +376,21 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
           errorDescription = "Network connection issue. Please check your connection and try again.";
         } else if (error.message.includes('400')) {
           errorTitle = "Validation error";
-          errorDescription = "Invalid order data. Please check all fields and try again.";
+          try {
+            const jsonPart = error.message.substring(error.message.indexOf('{'));
+            const parsed = JSON.parse(jsonPart);
+            if (parsed.message) {
+              errorDescription = parsed.message;
+              if (Array.isArray(parsed.errors) && parsed.errors.length > 0) {
+                const details = parsed.errors.map((e: any) => e.message || e.path?.join('.')).filter(Boolean).join(', ');
+                if (details) errorDescription += `: ${details}`;
+              }
+            } else {
+              errorDescription = "Invalid order data. Please check all fields and try again.";
+            }
+          } catch {
+            errorDescription = error.message.replace(/^\d+:\s*/, '') || "Invalid order data. Please check all fields and try again.";
+          }
         } else {
           errorDescription = `Error: ${error.message}`;
         }
@@ -499,8 +513,8 @@ export default function NewOrderModal({ isOpen, onClose, customers, inventory }:
                   key={item.id} 
                   className="p-4 bg-gray-50 rounded-lg space-y-3 sm:space-y-0 sm:grid sm:grid-cols-12 sm:gap-3 sm:items-end sm:p-3 sm:bg-transparent sm:border sm:border-gray-200"
                 >
-                  {/* Item Type - Full width on mobile */}
-                  <div className="sm:col-span-4">
+                  {/* Item Type - Full width on mobile, 3 cols on desktop */}
+                  <div className="sm:col-span-3">
                     <Label htmlFor={`item-type-${item.id}`} className="text-sm font-medium mb-2 block">Item Type</Label>
                     <Select 
                       value={item.type} 

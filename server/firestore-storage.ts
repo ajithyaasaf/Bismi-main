@@ -594,19 +594,26 @@ export class FirestoreStorage implements IStorage {
         createdAt,
       });
 
-      // 2. Inventory updates inside batch using atomic decrement
+      // 2. Inventory updates inside batch using aggregated decrements (prevents duplicate document write error in single batch)
       const allInventory = await this.getAllInventory();
+      const inventoryDeltas = new Map<string, number>();
+
       for (const item of order.items) {
         const inventoryItem = allInventory.find(inv => inv.type === item.type);
         if (inventoryItem) {
-          const invRef = this.db.collection('inventory').doc(inventoryItem.id);
           const itemQuantity = roundCurrency(item.quantity || 0);
-          batch.update(invRef, {
-            quantity: admin.firestore.FieldValue.increment(-itemQuantity),
-            updatedAt: new Date()
-          });
+          const current = inventoryDeltas.get(inventoryItem.id) || 0;
+          inventoryDeltas.set(inventoryItem.id, roundCurrency(current + itemQuantity));
         }
       }
+
+      inventoryDeltas.forEach((totalQty, invId) => {
+        const invRef = this.db.collection('inventory').doc(invId);
+        batch.update(invRef, {
+          quantity: admin.firestore.FieldValue.increment(-totalQty),
+          updatedAt: new Date()
+        });
+      });
 
       // 3. Customer pending amount atomic increment (prevents race conditions)
       if (orderBalance > 0 && finalPaymentStatus !== 'paid') {
@@ -617,14 +624,13 @@ export class FirestoreStorage implements IStorage {
         });
       }
 
-      // 4. Commercial sales charge transaction inside batch
+      // 4. Commercial sales charge transaction inside batch (always full totalAmount to maintain double-entry integrity)
       const transactionRef = this.db.collection('transactions').doc();
-      const transactionAmount = finalPaymentStatus === 'paid' ? totalAmount : orderBalance;
       batch.set(transactionRef, {
         entityId: order.customerId,
         entityType: 'customer',
         type: finalPaymentStatus === 'paid' ? 'sale' : 'credit',
-        amount: transactionAmount,
+        amount: totalAmount,
         description: `Order #${orderRef.id} - ${order.items.length} items (${finalPaymentStatus})`,
         createdAt: createdAt,
         date: createdAt,
@@ -704,12 +710,12 @@ export class FirestoreStorage implements IStorage {
       if (!order) return false;
 
       // Reverse inventory quantity changes
+      const allInventory = await this.getAllInventory();
       for (const item of order.items) {
-        const allInventory = await this.getAllInventory();
         const inventoryItem = allInventory.find(inv => inv.type === item.type);
 
         if (inventoryItem) {
-          const newQuantity = inventoryItem.quantity + item.quantity;
+          const newQuantity = roundCurrency(inventoryItem.quantity + (item.quantity || 0));
           await this.updateInventoryItem(inventoryItem.id, { quantity: newQuantity });
         }
       }
@@ -718,17 +724,23 @@ export class FirestoreStorage implements IStorage {
       if (order.paymentStatus !== 'paid') {
         const customer = await this.getCustomer(order.customerId);
         if (customer) {
-          const orderBalance = order.totalAmount - (order.paidAmount || 0);
-          const newPendingAmount = Math.max(0, (customer.pendingAmount || 0) - orderBalance);
+          const orderBalance = roundCurrency((order.totalAmount || 0) - (order.paidAmount || 0));
+          const newPendingAmount = Math.max(0, roundCurrency((customer.pendingAmount || 0) - orderBalance));
           await this.updateCustomer(order.customerId, { pendingAmount: newPendingAmount });
         }
       }
 
-      // Delete related transactions
+      // Delete commercial charge transactions, but preserve customer payments as account credit
       const transactions = await this.getTransactionsByEntity(order.customerId);
       for (const transaction of transactions) {
         if (transaction.description.includes(`Order #${id}`)) {
-          await this.deleteTransaction(transaction.id);
+          if (transaction.type === 'payment') {
+            await this.updateTransaction(transaction.id, {
+              description: `Credit balance from cancelled Order #${id.slice(0, 8)} (${transaction.description})`
+            });
+          } else {
+            await this.deleteTransaction(transaction.id);
+          }
         }
       }
 

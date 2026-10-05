@@ -694,6 +694,12 @@ export async function registerRoutes(app: Express): Promise<void> {
       const storage = await getStorage();
       const pendingCalculator = await getPendingCalculator();
 
+      // Ensure customer exists before order creation
+      const customer = await storage.getCustomer(validatedData.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+
       // Create the order
       const order = await storage.createOrder(validatedData);
       console.log('[ORDERS API] Created order response:', JSON.stringify(order, null, 2));
